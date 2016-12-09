@@ -1,0 +1,2 @@
+bit count is 2
+bits are true, false, true, false

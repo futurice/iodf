@@ -1,0 +1,37 @@
+
+colIds are: 
+  name
+  property
+  quantity
+  text
+
+columns are: 
+  a,b,c
+  true,false,true
+  3,2,4
+  some text,more text,even more text
+
+item 0 name is a
+item 1 quantity is 2
+item 2 is ExampleItem(c,true,4,even more text)
+
+db closed
+db reopened
+
+colIds are: 
+  name
+  property
+  quantity
+  text
+
+columns are: 
+  a,b,c
+  true,false,true
+  3,2,4
+  some text,more text,even more text
+
+item 0 name is a
+item 1 quantity is 2
+item 2 is ExampleItem(c,true,4,even more text)
+
+0 refs open.

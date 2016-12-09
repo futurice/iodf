@@ -1,0 +1,77 @@
+
+colIds are: 
+
+  (name,a)
+  (name,b)
+  (name,c)
+  (property,false)
+  (property,true)
+  (quantity,2)
+  (quantity,3)
+  (quantity,4)
+  (text,even)
+  (text,more)
+  (text,some)
+  (text,text)
+
+id indexes:
+
+  name->b         : 1
+  property->false : 3
+  quantity->4     : 7
+
+columns are: 
+
+  true,false,false
+  false,true,false
+  false,false,true
+  false,true,false
+  true,false,true
+  false,true,false
+  true,false,false
+  false,false,true
+  false,false,false
+  false,false,false
+  false,false,false
+  false,false,false
+
+db and index closed
+db and index reopened
+
+colIds are: 
+
+  (name,a)
+  (name,b)
+  (name,c)
+  (property,false)
+  (property,true)
+  (quantity,2)
+  (quantity,3)
+  (quantity,4)
+  (text,even)
+  (text,more)
+  (text,some)
+  (text,text)
+
+id indexes:
+
+  name->b         : 1
+  property->false : 3
+  quantity->4     : 7
+
+columns are: 
+
+  true,false,false
+  false,true,false
+  false,false,true
+  false,true,false
+  true,false,true
+  false,true,false
+  true,false,false
+  false,false,true
+  false,false,false
+  false,false,false
+  false,false,false
+  false,false,false
+
+0 refs open.
