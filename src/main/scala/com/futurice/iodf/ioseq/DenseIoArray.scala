@@ -12,7 +12,7 @@ import xerial.larray.buffer.LBufferAPI
 /**
   * Created by arau on 24.11.2016.
   */
-abstract class IoArray[Id, T](val ref:IoRef[Id, _],
+abstract class IoArray[Id, T](val ref:IoRef[Id, _ <: IoObject[Id]],
                               val buf:RandomAccess)
   extends IoSeq[Id, T] {
   def offset = 8
@@ -38,7 +38,7 @@ abstract class IoArrayType[Id, T](implicit t:TypeTag[Seq[T]], vTag:TypeTag[T])
   def valueTypeTag = vTag
 }
 
-class IntIoArray[Id](ref:IoRef[Id, _], buf:RandomAccess)
+class IntIoArray[Id](ref:IoRef[Id, _ <: IoObject[Id]], buf:RandomAccess)
   extends IoArray[Id, Int](ref, buf) {
   override def apply(l: Long) : Int = {
     buf.getBeInt(offset + l*4)

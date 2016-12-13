@@ -1,6 +1,6 @@
 package com.futurice.iodf
 
-import java.io.{Closeable, DataOutputStream}
+import java.io.{BufferedOutputStream, Closeable, DataOutputStream}
 
 import com.futurice.iodf.store._
 import com.futurice.iodf.ioseq._
@@ -11,6 +11,7 @@ import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 import scala.reflect._
 import com.futurice.iodf.Utils._
+import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -35,8 +36,11 @@ trait IoType[Id, T <: IoObject[Id]] {
   }
 }
 
-trait SeqIoType[Id, T <: IoObject[Id], M] extends IoType[Id, T] {
+trait WithValueTypeTag[M] {
   def valueTypeTag : TypeTag[M]
+}
+
+trait SeqIoType[Id, T <: IoObject[Id], M] extends IoType[Id, T] with WithValueTypeTag[M] {
 }
 
 abstract class IoTypeOf[Id, T <: IoObject[Id], In](implicit typ:TypeTag[In]) extends IoType[Id, T] {
@@ -89,12 +93,12 @@ abstract class IoTypeOf[Id, T <: IoObject[Id], In](implicit typ:TypeTag[In]) ext
     }
   }
   def create(file:FileRef[Id], v:In) = {
-    using (new DataOutputStream(file.output)) { write(_, v) }
+    using (new DataOutputStream(new BufferedOutputStream(file.output))) { write(_, v) }
     using(file.open) { open(_) }
   }
 }
 
-case class IoRef[Id, T <: IoObject[Id]](typ:IoType[Id, T], dataRef:DataRef[Id]) {
+case class IoRef[Id, T <: IoObject[Id]](typ:IoType[Id, _ <: T], dataRef:DataRef[Id]) {
   def open = typ.open(dataRef.open)
 }
 
@@ -105,7 +109,15 @@ object IoRef {
 }
 
 trait IoObject[Id] extends Closeable {
-  def ref : IoRef[Id, _]
+  def ref : IoRef[Id, _ <: IoObject[Id]]
+}
+
+/**
+ * This is an object, which pretends to be another object. This is used
+ * for adding closed io objects to sequences
+ */
+case class IoRefObject[Id, T <: IoObject[Id]](override val ref:IoRef[Id, _ <: T]) extends IoObject[Id] {
+  override def close(): Unit = {}
 }
 
 trait IoIterable[Id, T] extends IoObject[Id] with Iterable[T] {
@@ -192,8 +204,60 @@ class TypedDfView[Id, T](df:Df[Id, String], make:Array[Any] => T)(
   override def close(): Unit = df.close
 }
 
+object MathUtils {
+  val INV_LOG2 = 1/Math.log(2)
+  def log2(v:Double) = Math.log(v) * INV_LOG2
+
+  def eP(f:Long, n:Long, priorP:Double, priorW:Double) = {
+    (f + priorP * priorW) / (n + priorW).toDouble
+  }
+  def h(p:Double) = {
+    p * -log2(p) + (1-p) * -log2(1-p)
+  }
+  def pS(s:Boolean, p:Double) = {
+    if (s) p else (1-p)
+  }
+  def relVarState(relState:Int, v:Int) = {
+    (relState & (1 << v)) > 0
+  }
+  def relStateF(relState:Int, n:Long, fA:Long, fB:Long, fAB:Long) = {
+    relState match {
+      case 0 => n - fA - fB + fAB
+      case 1 => fA - fAB  // a is true
+      case 2 => fB - fAB  // b is true
+      case 3 => fAB       // a&b are true
+    }
+  }
+}
+
 case class CoStats(n:Long, fA:Long, fB:Long, fAB:Long) {
 
+  def pA = MathUtils.eP(fA, n, 0.5, 2)
+  def pB = MathUtils.eP(fB, n, 0.5, 2)
+
+  def hA = MathUtils.h(pA)
+  def hB = MathUtils.h(pB)
+
+  val (naivePs, ps) = {
+    val (naivePs, ps) = (new Array[Double](4), new Array[Double](4))
+    (0 until 4).foreach { s =>
+      val pAs = MathUtils.pS(MathUtils.relVarState(s, 0), pA)
+      val pBs = MathUtils.pS(MathUtils.relVarState(s, 1), pB)
+      val fS = MathUtils.relStateF(s, n, fA, fB, fAB)
+      val naive = pAs * pBs
+      naivePs(s) = naive
+      ps(s) = MathUtils.eP(fS, n, naive, 2)
+    }
+    (naivePs, ps)
+  }
+  def d(relState:Int) : Double = {
+    ps(relState) / naivePs(relState)
+  }
+  def d(as:Boolean, bs:Boolean) : Double = d(((if (as) 1 else 0)) + (if (bs) 2 else 0))
+  def miPart(relState:Int) = {
+    ps(relState) * MathUtils.log2(d(relState))
+  }
+  def mi = (0 until 4).map(miPart).sum
 }
 
 class IndexDfView[IoId, T](val df:TypedDf[IoId, T],
@@ -205,6 +269,7 @@ class IndexDfView[IoId, T](val df:TypedDf[IoId, T],
   def open(i:Int) = {
     index.openCol(i).asInstanceOf[DenseIoBits[IoId]]
   }
+  def n = df.lsize
   def f(i:Int) = {
     using(open(i)) { _.bitCount }
   }
@@ -212,6 +277,13 @@ class IndexDfView[IoId, T](val df:TypedDf[IoId, T],
     using(open(idValue)) { _.bitCount }
   }
   def co(idValue1:(String, Any), idValue2:(String, Any)) = {
+    using(open(idValue1)) { b1 =>
+      using (open(idValue2)) { b2 =>
+        CoStats(df.lsize, b1.bitCount, b2.bitCount, b1.andCount(b2))
+      }
+    }
+  }
+  def co(idValue1:Int, idValue2:Int) = {
     using(open(idValue1)) { b1 =>
       using (open(idValue2)) { b2 =>
         CoStats(df.lsize, b1.bitCount, b2.bitCount, b1.andCount(b2))
@@ -230,6 +302,7 @@ trait IoTypes[Id] {
 
   def ioTypeOf(t : Type) : IoTypeOf[Id, _ <: IoObject[Id], _]
   def ioTypeOf[T : TypeTag]() : IoTypeOf[Id, _ <: IoObject[Id], T]
+  def writeIoObject[From](t:From, ref:FileRef[Id])(implicit tag:TypeTag[From]) : IoRef[Id, _ <: IoObject[Id]]
   def createIoObject[From](t:From, ref:FileRef[Id])(implicit tag:TypeTag[From]) : IoObject[Id]
   def openIoObject[From](ref:FileRef[Id])(implicit tag:TypeTag[From]) : IoObject[Id]
 
@@ -261,13 +334,22 @@ object IoTypes {
       def ioTypeOf[T : TypeTag]() : IoTypeOf[Id, _ <: IoObject[Id], T] = {
         ioTypeOf(typeOf[T]).asInstanceOf[IoTypeOf[Id, _ <: IoObject[Id], T]]
       }
-      def createIoObject[From : TypeTag](v:From, ref:FileRef[Id]) = {
-        ioTypeOf[From].write(new DataOutputStream(ref.output), v)
-        using (ref.open) { ioTypeOf[From].open(_) }
+      def writeIoObject[From : TypeTag](v:From, ref:FileRef[Id]) = {
+        val typ = ioTypeOf[From]
+        using(new DataOutputStream(new BufferedOutputStream(ref.output))) {
+          typ.write(_, v)
+        }
+        new IoRef[Id, IoObject[Id]](typ, new DataRef[Id](ref.dir, ref.id))
       }
       def openIoObject[From : TypeTag](ref:FileRef[Id]) = {
         using (ref.open) { ioTypeOf[From].open(_) }
       }
+      def createIoObject[From : TypeTag](v:From, ref:FileRef[Id]) = {
+        writeIoObject(v, ref)
+        openIoObject(ref)
+      }
+
+
       def ioTypeId(t:IoType[Id, _]) = {
         Some(types.indexOf(t)).filter(_ >= 0)
       }
@@ -310,7 +392,9 @@ object IoTypes {
     buf ++=
       Seq(
         str,
+        new IntIoArrayType[String],
         new DenseIoBitsType[String](),
+        new SparseIoBitsType[String](),
         new IntIoArrayType[String],
         new RefIoSeqType[String,
           IoSeq[String, IoObject[String]]](self,
@@ -339,7 +423,10 @@ case class IndexConf[ColId](analyzers:Map[ColId, Any => Seq[Any]] = Map[ColId, A
 object Dfs {
   def strings = new Dfs[String](IoTypes.strings)
 }
+
 class Dfs[IoId](types:IoTypes[IoId])(implicit val seqSeqTag : TypeTag[Seq[IoObject[IoId]]]) {
+
+  val l = LoggerFactory.getLogger(this.getClass)
 
   def apply[ColId](_colIds:IoSeq[IoId, ColId],
                    __cols:IoSeq[IoId, IoSeq[IoId, Any]],
@@ -419,25 +506,40 @@ class Dfs[IoId](types:IoTypes[IoId])(implicit val seqSeqTag : TypeTag[Seq[IoObje
     }
   }
 
-  def makeIndex[ColId](df:Df[IoId, ColId], dir:Dir[IoId], conf:IndexConf[ColId] = IndexConf[ColId]())
-                      (implicit colIdSeqTag: TypeTag[Seq[(ColId, Any)]],
+  def createIndex[ColId](df:Df[IoId, ColId], dir:Dir[IoId], conf:IndexConf[ColId] = IndexConf[ColId]())
+                        (implicit colIdSeqTag: TypeTag[Seq[(ColId, Any)]],
                        boolSeqTag: TypeTag[Seq[Boolean]],
                        ord:Ordering[ColId])= {
     val ids = ArrayBuffer[(ColId, Any)]()
     val cols = ArrayBuffer[IoObject[IoId]]()
     try {
-
       df.colIds.zipWithIndex.foreach { case (id, i) =>
         using(df.openCol[Any](i)) { col =>
           val ordering = col.ref.typ match {
-            case t: SeqIoType[String, _, _] =>
+            case t : WithValueTypeTag[_] =>
               types.orderingOf(t.valueTypeTag)
           }
-          col.flatMap(conf.analyze(id, _)).toArray.distinct.sorted(ordering).foreach { value: Any =>
+          val analyzer = conf.analyzer(id)
+          val distinct =
+            col.par.flatMap(analyzer(_)).toArray.distinct.sorted(ordering)
+          val toIndex = distinct.zipWithIndex.toMap
+          val indexes = Array.fill(distinct.size)(new ArrayBuffer[Long]())
+          col.zipWithIndex.foreach { case (v, i) =>
+            analyzer(v).foreach { token =>
+              indexes(toIndex(token)) += i
+            }
+          }
+          distinct.zipWithIndex.foreach { case (value, index) =>
             ids += (id -> value)
+            val data = indexes(index)
+            val before = System.currentTimeMillis()
+            val ref =
+              types.writeIoObject(
+                new SparseBits(data, df.lsize),
+                dir.ref(dir.id(cols.size + 2)))
+            System.out.println("write took " + (System.currentTimeMillis() - before) + " ms")
             cols +=
-              types.createIoObject(col.map(_ == value).toSeq, dir.ref(dir.id(cols.size + 2)))
-                .asInstanceOf[IoSeq[IoId, Any]]
+              new IoRefObject[IoId, IoObject[IoId]](ref)
           }
         }
       }

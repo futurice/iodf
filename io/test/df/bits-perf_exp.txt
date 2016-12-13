@@ -1,0 +1,4 @@
+creating dense bits of size 16...18 ms (was 17 ms)
+creating dense bits of size 256...0 ms 
+creating dense bits of size 4096...0 ms 
+creating dense bits of size 1048576...46 ms 

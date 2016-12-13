@@ -5,13 +5,12 @@ import java.io.File
 import com.futurice.testtoys.{TestSuite, TestTool}
 import com.futurice.iodf.store.{MMapDirectory, RefCounted}
 import com.futurice.iodf.Utils.using
-import com.futurice.iodf.ioseq.{DenseIoBits, DenseIoBitsType}
+import com.futurice.iodf.ioseq.{DenseIoBits, SparseIoBitsType, SparseBits}
 
 import scala.reflect.runtime.universe._
 import scala.util.Random
 
 case class ExampleItem( name:String, property:Boolean, quantity:Int, text:String )
-
 
 /*object Foobar {
   def getInnerType[T](list:List[T])(implicit tag:TypeTag[T]) = tag.tpe.toString
@@ -31,13 +30,28 @@ class DfTest extends TestSuite("df") {
 
   test("bits") { t =>
     using(new MMapDirectory(t.fileDir)) { dir =>
-      val bits = new DenseIoBitsType[String]()
-      using (bits.create(dir.ref("bits"), Seq(true, false, true, false))) { b =>
+      val bits = new SparseIoBitsType[String]()
+      using (bits.create(dir.ref("bits"), new SparseBits(Seq(0L, 2L), 4))) { b =>
         t.tln("bit count is " + b.bitCount)
         t.tln("bits are " + b.map { _.toString }.mkString(", "))
       }
     }
   }
+
+  test("bits-perf") { t =>
+    val sizes = Array(16, 256, 4*1024, 1024*1024)
+
+    sizes.foreach { sz =>
+      using(new MMapDirectory(t.fileDir)) { dir =>
+        val bits = new SparseIoBitsType[String]()
+        val data = (0 until sz).filter(_ % 4 == 0).map(_.toLong)
+
+        t.t("creating dense bits of size " + sz + "...")
+        t.tMsLn(bits.create(dir.ref("bits"), new SparseBits(data, sz))).close()
+      }
+    }
+  }
+
   val items =
     Seq(ExampleItem("a", true, 3, "some text"),
       ExampleItem("b", false, 2, "more text"),
@@ -100,7 +114,7 @@ class DfTest extends TestSuite("df") {
         using(new MMapDirectory(new File(t.fileDir, "idx"))) { dir2 =>
           val dfs = new StringDfs(IoTypes.strings)
           using(dfs.createTyped[ExampleItem](items, dir)) { df =>
-            using(dfs.makeIndex(df, dir2, indexConf)) { index =>
+            using(dfs.createIndex(df, dir2, indexConf)) { index =>
               t.tln
               t.tln("colIds are: ")
               t.tln
@@ -182,7 +196,7 @@ class DfTest extends TestSuite("df") {
 
           val (creationMs, _) = TestTool.ms(
             using(dfs.createTyped[ExampleItem](items, dir)) { df =>
-              using(dfs.makeIndex(df, dir2, indexConf)) { index =>
+              using(dfs.createIndex(df, dir2, indexConf)) { index =>
                 t.tln
                 t.tln("index column id count: " + index.colCount)
                 t.tln
@@ -212,6 +226,24 @@ class DfTest extends TestSuite("df") {
             using(dfs.openIndex(df, dir2)) { index =>
               val view = new IndexDfView[String, ExampleItem](df, index)
               t.iln("db and index reopened in " + (System.currentTimeMillis() - before) + " ms")
+
+              t.tln
+              t.t("sanity checking...")
+              t.tMsLn(
+                (0 until df.lsize.toInt).foreach { i =>
+                  if (items(i) != df(i)) {
+                    t.tln(f" at $i original item ${items(i)} != original ${df(i)}" )
+                  }
+                })
+
+              t.tln
+              val b = items.map(i => if (i.property) 1 else 0 ).sum
+              val b2 = view.f("property" -> true)
+              t.tln(f"property frequencies: original $b vs index $b2")
+
+              val n = items.map(i => if (i.name == "h") 1 else 0).sum
+              val n2 = view.f("name" -> "h")
+              t.tln(f"name=h frequencies: original $n vs index $n2")
 
               val ids = index.colIds.toArray
               val rnd = new Random(0)

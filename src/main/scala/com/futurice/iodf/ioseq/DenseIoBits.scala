@@ -1,6 +1,7 @@
 package com.futurice.iodf.ioseq
 
 import java.io.DataOutputStream
+import java.util
 
 import com.futurice.iodf.store.{Dir, FileRef, IoData, RandomAccess}
 import xerial.larray.buffer.LBufferAPI
@@ -8,9 +9,53 @@ import com.futurice.iodf._
 
 import scala.reflect.runtime.universe._
 
-object DenseIoBitsType {
+case class SparseBits(trues:Seq[Long], size:Long) {}
+
+object DenseIoBits {
   def bitsToLongCount(bitSize:Long) = ((bitSize+63L) / 64L)
   def bitsToByteSize(bitSize:Long) = bitsToLongCount(bitSize) * 8
+}
+
+class SparseIoBitsType[Id](implicit val t:TypeTag[SparseBits])
+  extends IoTypeOf[Id, DenseIoBits[Id], SparseBits]()(t)
+    with SeqIoType[Id, DenseIoBits[Id], Boolean] {
+
+  /*  def create(id:Id, data:Seq[Boolean], dir:Dir[Id]) = {
+      val buf = dir.create(id, 8 + DenseIoBitsType.bitsToByteSize(data.size))
+      buf.putLong(0, data.size)
+      val rv =
+        new DenseIoBits[Id](IoRef(this, dir, id), buf)
+      data.zipWithIndex.foreach { case (d, i) =>
+        rv.update(i, d)
+      }
+      rv
+    }
+    def open(id:Id, dir:Dir[Id], pos:Long) = {
+      new DenseIoBits[Id](IoRef(this, dir, id, pos), dir.open(id, pos))
+    }*/
+  /*  def tryCreate[I](id:Id, data:I, dir:Dir[Id]) = {
+      Some( create(id, data.asInstanceOf[In], dir) )
+    }*/
+  override def write(output: DataOutputStream, v: SparseBits): Unit = {
+    output.writeLong(v.size)
+    var i = 0
+    val bits = new util.BitSet(v.size.toInt)
+    v.trues.foreach { l => bits.set(l.toInt) }
+    val bytes = bits.toByteArray
+    bytes.foreach { b =>
+      output.writeByte(b)
+    }
+    // write trailing bytes
+    val byteSize = DenseIoBits.bitsToByteSize(v.size)
+    (bytes.size until byteSize.toInt).foreach { i => output.writeByte(0) }
+  }
+
+  override def open(buf: IoData[Id]): DenseIoBits[Id] = {
+    new DenseIoBits[Id](IoRef(this, buf.ref), buf.randomAccess)
+  }
+
+  override def valueTypeTag =
+    _root_.scala.reflect.runtime.universe.typeTag[Boolean]
 }
 
 class DenseIoBitsType[Id](implicit val t:TypeTag[Seq[Boolean]])
@@ -33,9 +78,11 @@ class DenseIoBitsType[Id](implicit val t:TypeTag[Seq[Boolean]])
   /*  def tryCreate[I](id:Id, data:I, dir:Dir[Id]) = {
       Some( create(id, data.asInstanceOf[In], dir) )
     }*/
-  override def write(output: DataOutputStream, v: Seq[Boolean]): Unit = {
+  override def write(output: DataOutputStream, v:Seq[Boolean]): Unit = {
     output.writeLong(v.size)
     var i = 0
+    val bits = new util.BitSet(v.size.toInt)
+    var written = 0
     while (i < v.size) {
       var l = 0.toByte
       var mask = 1.toByte
@@ -46,13 +93,15 @@ class DenseIoBitsType[Id](implicit val t:TypeTag[Seq[Boolean]])
         i += 1
       }
       output.writeByte(l)
+      written += 1
     }
+    // write trailing bytes
+    val byteSize = DenseIoBits.bitsToByteSize(v.size)
+    (written until byteSize.toInt).foreach { i => output.writeByte(0) }
   }
-
   override def open(buf: IoData[Id]): DenseIoBits[Id] = {
     new DenseIoBits[Id](IoRef(this, buf.ref), buf.randomAccess)
   }
-
   override def valueTypeTag =
     _root_.scala.reflect.runtime.universe.typeTag[Boolean]
 }
@@ -68,7 +117,7 @@ class DenseIoBits[Id](val ref:IoRef[Id, DenseIoBits[Id]], val origBuf:RandomAcce
 
   def close = { origBuf.close; buf.close } //close both handles
 
-  val longCount = DenseIoBitsType.bitsToLongCount(bitSize)
+  val longCount = DenseIoBits.bitsToLongCount(bitSize)
 
   def byteSize = buf.size
 

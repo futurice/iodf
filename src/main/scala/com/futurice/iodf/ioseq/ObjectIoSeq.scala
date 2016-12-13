@@ -66,7 +66,7 @@ class ObjectIoSeqWriter[T](out:OutputStream, io:OutputWriting[T]) extends Closea
   }
 }
 
-class ObjectIoSeq[Id, T](val ref:IoRef[Id, _], buf:RandomAccess, i:RandomAccessReading[T]) extends IoSeq[Id, T] {
+class ObjectIoSeq[Id, T](val ref:IoRef[Id, _ <: IoObject[Id]], buf:RandomAccess, i:RandomAccessReading[T]) extends IoSeq[Id, T] {
 //  new RuntimeException().printStackTrace()
 
 /*  System.out.println("io " + i.getClass.toString)
