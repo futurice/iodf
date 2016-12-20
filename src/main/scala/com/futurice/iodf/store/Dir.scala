@@ -73,19 +73,49 @@ case class RefCounted[V <: Closeable](val v:V, var count:Int = 0) extends Closea
 }
 
 case class MemoryResource(memory:Memory, resource:Closeable) extends Closeable {
-  def close = resource.close
+  def close = {
+//    System.out.println(memory.address() + " closed")
+    resource.close
+  }
 }
 
-class RandomAccess(countedM:RefCounted[MemoryResource], offset:Long = 0) extends Closeable {
+class RandomAccess(val countedM:RefCounted[MemoryResource],
+                   val offset:Long = 0,
+                   val maxSize:Option[Long] = None)
+    extends Closeable {
   val m = countedM.open.memory
   override def close(): Unit = countedM.close
 
   val address = m.address() + offset
-  val size = m.dataSize() - offset
+  val size = maxSize.getOrElse(m.dataSize() - offset)
 
   def unsafe = UnsafeUtil.getUnsafe
 
-  def getByte(offset:Long) = unsafe.getByte(address + offset)
+  if (address < m.address() || address + size > m.address() + m.size())
+    throw new RuntimeException("slice out of bounds")
+
+  def getMemoryByte(memory:Long) = {
+/*    if (countedM.count <= 0) {
+      throw new RuntimeException("closed")
+    }
+    if (memory < address || memory >= address + size) {
+      throw new RuntimeException(memory + s" is outside the range [$address, ${address+size}]")
+    }
+    try {*/
+      unsafe.getByte(memory)
+/*    } catch {
+      case e =>
+        System.out.println("exception for " + address + " of size " + size + " when accessing " + memory + ", block:" + m.address() + " sz: " +m.size())
+        throw e
+    }*/
+  }
+
+  def getByte(offset:Long) = {
+    if (offset < 0 || offset >= size) {
+      throw new RuntimeException(offset + s" is outside the range [0, $size]")
+    }
+    unsafe.getByte(address + offset)
+  }
   def putByte(offset:Long, byte:Byte) = unsafe.putByte(address + offset, byte)
 
   def getNativeLong(offset:Long) = unsafe.getLong(address + offset)
@@ -102,61 +132,60 @@ class RandomAccess(countedM:RefCounted[MemoryResource], offset:Long = 0) extends
   // big endian long
   def getBeLong(offset:Long) = {
     val m = address + offset
-    ((unsafe.getByte(m) : Long) << (8*7)) +
-    ((unsafe.getByte(m + 1) & 0xFF : Long) << (8*6)) +
-    ((unsafe.getByte(m + 2) & 0xFF : Long) << (8*5)) +
-    ((unsafe.getByte(m + 3) & 0xFF : Long) << (8*4)) +
-    ((unsafe.getByte(m + 4) & 0xFF : Long) << (8*3)) +
-    ((unsafe.getByte(m + 5) & 0xFF : Long) << (8*2)) +
-    ((unsafe.getByte(m + 6) & 0xFF : Long) << (8*1)) +
-    (unsafe.getByte(m + 7) & 0xFF : Long)
+    ((getMemoryByte(m) : Long) << (8*7)) +
+    ((getMemoryByte(m + 1) & 0xFF : Long) << (8*6)) +
+    ((getMemoryByte(m + 2) & 0xFF : Long) << (8*5)) +
+    ((getMemoryByte(m + 3) & 0xFF : Long) << (8*4)) +
+    ((getMemoryByte(m + 4) & 0xFF : Long) << (8*3)) +
+    ((getMemoryByte(m + 5) & 0xFF : Long) << (8*2)) +
+    ((getMemoryByte(m + 6) & 0xFF : Long) << (8*1)) +
+    (getMemoryByte(m + 7) & 0xFF : Long)
   }
 
   def getBeInt(offset:Long) = {
     val m = address + offset
-    ((unsafe.getByte(m) & 0xFF : Int) << (8*3)) +
-    ((unsafe.getByte(m + 1) & 0xFF : Int) << (8*2)) +
-    ((unsafe.getByte(m + 2) & 0xFF: Int) << (8*1)) +
-    (unsafe.getByte(m + 3) & 0xFF: Int)
+    ((getMemoryByte(m) & 0xFF : Int) << (8*3)) +
+    ((getMemoryByte(m + 1) & 0xFF : Int) << (8*2)) +
+    ((getMemoryByte(m + 2) & 0xFF: Int) << (8*1)) +
+    (getMemoryByte(m + 3) & 0xFF: Int)
   }
 
 
   def getBeShort(offset:Long) = {
     val m = address + offset
-      ((unsafe.getByte(m) & 0xFF).toShort << (8*1)) +
-      (unsafe.getByte(m + 1) & 0xFF).toShort
+      ((getMemoryByte(m) & 0xFF).toShort << (8*1)) +
+      (getMemoryByte(m + 1) & 0xFF).toShort
   }
 
   def openSlice(offset:Long) = new RandomAccess(countedM, this.offset + offset)
+  def openSlice(offset:Long, size:Long) = new RandomAccess(countedM, this.offset + offset, Some(size))
 
 }
 trait IoData[Id] extends Closeable {
   def ref : DataRef[Id]
 
 //  def inputStream(pos:Long = 0L) : InputStream
-  def randomAccess : RandomAccess
+  def openRandomAccess : RandomAccess
   def size : Long
 
-/*  def openView(offset:Long) : IoData[Id]
-  def openView(offset:Long, size:Long) : IoData[Id]*/
+  def openView(offset:Long) : IoData[Id]
 }
 
 object IoData {
-  def apply[Id](r:DataRef[Id], mem: RefCounted[MemoryResource]) = {
+  def open[Id](r:DataRef[Id], mem: RefCounted[MemoryResource]) : IoData[Id] = {
     new IoData[Id] {
       val m = mem.open.memory
       override def close(): Unit = mem.close
       override def ref: DataRef[Id] = {
         r
       }
-      override def randomAccess = new RandomAccess(mem)
+      override def openRandomAccess = new RandomAccess(mem, r.pos)
 
       override def size: Long = m.size()
 
-/*      override def openView(offset: Long): IoData[Id] = ???
-
-      override def openView(offset: Long, size: Long): IoData[Id] = ???*/
-
+      override def openView(offset: Long): IoData[Id] = {
+        open(r.shifted(offset), mem)
+      }
     }
   }
 }
@@ -170,21 +199,28 @@ trait Dir[Id] extends Closeable {
   def id(i:Int) : Id
 
 //  def create(id:Id, length:Long) : IoData[Id]
-  def output(id:Id) : OutputStream
+  def openOutput(id:Id) : OutputStream
 
   def open(id:Id, pos:Long = 0) : IoData[Id]
 
   def list : Array[Id]
+  def exists(id:Id) = list.contains(id)
 
   def ref(id:Id) = new FileRef(this, id)
   def ref(id:Id, pos:Long) = new DataRef(this, id, pos)
 }
+
 case class FileRef[Id](dir:Dir[Id], id:Id) {
   def open = dir.open(id)
-  def output = dir.output(id)
+  def openOutput = dir.openOutput(id)
+  def toDataRef = new DataRef[Id](dir, id, 0)
 //  def create(l:Long) = dir.create(id, l)
 }
-
+/* TODO: add maxSize:Option[Long] */
 case class DataRef[Id](dir:Dir[Id], id:Id, pos:Long = 0) {
   def open = dir.open(id, pos)
+
+  def shifted(offset:Long) = {
+    new DataRef(dir, id, pos + offset)
+  }
 }

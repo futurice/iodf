@@ -33,7 +33,7 @@ abstract class IoArrayType[Id, T](implicit t:TypeTag[Seq[T]], vTag:TypeTag[T])
     data.foreach { writeUnit(output, _) }
   }
   def open(data:IoData[Id]) = {
-    newInstance(IoRef(this, data.ref), data.randomAccess)
+    newInstance(IoRef(this, data.ref), data.openRandomAccess)
   }
   def valueTypeTag = vTag
 }
@@ -50,4 +50,18 @@ class IntIoArrayType[Id](implicit t:TypeTag[Seq[Int]], vTag:TypeTag[Int]) extend
   def writeUnit(out:DataOutputStream, v:Int) = out.writeInt(v)
   def newInstance(ref: IoRef[Id, IoArray[Id, Int]], buf: RandomAccess) =
     new IntIoArray(ref, buf)
+}
+
+class LongIoArray[Id](ref:IoRef[Id, _ <: IoObject[Id]], buf:RandomAccess)
+  extends IoArray[Id, Long](ref, buf) {
+  override def apply(l: Long) : Long= {
+    buf.getBeLong(offset + l*8)
+  }
+}
+
+class LongIoArrayType[Id](implicit t:TypeTag[Seq[Long]], vTag:TypeTag[Long]) extends IoArrayType[Id, Long]()(t, vTag) {
+  override def unitByteSize: Long = 8
+  def writeUnit(out:DataOutputStream, v:Long) = out.writeLong(v)
+  def newInstance(ref: IoRef[Id, IoArray[Id, Long]], buf: RandomAccess) =
+    new LongIoArray(ref, buf)
 }

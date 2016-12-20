@@ -1,4 +1,4 @@
-creating dense bits of size 16...18 ms (was 17 ms)
-creating dense bits of size 256...0 ms 
-creating dense bits of size 4096...0 ms 
-creating dense bits of size 1048576...46 ms 
+creating sparse bits of size 16...0 ms (was 0 ms)
+creating sparse bits of size 256...1 ms (was 0 ms)
+creating sparse bits of size 4096...1 ms (was 1 ms)
+creating sparse bits of size 1048576...11 ms (was 19 ms)

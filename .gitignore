@@ -3,3 +3,4 @@
 target
 *_out.txt
 *_out
+*.log

@@ -22,18 +22,18 @@ id indexes:
 
 columns are: 
 
-  true,false,false
-  false,true,false
-  false,false,true
-  false,true,false
-  true,false,true
-  false,true,false
-  true,false,false
-  false,false,true
-  false,false,false
-  false,false,false
-  false,false,false
-  false,false,false
+          (name,a): true,false,false
+          (name,b): false,true,false
+          (name,c): false,false,true
+  (property,false): false,true,false
+   (property,true): true,false,true
+      (quantity,2): false,true,false
+      (quantity,3): true,false,false
+      (quantity,4): false,false,true
+       (text,even): false,false,true
+       (text,more): false,true,true
+       (text,some): true,false,false
+       (text,text): true,true,true
 
 db and index closed
 db and index reopened
@@ -61,17 +61,17 @@ id indexes:
 
 columns are: 
 
-  true,false,false
-  false,true,false
-  false,false,true
-  false,true,false
-  true,false,true
-  false,true,false
-  true,false,false
-  false,false,true
-  false,false,false
-  false,false,false
-  false,false,false
-  false,false,false
+          (name,a): true,false,false
+          (name,b): false,true,false
+          (name,c): false,false,true
+  (property,false): false,true,false
+   (property,true): true,false,true
+      (quantity,2): false,true,false
+      (quantity,3): true,false,false
+      (quantity,4): false,false,true
+       (text,even): false,false,true
+       (text,more): false,true,true
+       (text,some): true,false,false
+       (text,text): true,true,true
 
 0 refs open.

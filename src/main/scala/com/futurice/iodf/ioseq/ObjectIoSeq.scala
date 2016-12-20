@@ -39,7 +39,7 @@ class ObjectIoSeqType[Id, T](i:RandomAccessReading[T], o:OutputWriting[T])(
   }
 
   override def open(buf: IoData[Id])= {
-    new ObjectIoSeq[Id, T](IoRef(this, buf.ref), buf.randomAccess, i)
+    new ObjectIoSeq[Id, T](IoRef(this, buf.ref), buf.openRandomAccess, i)
   }
 
   override def valueTypeTag = vTag

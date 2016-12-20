@@ -6,9 +6,10 @@ import xerial.larray.buffer.LBufferAPI
 import xerial.larray.mmap.{MMapBuffer, MMapMode}
 
 /**
-  * Created by arau on 24.11.2016.
+  * TODO: These should be unique, and mmaps should be unique to avoid
+  *       double mmaps (!)
   */
-class MMapDirectory(dir:File) extends Dir[String] {
+class MMapDir(dir:File) extends Dir[String] {
 
   dir.mkdirs()
 
@@ -18,14 +19,14 @@ class MMapDirectory(dir:File) extends Dir[String] {
     new MMapBuffer(file(name), 0, length, MMapMode.READ_WRITE)
   }*/
 
-  override def output(name: String): OutputStream = {
+  override def openOutput(name: String): OutputStream = {
     new FileOutputStream(file(name))
   }
   override def open(name: String, pos:Long): IoData[String] = {
     val f = file(name)
-    val m = new MMapBuffer (f, pos, f.length()-pos, MMapMode.READ_ONLY)
+    val m = new MMapBuffer (f, 0, f.length(), MMapMode.READ_ONLY)
   //  System.out.println("memory opened")
-    IoData(
+    IoData.open(
       DataRef(this, name, pos),
       RefCounted(
         MemoryResource(m.m, new Closeable {

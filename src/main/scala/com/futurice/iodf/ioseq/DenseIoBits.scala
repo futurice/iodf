@@ -9,53 +9,10 @@ import com.futurice.iodf._
 
 import scala.reflect.runtime.universe._
 
-case class SparseBits(trues:Seq[Long], size:Long) {}
 
 object DenseIoBits {
   def bitsToLongCount(bitSize:Long) = ((bitSize+63L) / 64L)
   def bitsToByteSize(bitSize:Long) = bitsToLongCount(bitSize) * 8
-}
-
-class SparseIoBitsType[Id](implicit val t:TypeTag[SparseBits])
-  extends IoTypeOf[Id, DenseIoBits[Id], SparseBits]()(t)
-    with SeqIoType[Id, DenseIoBits[Id], Boolean] {
-
-  /*  def create(id:Id, data:Seq[Boolean], dir:Dir[Id]) = {
-      val buf = dir.create(id, 8 + DenseIoBitsType.bitsToByteSize(data.size))
-      buf.putLong(0, data.size)
-      val rv =
-        new DenseIoBits[Id](IoRef(this, dir, id), buf)
-      data.zipWithIndex.foreach { case (d, i) =>
-        rv.update(i, d)
-      }
-      rv
-    }
-    def open(id:Id, dir:Dir[Id], pos:Long) = {
-      new DenseIoBits[Id](IoRef(this, dir, id, pos), dir.open(id, pos))
-    }*/
-  /*  def tryCreate[I](id:Id, data:I, dir:Dir[Id]) = {
-      Some( create(id, data.asInstanceOf[In], dir) )
-    }*/
-  override def write(output: DataOutputStream, v: SparseBits): Unit = {
-    output.writeLong(v.size)
-    var i = 0
-    val bits = new util.BitSet(v.size.toInt)
-    v.trues.foreach { l => bits.set(l.toInt) }
-    val bytes = bits.toByteArray
-    bytes.foreach { b =>
-      output.writeByte(b)
-    }
-    // write trailing bytes
-    val byteSize = DenseIoBits.bitsToByteSize(v.size)
-    (bytes.size until byteSize.toInt).foreach { i => output.writeByte(0) }
-  }
-
-  override def open(buf: IoData[Id]): DenseIoBits[Id] = {
-    new DenseIoBits[Id](IoRef(this, buf.ref), buf.randomAccess)
-  }
-
-  override def valueTypeTag =
-    _root_.scala.reflect.runtime.universe.typeTag[Boolean]
 }
 
 class DenseIoBitsType[Id](implicit val t:TypeTag[Seq[Boolean]])
@@ -100,7 +57,7 @@ class DenseIoBitsType[Id](implicit val t:TypeTag[Seq[Boolean]])
     (written until byteSize.toInt).foreach { i => output.writeByte(0) }
   }
   override def open(buf: IoData[Id]): DenseIoBits[Id] = {
-    new DenseIoBits[Id](IoRef(this, buf.ref), buf.randomAccess)
+    new DenseIoBits[Id](IoRef(this, buf.ref), buf.openRandomAccess)
   }
   override def valueTypeTag =
     _root_.scala.reflect.runtime.universe.typeTag[Boolean]
@@ -109,7 +66,8 @@ class DenseIoBitsType[Id](implicit val t:TypeTag[Seq[Boolean]])
 /**
   * Created by arau on 24.11.2016.
   */
-class DenseIoBits[Id](val ref:IoRef[Id, DenseIoBits[Id]], val origBuf:RandomAccess) extends IoSeq[Id, Boolean] with java.io.Closeable {
+class DenseIoBits[IoId](val ref:IoRef[IoId, DenseIoBits[IoId]], val origBuf:RandomAccess)
+  extends IoBits[IoId] with java.io.Closeable {
 
   val bitSize = origBuf.getBeLong(0)
 
@@ -129,7 +87,7 @@ class DenseIoBits[Id](val ref:IoRef[Id, DenseIoBits[Id]], val origBuf:RandomAcce
 
   def longs = for (pos <- (0L until longCount)) yield long(pos)
 
-  def bitCount = {
+  def f = {
     var rv = 0L
     longs.foreach { l =>
       rv += java.lang.Long.bitCount(l)
@@ -137,7 +95,7 @@ class DenseIoBits[Id](val ref:IoRef[Id, DenseIoBits[Id]], val origBuf:RandomAcce
     rv
   }
 
-  def :=(bits:DenseIoBits[Id]) = {
+  def :=(bits:DenseIoBits[IoId]) = {
     if (bitSize != bits.bitSize) {
       throw new IllegalArgumentException("given bitset is of different length")
     }
@@ -146,7 +104,7 @@ class DenseIoBits[Id](val ref:IoRef[Id, DenseIoBits[Id]], val origBuf:RandomAcce
     }
   }
 
-  def &=(bits:DenseIoBits[Id]) = {
+  def &=(bits:DenseIoBits[IoId]) = {
     if (bitSize != bits.bitSize) {
       throw new IllegalArgumentException("given bitset is of different length")
     }
@@ -154,8 +112,14 @@ class DenseIoBits[Id](val ref:IoRef[Id, DenseIoBits[Id]], val origBuf:RandomAcce
       putLong(i, long(i) & bits.long(i))
     }
   }
+  def fAnd(bits:IoBits[IoId]) = {
+    bits match {
+      case dense : DenseIoBits[IoId] => fAnd(dense)
+      case sparse : SparseIoBits[IoId] => IoBits.fAnd(this, sparse)
+    }
+  }
 
-  def andCount(bits:DenseIoBits[Id]) = {
+  def fAnd(bits:DenseIoBits[IoId]) = {
     if (bitSize != bits.bitSize) {
       throw new IllegalArgumentException("given bitset is of different length")
     }
