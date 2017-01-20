@@ -198,6 +198,18 @@ trait Dir[Id] extends Closeable {
   // select i:th id in order
   def id(i:Int) : Id
 
+  def freeId : Id = {
+    def find(i:Int) : Id = {
+      val rv = id(i)
+      if (exists(rv)) {
+        find(i+1)
+      } else {
+        rv
+      }
+    }
+    find(0)
+  }
+
 //  def create(id:Id, length:Long) : IoData[Id]
   def openOutput(id:Id) : OutputStream
 

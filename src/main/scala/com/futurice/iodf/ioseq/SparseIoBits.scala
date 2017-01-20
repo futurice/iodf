@@ -5,7 +5,7 @@ import java.util
 
 import com.futurice.iodf.Utils._
 import com.futurice.iodf._
-import com.futurice.iodf.store.IoData
+import com.futurice.iodf.store.{FileRef, IoData}
 
 import scala.reflect.runtime.universe._
 
@@ -84,13 +84,13 @@ class SparseIoBits[IoId](val ref:IoRef[IoId, SparseIoBits[IoId]],
   override def f: Long = {
     trues.size
   }
-  override def fAnd(bits : IoBits[IoId]): Long = {
+  override def fAnd(bits : IoBits[_]): Long = {
     bits match {
-      case b : SparseIoBits[IoId] => fAnd(b)
-      case b : DenseIoBits[IoId] => IoBits.fAnd(b, this)
+      case b : SparseIoBits[_] => fAnd(b)
+      case b : DenseIoBits[_] => IoBits.fAnd(b, this)
     }
   }
-  def fAnd(b : SparseIoBits[IoId]): Long = {
+  def fAnd(b : SparseIoBits[_]): Long = {
     var rv = 0
     var i = 0
     var j = 0
@@ -107,4 +107,5 @@ class SparseIoBits[IoId](val ref:IoRef[IoId, SparseIoBits[IoId]],
     }
     rv
   }
+
 }

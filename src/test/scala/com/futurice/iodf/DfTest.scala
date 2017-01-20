@@ -3,9 +3,9 @@ package com.futurice.iodf
 import java.io.File
 
 import com.futurice.testtoys.{TestSuite, TestTool}
-import com.futurice.iodf.store.{MMapDir, RefCounted}
+import com.futurice.iodf.store.{MMapDir, RamDir, RefCounted}
 import com.futurice.iodf.Utils.using
-import com.futurice.iodf.ioseq.{DenseIoBits, IoBits, SparseBits, SparseIoBitsType}
+import com.futurice.iodf.ioseq._
 
 import scala.reflect.runtime.universe._
 import scala.util.Random
@@ -176,78 +176,84 @@ class DfTest extends TestSuite("df") {
   test("1024-entry-index") { t =>
     RefCounted.trace {
       val dirFile = new File(t.fileDir, "db")
-      using(new MMapDir(dirFile)) { dir =>
-        val dfs = Dfs.default
-        val rnd = new Random(0)
-        val letters = "abcdefghijklmnopqrstuvxyz"
+      using(RamDir()) { ram =>
+        val ioBits =
+          new IoBitsType(new SparseIoBitsType[Int](),
+            new DenseIoBitsType[Int]())
+        using(new MMapDir(dirFile)) { dir =>
+          val dfs = Dfs.default
 
-        def nextLetter = letters.charAt(rnd.nextInt(letters.size))
 
-        val items =
-          (0 until 1024).map { i =>
-            ExampleItem(nextLetter.toString,
-                        rnd.nextBoolean(),
-                        (rnd.nextGaussian() * 5).toInt,
-                        (0 until rnd.nextInt(4)).map(e => (0 until (1+rnd.nextInt(2))).map(e => nextLetter).mkString).mkString(" "))
-          }
-
-        val (creationMs, _) =
-          TestTool.ms(
-            using(dfs.haveTypedDb(items, dir)) { db =>
-              t.tln
-              t.tln("index column id count: " + db.index.colCount)
-              t.tln
-              t.tln("first column ids are: ")
-              t.tln
-              db.index.colIds.take(8).foreach {
-                id => t.tln("  " + id)
-              }
-              t.tln
-              t.tln("first columns are: ")
-              t.tln
-              (0 until 8).map { i =>
-                using(db.index.openCol[Any](i)) { col =>
-                  t.tln("  " + col.take(8).map {
-                    _.toString
-                  }.mkString(","))
-                }
-              }
-            })
-
-        t.tln
-        t.iln("db and index created and closed in " + creationMs + " ms")
-        val before = System.currentTimeMillis()
-
-        t.tln
-        tDir(t, dirFile)
-        t.tln
-
-        using(dfs.haveTypedDb(items, dir)) { view =>
-          val df = view.df
-          val index = view.index
-          t.iln("db and index reopened in " + (System.currentTimeMillis() - before) + " ms")
-
-          t.tln
-          t.t("sanity checking...")
-          t.tMsLn(
-            (0 until df.lsize.toInt).foreach { i =>
-              if (items(i) != df(i)) {
-                t.tln(f" at $i original item ${items(i)} != original ${df(i)}" )
-              }
-            })
-
-          t.tln
-          val b = items.map(i => if (i.property) 1 else 0 ).sum
-          val b2 = view.f("property" -> true)
-          t.tln(f"property frequencies: original $b vs index $b2")
-
-          val n = items.map(i => if (i.name == "h") 1 else 0).sum
-          val n2 = view.f("name" -> "h")
-          t.tln(f"name=h frequencies: original $n vs index $n2")
-
-          val ids = index.colIds.toArray
           val rnd = new Random(0)
-          t.tln;
+          val letters = "abcdefghijklmnopqrstuvxyz"
+
+          def nextLetter = letters.charAt(rnd.nextInt(letters.size))
+
+          val items =
+            (0 until 1024).map { i =>
+              ExampleItem(nextLetter.toString,
+                rnd.nextBoolean(),
+                (rnd.nextGaussian() * 5).toInt,
+                (0 until rnd.nextInt(4)).map(e => (0 until (1 + rnd.nextInt(2))).map(e => nextLetter).mkString).mkString(" "))
+            }
+
+          val (creationMs, _) =
+            TestTool.ms(
+              using(dfs.haveTypedDb(items, dir)) { db =>
+                t.tln
+                t.tln("index column id count: " + db.index.colCount)
+                t.tln
+                t.tln("first column ids are: ")
+                t.tln
+                db.index.colIds.take(8).foreach {
+                  id => t.tln("  " + id)
+                }
+                t.tln
+                t.tln("first columns are: ")
+                t.tln
+                (0 until 8).map { i =>
+                  using(db.index.openCol[Any](i)) { col =>
+                    t.tln("  " + col.take(8).map {
+                      _.toString
+                    }.mkString(","))
+                  }
+                }
+              })
+
+          t.tln
+          t.iln("db and index created and closed in " + creationMs + " ms")
+          val before = System.currentTimeMillis()
+
+          t.tln
+          tDir(t, dirFile)
+          t.tln
+
+          using(dfs.haveTypedDb(items, dir)) { view =>
+            val df = view.df
+            val index = view.index
+            t.iln("db and index reopened in " + (System.currentTimeMillis() - before) + " ms")
+
+            t.tln
+            t.t("sanity checking...")
+            t.tMsLn(
+              (0 until df.lsize.toInt).foreach { i =>
+                if (items(i) != df(i)) {
+                  t.tln(f" at $i original item ${items(i)} != original ${df(i)}")
+                }
+              })
+
+            t.tln
+            val b = items.map(i => if (i.property) 1 else 0).sum
+            val b2 = view.f("property" -> true)
+            t.tln(f"property frequencies: original $b vs index $b2")
+
+            val n = items.map(i => if (i.name == "h") 1 else 0).sum
+            val n2 = view.f("name" -> "h")
+            t.tln(f"name=h frequencies: original $n vs index $n2")
+
+            val ids = index.colIds.toArray
+            val rnd = new Random(0)
+            t.tln;
           {
             t.t("searching 1024 ids...")
             var sum = 0
@@ -271,7 +277,7 @@ class DfTest extends TestSuite("df") {
               (0 until n).foreach { i =>
                 val co =
                   view.co(ids(rnd.nextInt(ids.size)),
-                          ids(rnd.nextInt(ids.size)))
+                    ids(rnd.nextInt(ids.size)))
                 fA += co.fA
                 fB += co.fB
                 fAB += co.fAB
@@ -298,7 +304,7 @@ class DfTest extends TestSuite("df") {
               t.i("counting freqs...")
               val (ms, _) = TestTool.ms {
                 (0 until n).foreach { i =>
-                   fs += bits(i).f
+                  fs += bits(i).f
                 }
               }
               t.iln(ms + " ms.")
@@ -319,14 +325,35 @@ class DfTest extends TestSuite("df") {
               }
               t.iln(ms2 + " ms.")
               t.tln
-              t.tln("  checksums:    " + fA + "/" + fA + "/" + fAB)
+              t.tln("  checksums:    " + fA + "/" + fB + "/" + fAB)
               t.iln("  time/freq:    " + ((ms2 * 1000) / n) + " us")
+              t.tln
+              t.i("making three way bit and comparisons...")
+              var fABC = 0L
+              fAB = 0
+              val (ms3, _) = TestTool.ms {
+                (0 until n).foreach { i =>
+                  val bA = bits(i)
+                  val bB = bits(rnd.nextInt(bits.size))
+
+                  using(ioBits.createAnd(ram, bA, bB)) { bAB =>
+                    val bC = bits(rnd.nextInt(bits.size))
+                    fAB += bAB.f
+                    fABC += bC.fAnd(bAB)
+                  }
+                }
+              }
+              t.iln(ms3 + " ms.")
+              t.tln
+              t.tln("  checksums:    " + fAB + "/" + fABC )
+              t.iln("  time/freq:    " + ((ms3 * 1000) / n) + " us")
               t.tln
             } finally {
               bits.foreach {
                 _.close
               }
             }
+          }
           }
         }
       }

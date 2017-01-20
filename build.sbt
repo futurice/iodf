@@ -1,6 +1,6 @@
 scalaVersion := "2.11.7"
 
-lazy val root = (project in file(".")).
+lazy val iodf = (project in file(".")).
   settings(
     name := "iodf",
     organization := "com.futurice",

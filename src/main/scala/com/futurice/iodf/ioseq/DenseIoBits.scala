@@ -35,6 +35,10 @@ class DenseIoBitsType[Id](implicit val t:TypeTag[Seq[Boolean]])
   /*  def tryCreate[I](id:Id, data:I, dir:Dir[Id]) = {
       Some( create(id, data.asInstanceOf[In], dir) )
     }*/
+  def write(output: DataOutputStream, bitN:Int, v:Iterable[Long]): Unit = {
+    output.writeLong(bitN)
+    v.foreach { output.writeLong( _ ) }
+  }
   override def write(output: DataOutputStream, v:Seq[Boolean]): Unit = {
     output.writeLong(v.size)
     var i = 0
@@ -82,6 +86,7 @@ class DenseIoBits[IoId](val ref:IoRef[IoId, DenseIoBits[IoId]], val origBuf:Rand
   def lsize = bitSize
   def offset = 8
 
+  def beLong(l:Long) : Long = buf.getBeLong(l*8)
   def long(l:Long) : Long = buf.getNativeLong(l*8)
   def putLong(index:Long, l:Long) = buf.putNativeLong(index*8, l)
 
@@ -112,14 +117,14 @@ class DenseIoBits[IoId](val ref:IoRef[IoId, DenseIoBits[IoId]], val origBuf:Rand
       putLong(i, long(i) & bits.long(i))
     }
   }
-  def fAnd(bits:IoBits[IoId]) = {
+  def fAnd(bits:IoBits[_]) = {
     bits match {
-      case dense : DenseIoBits[IoId] => fAnd(dense)
-      case sparse : SparseIoBits[IoId] => IoBits.fAnd(this, sparse)
+      case dense : DenseIoBits[_] => fAnd(dense)
+      case sparse : SparseIoBits[_] => IoBits.fAnd(this, sparse)
     }
   }
 
-  def fAnd(bits:DenseIoBits[IoId]) = {
+  def fAnd(bits:DenseIoBits[_]) = {
     if (bitSize != bits.bitSize) {
       throw new IllegalArgumentException("given bitset is of different length")
     }
@@ -136,6 +141,52 @@ class DenseIoBits[IoId](val ref:IoRef[IoId, DenseIoBits[IoId]], val origBuf:Rand
     val addr = i / 8L
     val offset = i % 8
     ((buf.getByte(addr) >> offset) & 1) == 1
+  }
+
+/*  def nextTrueBit(i:Long) : Boolean = {
+    var l = i / 64
+    var offset = i % 64
+    var v = apply(l)
+    while (v != 0) {
+      l += 1
+      v = apply(i)
+      offset = 0
+    }
+
+  }*/
+
+  val trues = new Iterable[Long]{
+    override def iterator: Iterator[Long] = {
+      new Iterator[Long] {
+        var l = 0
+        var v = buf.getByte(l)
+        var n = 0L
+
+        prepareNext()
+
+        def prepareNext() {
+          while (v == 0 && l < lsize / 8) {
+            l += 1
+            v = buf.getByte(l)
+          }
+          val zeros = java.lang.Long.numberOfTrailingZeros(v)
+          v = (v & (~(1 << zeros))).toByte
+          n = l*8 + zeros
+          if (n >= lsize) {
+            n = -1
+          }
+        }
+        override def hasNext: Boolean = {
+          n != -1
+        }
+
+        override def next(): Long = {
+          val rv = n
+          prepareNext
+          rv
+        }
+      }
+    }
   }
 
   def update(i:Long, v:Boolean) = {
