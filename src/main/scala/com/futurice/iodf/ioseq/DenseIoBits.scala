@@ -121,6 +121,7 @@ class DenseIoBits[IoId](val ref:IoRef[IoId, DenseIoBits[IoId]], val origBuf:Rand
     bits match {
       case dense : DenseIoBits[_] => fAnd(dense)
       case sparse : SparseIoBits[_] => IoBits.fAnd(this, sparse)
+      case b : EmptyIoBits[_] => 0
     }
   }
 
@@ -138,6 +139,7 @@ class DenseIoBits[IoId](val ref:IoRef[IoId, DenseIoBits[IoId]], val origBuf:Rand
   }
 
   def apply(i:Long) : Boolean = {
+    if (i >= bitSize) throw new IllegalArgumentException(f"index $i out of [0, $bitSize]")
     val addr = i / 8L
     val offset = i % 8
     ((buf.getByte(addr) >> offset) & 1) == 1
@@ -165,7 +167,7 @@ class DenseIoBits[IoId](val ref:IoRef[IoId, DenseIoBits[IoId]], val origBuf:Rand
         prepareNext()
 
         def prepareNext() {
-          while (v == 0 && l < lsize / 8) {
+          while (v == 0 && l + 1 < lsize / 8) {
             l += 1
             v = buf.getByte(l)
           }

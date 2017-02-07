@@ -13,7 +13,7 @@ object RefCounted {
   var traces : Option[mutable.Map[RefCounted[_], Exception]] = None
 
 
-  def opened(ref:RefCounted[_ <: java.io.Closeable]) = {
+  def opened(ref:RefCounted[_ <: java.io.Closeable]) = synchronized {
  //   l.log(Level.INFO, "open objects " + open + " -> " + (open+i))
     traces match {
       case Some(tr) => tr += (ref -> new RuntimeException("leaked reference"))
@@ -23,7 +23,7 @@ object RefCounted {
     openRefs += 1
   }
 
-  def closed(ref:RefCounted[_]) = {
+  def closed(ref:RefCounted[_]) = synchronized {
     traces match {
       case Some(tr) =>
         tr.remove(ref)
@@ -32,7 +32,7 @@ object RefCounted {
     openRefs -= 1
   }
 
-  def trace[T](f : => T) : T = {
+  def trace[T](f : => T) : T = synchronized {
     // FIXME: not thread safe! Use threadlocal!
     val tracesBefore = traces
     traces = Some(new mutable.HashMap[RefCounted[_], Exception]())
@@ -53,15 +53,15 @@ object RefCounted {
 
 case class RefCounted[V <: Closeable](val v:V, var count:Int = 0) extends Closeable {
   RefCounted.opened(this)
-  def open = {
+  def open = synchronized  {
 //    System.out.println("inc " + RefCounted.this.hashCode())
 //    new RuntimeException().printStackTrace()
     count += 1
     v
   }
   override def hashCode(): Int = v.hashCode()
-  def close = {
-//    System.out.println("dec " + RefCounted.this.hashCode())
+  def close = synchronized {
+//    System.out.println("dc " + RefCounted.this.hashCode())
 //    new RuntimeException().printStackTrace()
     count -= 1
     if (count == 0) {
@@ -94,34 +94,57 @@ class RandomAccess(val countedM:RefCounted[MemoryResource],
   if (address < m.address() || address + size > m.address() + m.size())
     throw new RuntimeException("slice out of bounds")
 
-  def getMemoryByte(memory:Long) = {
-/*    if (countedM.count <= 0) {
+  def unsafeGetMemoryByte(memory:Long) = {
+    unsafe.getByte(memory)
+  }
+
+  def safeGetMemoryByte(memory:Long) = {
+    if (countedM.count <= 0) {
       throw new RuntimeException("closed")
     }
     if (memory < address || memory >= address + size) {
       throw new RuntimeException(memory + s" is outside the range [$address, ${address+size}]")
     }
-    try {*/
+    try {
       unsafe.getByte(memory)
-/*    } catch {
+    } catch {
       case e =>
         System.out.println("exception for " + address + " of size " + size + " when accessing " + memory + ", block:" + m.address() + " sz: " +m.size())
         throw e
-    }*/
+    }
+  }
+
+  def getMemoryByte(memory:Long) = {
+//    safeGetMemoryByte(memory)
+    unsafeGetMemoryByte(memory)
+  }
+
+  def checkRange(offset:Long, sz:Long) = {
+    if (offset < 0 || offset + sz > size) {
+      throw new RuntimeException(offset + s" is outside the range [0, $size]")
+    }
   }
 
   def getByte(offset:Long) = {
-    if (offset < 0 || offset >= size) {
-      throw new RuntimeException(offset + s" is outside the range [0, $size]")
-    }
+    checkRange(offset, 1)
     unsafe.getByte(address + offset)
   }
-  def putByte(offset:Long, byte:Byte) = unsafe.putByte(address + offset, byte)
+  def putByte(offset:Long, byte:Byte) = {
+    checkRange(offset, 1)
+    unsafe.putByte(address + offset, byte)
+  }
 
-  def getNativeLong(offset:Long) = unsafe.getLong(address + offset)
-  def putNativeLong(offset:Long, value:Long) = unsafe.putLong(address + offset, value)
+  def getNativeLong(offset:Long) = {
+    checkRange(offset, 8)
+    unsafe.getLong(address + offset)
+  }
+  def putNativeLong(offset:Long, value:Long) = {
+    checkRange(offset, 8)
+    unsafe.putLong(address + offset, value)
+  }
 
   def copyTo(srcOffset:Long, bytes:Array[Byte], destOffset:Int, n:Int) : Unit = {
+    checkRange(srcOffset, n)
     (0 until n).foreach { i =>
       bytes(destOffset + i) = getByte(srcOffset + i)
     }
@@ -157,7 +180,7 @@ class RandomAccess(val countedM:RefCounted[MemoryResource],
       (getMemoryByte(m + 1) & 0xFF).toShort
   }
 
-  def openSlice(offset:Long) = new RandomAccess(countedM, this.offset + offset)
+  def openSlice(offset:Long) = new RandomAccess(countedM, this.offset + offset, maxSize.map(_ - offset))
   def openSlice(offset:Long, size:Long) = new RandomAccess(countedM, this.offset + offset, Some(size))
 
 }

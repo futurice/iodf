@@ -88,6 +88,7 @@ class SparseIoBits[IoId](val ref:IoRef[IoId, SparseIoBits[IoId]],
     bits match {
       case b : SparseIoBits[_] => fAnd(b)
       case b : DenseIoBits[_] => IoBits.fAnd(b, this)
+      case b : EmptyIoBits[_] => 0
     }
   }
   def fAnd(b : SparseIoBits[_]): Long = {
