@@ -59,11 +59,16 @@ abstract class IoTypeOf[Id, T <: IoObject[Id], In](implicit typ:TypeTag[In]) ext
   }
   def matches(a:Type, b:Type) : Boolean = {
     val (t1, t2) = (normalize(a), normalize(b))
-//    System.out.println("comparing " + t1 + " vs " + t2)
+    //System.out.println("comparing " + t1 + "/" + t1.hashCode()+ " vs " + t2 + "/" + t2.hashCode())
     (t1 == t2) || {
       val TypeRef(a, b, c) = t1
       val TypeRef(a2, b2, c2) = t2
-      ((a == a2) || (a.toString == "scala.type" && a.toString == a2.toString)) &&
+      /*System.out.println("  " + a + "/" + a.hashCode()+ " vs " + a2 + "/" + a2.hashCode())
+      System.out.println("  " + b + "/" + b.hashCode()+ " vs " + b2 + "/" + b2.hashCode())
+      (0 until Math.min(c.size, c2.size)).foreach { i =>
+        System.out.println("  " + c(i) + "/" + c(i).hashCode() + " vs " + c2(i) + "/" + c2(i).hashCode())
+      }*/
+      ((a == a2) || (a.toString == a2.toString)) &&
         b == b2 && !c.zip(c2).exists { case (c, c2) => !matches(c, c2) }
     }
   }
@@ -162,8 +167,9 @@ trait Df[IoId, ColId] extends java.io.Closeable {
   def indexOf(id:ColId) =
     Utils.binarySearch(colIds, id)(colIdOrdering)
 
-/*  def indexOf(id:ColId) =
-      colIds.iterator.indexOf(id)*/
+  def col(id: ColId)(implicit scope:IoScope) = {
+    scope.bind(openCol(id))
+  }
 
   def openCol[T <: Any](i:Int) : IoSeq[IoId, T] = {
     _cols(i).asInstanceOf[IoSeq[IoId, T]]
@@ -342,7 +348,8 @@ trait IoTypes[IoId] {
           def ioTypeOf(t:Type) : IoTypeOf[Id, _ <: IoObject[Id], _] = {
             types.find(_.asTypeOf(t).isDefined).map(_.asTypeOf(t).get) match {
               case Some(v) => v
-              case None => throw new RuntimeException("no io type for " + t)
+              case None =>
+                throw new RuntimeException("no io type for " + t + " / " + t.hashCode() + ". ")
             }
           }
           def ioTypeOf[T : TypeTag]() : IoTypeOf[Id, _ <: IoObject[Id], T] = {
