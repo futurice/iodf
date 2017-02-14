@@ -1,4 +1,4 @@
-creating sparse bits of size 16...0 ms (was 0 ms)
-creating sparse bits of size 256...1 ms (was 0 ms)
+creating sparse bits of size 16...1 ms (was 0 ms)
+creating sparse bits of size 256...0 ms (0% of old 1 ms)
 creating sparse bits of size 4096...1 ms (was 1 ms)
-creating sparse bits of size 1048576...11 ms (was 19 ms)
+creating sparse bits of size 1048576...19 ms (was 11 ms)

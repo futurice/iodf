@@ -20,6 +20,13 @@ abstract class IoBits[IoId] extends IoSeq[IoId, Boolean] {
 
   def trues : Iterable[Long]
 
+  implicit def &[IoId1, IoId2](b:IoBits[IoId1])(implicit io:IoContext[IoId2], scope:IoScope) = {
+    scope.bind(io.bits.createAnd(io.dir, this, b))
+  }
+  implicit def ~[IoId1](implicit io:IoContext[IoId1], scope:IoScope) = {
+    scope.bind(io.bits.createNot(io.dir, this))
+  }
+
 }
 
 class EmptyIoBits[IoId](val lsize : Long) extends IoBits[IoId] {

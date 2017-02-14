@@ -1,6 +1,7 @@
 package com.futurice.iodf
 
 import java.io.File
+import java.util
 
 import com.futurice.testtoys.{TestSuite, TestTool}
 import com.futurice.iodf.store.{MMapDir, RamDir, RefCounted}
@@ -65,6 +66,78 @@ class DfTest extends TestSuite("df") {
     }
   }
 
+  test("bits-B-perf") { t =>
+
+    using(IoScope.open) { bind =>
+      val dir = bind(new MMapDir(t.fileDir))
+
+      val sparse = new SparseIoBitsType[String]()
+      val dense = new DenseIoBitsType2[String]()
+
+      val size = 1000000000
+      // 1 billion
+      val density = 64
+      val sparsity = 16 * 1024
+
+      t.t("creating sparse bits of size " + size + "...")
+      val s =
+        t.tMsLn(
+          bind(
+            sparse.create(
+              dir.ref("sparse"),
+              new SparseBits((0 until size).filter(_ % sparsity == 0).map(_.toLong), size))))
+
+      t.t("populating bitset of size " + size + "...")
+      val b = t.tMsLn({
+        val rv = new util.BitSet(size)
+        (0 until size).filter(_ % density == 0).foreach (rv.set(_))
+        rv
+      })
+
+      t.t("creating dense bits of size " + size + "...")
+      val d =
+        t.tMsLn(
+          bind(
+            dense.create(
+              dir.ref("dense"),
+              new DenseBits(b, size))))
+      t.tln
+      t.t("counting sparse f..")
+      val sf = t.tMsLn(s.f)
+      t.t("counting dense f..")
+      val df = t.tMsLn(d.f)
+      t.t("counting bitset f..")
+      val bf = t.tMsLn(b.cardinality())
+      t.tln
+
+      t.t("counting sparse & sparse..")
+      val ss =
+        t.tMsLn(
+          s.fAnd(s))
+      t.t("counting dense & dense..")
+      val dd =
+        t.tMsLn(
+          d.fAnd(d))
+      t.t("counting sparse & dense..")
+      val sd =
+        t.tMsLn(
+          s.fAnd(d))
+      t.t("counting bitset & bitset..")
+      val bb =
+        t.tMsLn({
+          val b2 = new util.BitSet(size)
+          b2.or(b)
+          b2.and(b)
+          b2.cardinality()
+        })
+      t.tln
+      t.tln(f"sparse: f $sf, dense f: $bf, bitset: $bf")
+      t.tln(f"sparse&sparse: $ss, dense&dense:, $dd sparse&dense: $sd, bitset&bitset: $bb")
+    }
+
+  }
+
+
   val items =
     Seq(ExampleItem("a", true, 3, "some text"),
       ExampleItem("b", false, 2, "more text"),
@@ -78,11 +151,11 @@ class DfTest extends TestSuite("df") {
       using(new MMapDir(t.fileDir)) { dir =>
         using(dfs.createTyped[ExampleItem](items, dir)) { df =>
           t.tln
-          t.tln("colIds are: ")
-          df.colIds.foreach { id => t.tln("  " + id) }
+          t.tln("fields are: ")
+          df.fieldNames.foreach { id => t.tln("  " + id) }
           t.tln
-          t.tln("columns are: ")
-          (0 until df.colCount).map { i =>
+          t.tln("field values are: ")
+          df.fieldIndexes.map { i =>
             using(df.openCol[Any](i)) { col =>
               t.tln("  " + col.map {
                 _.toString
@@ -201,18 +274,18 @@ class DfTest extends TestSuite("df") {
             TestTool.ms(
               using(dfs.haveTypedDb(items, dir)) { db =>
                 t.tln
-                t.tln("index column id count: " + db.index.colCount)
+                t.tln("index column id count: " + db.indexDf.colCount)
                 t.tln
                 t.tln("first column ids are: ")
                 t.tln
-                db.index.colIds.take(8).foreach {
+                db.indexDf.colIds.take(8).foreach {
                   id => t.tln("  " + id)
                 }
                 t.tln
                 t.tln("first columns are: ")
                 t.tln
                 (0 until 8).map { i =>
-                  using(db.index.openCol[Any](i)) { col =>
+                  using(db.indexDf.openCol[Any](i)) { col =>
                     t.tln("  " + col.take(8).map {
                       _.toString
                     }.mkString(","))
@@ -230,7 +303,7 @@ class DfTest extends TestSuite("df") {
 
           using(dfs.haveTypedDb(items, dir)) { view =>
             val df = view.df
-            val index = view.index
+            val index = view.indexDf
             t.iln("db and index reopened in " + (System.currentTimeMillis() - before) + " ms")
 
             t.tln
@@ -276,7 +349,7 @@ class DfTest extends TestSuite("df") {
             val (ms, _) = TestTool.ms {
               (0 until n).foreach { i =>
                 val co =
-                  view.co(ids(rnd.nextInt(ids.size)),
+                  view.coStats(ids(rnd.nextInt(ids.size)),
                     ids(rnd.nextInt(ids.size)))
                 fA += co.fA
                 fB += co.fB
@@ -296,7 +369,7 @@ class DfTest extends TestSuite("df") {
             t.i("opening bitsets (no id lookup)...")
             val bits = t.iMsLn {
               (0 until n).map { i =>
-                view.open(rnd.nextInt(index.colCount))
+                view.openIndex(rnd.nextInt(index.colCount))
               }
             }: Seq[IoBits[String]]
             try {

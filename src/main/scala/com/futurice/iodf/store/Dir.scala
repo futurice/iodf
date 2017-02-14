@@ -120,9 +120,9 @@ class RandomAccess(val countedM:RefCounted[MemoryResource],
   }
 
   def checkRange(offset:Long, sz:Long) = {
-    if (offset < 0 || offset + sz > size) {
+/*    if (offset < 0 || offset + sz > size) {
       throw new RuntimeException(offset + s" is outside the range [0, $size]")
-    }
+    }*/
   }
 
   def getByte(offset:Long) = {
@@ -191,7 +191,7 @@ trait IoData[Id] extends Closeable {
   def openRandomAccess : RandomAccess
   def size : Long
 
-  def openView(offset:Long) : IoData[Id]
+  def openView(offset:Long, length:Option[Long] = None) : IoData[Id]
 }
 
 object IoData {
@@ -202,12 +202,12 @@ object IoData {
       override def ref: DataRef[Id] = {
         r
       }
-      override def openRandomAccess = new RandomAccess(mem, r.pos)
+      override def openRandomAccess = new RandomAccess(mem, r.pos, r.size)
 
       override def size: Long = m.size()
 
-      override def openView(offset: Long): IoData[Id] = {
-        open(r.shifted(offset), mem)
+      override def openView(offset: Long, size:Option[Long]): IoData[Id] = {
+        open(r.view(offset, size), mem)
       }
     }
   }
@@ -236,26 +236,28 @@ trait Dir[Id] extends Closeable {
 //  def create(id:Id, length:Long) : IoData[Id]
   def openOutput(id:Id) : OutputStream
 
-  def open(id:Id, pos:Long = 0) : IoData[Id]
+  def open(id:Id, pos:Long = 0, size:Option[Long] = None) : IoData[Id]
 
   def list : Array[Id]
   def exists(id:Id) = list.contains(id)
 
   def ref(id:Id) = new FileRef(this, id)
-  def ref(id:Id, pos:Long) = new DataRef(this, id, pos)
+  def ref(id:Id, pos:Long, size:Option[Long]) = new DataRef(this, id, pos, size)
 }
 
 case class FileRef[Id](dir:Dir[Id], id:Id) {
   def open = dir.open(id)
   def openOutput = dir.openOutput(id)
-  def toDataRef = new DataRef[Id](dir, id, 0)
+  def toDataRef = new DataRef[Id](dir, id, 0, None)
 //  def create(l:Long) = dir.create(id, l)
 }
 /* TODO: add maxSize:Option[Long] */
-case class DataRef[Id](dir:Dir[Id], id:Id, pos:Long = 0) {
-  def open = dir.open(id, pos)
+case class DataRef[Id](dir:Dir[Id], id:Id, pos:Long = 0, size:Option[Long] = None) {
+  def open = dir.open(id, pos, size)
 
-  def shifted(offset:Long) = {
-    new DataRef(dir, id, pos + offset)
+  def view(offset:Long, sz:Option[Long] = None) = {
+    new DataRef(dir, id,
+                pos + offset,
+                sz.orElse(size.map(_ - offset)))
   }
 }

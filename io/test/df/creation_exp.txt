@@ -1,11 +1,11 @@
 
-colIds are: 
+fields are: 
   name
   property
   quantity
   text
 
-columns are: 
+field values are: 
   a,b,c
   true,false,true
   3,2,4
@@ -23,12 +23,14 @@ colIds are:
   property
   quantity
   text
+  this
 
 columns are: 
   a,b,c
   true,false,true
   3,2,4
   some text,more text,even more text
+  ExampleItem(a,true,3,some text),ExampleItem(b,false,2,more text),ExampleItem(c,true,4,even more text)
 
 item 0 name is a
 item 1 quantity is 2

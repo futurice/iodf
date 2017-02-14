@@ -1,0 +1,15 @@
+creating sparse bits of size 1000000000...12705 ms (was 12855 ms)
+populating bitset of size 1000000000...15143 ms 
+creating dense bits of size 1000000000...2484 ms 
+
+counting sparse f..0 ms 
+counting dense f..3593 ms 
+counting bitset f..15 ms 
+
+counting sparse & sparse..213 ms 
+counting dense & dense..6143 ms 
+counting sparse & dense..114 ms 
+counting bitset & bitset..72 ms 
+
+sparse: f 61036, dense f: 15625000, bitset: 15625000
+sparse&sparse: 61036, dense&dense:, 15625000 sparse&dense: 61036, bitset&bitset: 15625000

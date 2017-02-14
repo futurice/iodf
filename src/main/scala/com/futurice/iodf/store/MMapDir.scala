@@ -22,12 +22,12 @@ class MMapDir(dir:File) extends Dir[String] {
   override def openOutput(name: String): OutputStream = {
     new FileOutputStream(file(name))
   }
-  override def open(name: String, pos:Long): IoData[String] = {
+  override def open(name: String, pos:Long, size:Option[Long]): IoData[String] = {
     val f = file(name)
     val m = new MMapBuffer (f, 0, f.length(), MMapMode.READ_ONLY)
   //  System.out.println("memory opened")
     IoData.open(
-      DataRef(this, name, pos),
+      DataRef(this, name, pos, size),
       RefCounted(
         MemoryResource(m.m, new Closeable {
           def close = {

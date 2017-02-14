@@ -3,38 +3,48 @@ package com.futurice.iodf
 import java.io.Closeable
 
 import com.futurice.iodf.ioseq.{DenseIoBitsType, IoBits, IoBitsType, SparseIoBitsType}
-import com.futurice.iodf.store.RamDir
+import com.futurice.iodf.store.{Dir, RamDir}
 
 import scala.annotation.tailrec
 import scala.collection.mutable.ArrayBuffer
 
-class IoScope(val io:IoUtils) extends Closeable {
+class IoScope extends Closeable{
   val closeables = ArrayBuffer[Closeable]()
   override def close(): Unit = {
     closeables.foreach(_.close)
     closeables.clear()
   }
-  def bind(c:Closeable) = {
+  def bind[T <: Closeable](c:T) = {
     closeables += c
     c
   }
+  def apply[T <: Closeable](c:T) : T = bind[T](c)
+  def openScope = bind(new IoScope)
+
 }
 
+object IoScope {
+  def open : IoScope = new IoScope()
+}
 
-class IoUtils extends Closeable {
-  val ram = RamDir()
+class IoContext[IoId](openedDir:Dir[IoId]) extends Closeable {
+  val dir = openedDir
+
   val bits =
-    new IoBitsType(new SparseIoBitsType[Int](),
-                   new DenseIoBitsType[Int]())
+    new IoBitsType(new SparseIoBitsType[IoId](),
+      new DenseIoBitsType[IoId]())
+
   override def close(): Unit = {
-    ram.close()
+    dir.close()
   }
-  def openScope = new IoScope(this)
-  def and[IoId1, IoId2](b1:IoBits[IoId1], b2:IoBits[IoId2])(implicit scope:IoScope) = {
-    scope.bind(bits.createAnd(scope.io.ram, b1, b2))
+}
+
+object IoContext {
+  def open = {
+    new IoContext[Int](RamDir())
   }
-  def not[IoId1, IoId2](b:IoBits[IoId1])(implicit scope:IoScope)  = {
-    scope.bind(bits.createNot(ram, b))
+  def apply()(implicit scope:IoScope) = {
+    scope.bind(open)
   }
 }
 

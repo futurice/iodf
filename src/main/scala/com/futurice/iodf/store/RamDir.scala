@@ -68,8 +68,8 @@ class RamDir[Id](ids:IdSchema[Id])(implicit t:ClassTag[Id]) extends Dir[Id] {
     }
   }
 
-  override def open(id: Id, pos: Long): IoData[Id] = {
-    dir(id).openView(pos)
+  override def open(id: Id, pos: Long, size:Option[Long]): IoData[Id] = {
+    dir(id).openView(pos, size)
   }
   override def list: Array[Id] = {
     dir.keySet.toArray

@@ -42,7 +42,6 @@ class DenseIoBitsType[Id](implicit val t:TypeTag[Seq[Boolean]])
   override def write(output: DataOutputStream, v:Seq[Boolean]): Unit = {
     output.writeLong(v.size)
     var i = 0
-    val bits = new util.BitSet(v.size.toInt)
     var written = 0
     while (i < v.size) {
       var l = 0.toByte
@@ -59,6 +58,28 @@ class DenseIoBitsType[Id](implicit val t:TypeTag[Seq[Boolean]])
     // write trailing bytes
     val byteSize = DenseIoBits.bitsToByteSize(v.size)
     (written until byteSize.toInt).foreach { i => output.writeByte(0) }
+  }
+  override def open(buf: IoData[Id]): DenseIoBits[Id] = {
+    new DenseIoBits[Id](IoRef(this, buf.ref), buf.openRandomAccess)
+  }
+  override def valueTypeTag =
+    _root_.scala.reflect.runtime.universe.typeTag[Boolean]
+}
+
+case class DenseBits(bits:util.BitSet, size:Long)
+
+class DenseIoBitsType2[Id](implicit val t:TypeTag[DenseBits])
+  extends IoTypeOf[Id, DenseIoBits[Id], DenseBits]()(t)
+    with SeqIoType[Id, DenseIoBits[Id], Boolean] {
+
+  override def write(output: DataOutputStream, v:DenseBits): Unit = {
+    output.writeLong(v.size)
+    val bs = v.bits.toByteArray
+    bs.foreach { b =>
+      output.writeByte(b)
+    }
+    val byteSize = DenseIoBits.bitsToByteSize(v.size)
+    (bs.size until byteSize.toInt).foreach { i => output.writeByte(0) }
   }
   override def open(buf: IoData[Id]): DenseIoBits[Id] = {
     new DenseIoBits[Id](IoRef(this, buf.ref), buf.openRandomAccess)

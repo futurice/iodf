@@ -109,7 +109,15 @@ class JavaObjectIo[T] extends Serializer[T] {
     val size = o.getBeInt(pos)
     val buf = new Array[Byte](size)
     o.copyTo(pos+4, buf)
-    using (new ObjectInputStream(new ByteArrayInputStream(buf))) { in =>
+    val loader = Thread.currentThread().getContextClassLoader
+    using (new ObjectInputStream(new ByteArrayInputStream(buf)) {
+      @throws[IOException]
+      @throws[ClassNotFoundException]
+      protected override def resolveClass(desc: ObjectStreamClass): Class[_] = {
+        val name: String = desc.getName
+        Class.forName(name, false, loader)
+      }
+    }) { in =>
       in.readObject().asInstanceOf[T]
     }
   }
@@ -187,6 +195,18 @@ object IntIo extends TypedSerializer[Int] {
     o.writeInt(v)
   }
   override def clazz = classOf[Int]
+}
+object LongIo extends TypedSerializer[Long] {
+  override def read(o: RandomAccess, pos: Long): Long = {
+    o.getBeLong(pos)
+  }
+  override def size(o: RandomAccess, pos: Long): Long = {
+    8
+  }
+  override def write(o: DataOutputStream, v: Long): Unit = {
+    o.writeLong(v)
+  }
+  override def clazz = classOf[Long]
 }
 
 object StringIo extends TypedSerializer[String] {
