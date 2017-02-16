@@ -56,7 +56,7 @@ class IoBitsType[IoId](val sparse:SparseIoBitsType[IoId], val dense:DenseIoBitsT
     (b1, b2) match {
       case (d1 : DenseIoBits[IoId1], d2 : DenseIoBits[IoId2]) =>
         dense.write(output, d1.size, (0L until d1.longCount).map { i =>
-          d1.beLong(i) & d2.beLong(i)
+          d1.leLong(i) & d2.leLong(i)
         })
         dense
       case (d : DenseIoBits[IoId1], s : SparseIoBits[IoId2]) =>
@@ -107,13 +107,13 @@ class IoBitsType[IoId](val sparse:SparseIoBitsType[IoId], val dense:DenseIoBitsT
     (b1, b2) match {
       case (d1 : DenseIoBits[IoId1], d2 : DenseIoBits[IoId2]) =>
         dense.write(output, d1.size, (0L until d1.longCount).map { i =>
-          d1.beLong(i) & ~d2.beLong(i)
+          d1.leLong(i) & ~d2.leLong(i)
         })
         dense
       case (d : DenseIoBits[IoId1], s : SparseIoBits[IoId2]) =>
         var at = 0
         dense.write(output, d.size, (0L until d.longCount).map { i =>
-          var l = d.beLong(i)
+          var l = d.leLong(i)
           val begin = i*64
           val end = begin+64
           while (at < s.trues.size && s.trues(at) < end) {
@@ -168,7 +168,7 @@ TODO
       case d : DenseIoBits[IoId1] =>
         // TODO: decide between dense & sparse based on frequences
         dense.write(output, d.size, (0L until d.longCount).map { i =>
-          ~d.beLong(i)
+          ~d.leLong(i)
         })
         dense
       case s : SparseIoBits[IoId1] =>
@@ -203,3 +203,4 @@ TODO
   }
 
 }
+

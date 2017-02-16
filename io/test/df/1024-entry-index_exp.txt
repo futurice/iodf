@@ -23,44 +23,44 @@ first columns are:
   false,false,false,false,false,false,false,false
   false,false,false,false,false,false,false,false
 
-db and index created and closed in 761 ms
+db and index created and closed in 404 ms
 
-227KB in db:
-  32KB   _0
-  194KB  _1
+260KB in db:
+  171KB  _0
+  88KB   _1
 
-db and index reopened in 14 ms
+db and index reopened in 11 ms
 
-sanity checking...87 ms (was 96 ms)
+sanity checking...152 ms (was 167 ms)
 
 property frequencies: original 494 vs index 494
 name=h frequencies: original 41 vs index 41
 
-searching 1024 ids...467 ms.
+searching 1024 ids...134 ms.
 
   checksum:    372633
-  time/lookup: 456 us
+  time/lookup: 130 us
 
-making 1024 cofreq calculations...715 ms.
+making 1024 cofreq calculations...443 ms.
 
   checksums:    7405/7405/24
-  time/freq:    698 us
+  time/freq:    432 us
 
-opening bitsets (no id lookup)...11 ms (was 11 ms)
+opening bitsets (no id lookup)...102 ms (was 229 ms)
 
-counting freqs...5 ms.
+counting freqs...2 ms.
 
   checksum:     6674
-  time/freq:    4 us
+  time/freq:    1 us
 
-comparing bits...23 ms.
+comparing bits...7 ms.
 
   checksums:    6674/6198/32
-  time/freq:    22 us
+  time/freq:    6 us
 
-making three way bit and comparisons...7184 ms.
+making three way bit and comparisons...11025 ms.
 
   checksums:    15/0
-  time/freq:    7015 us
+  time/freq:    10766 us
 
 0 refs open.

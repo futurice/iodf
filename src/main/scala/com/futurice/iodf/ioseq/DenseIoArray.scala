@@ -28,9 +28,22 @@ abstract class IoArrayType[Id, T](implicit t:TypeTag[Seq[T]], vTag:TypeTag[T])
   def writeUnit(output:DataOutputStream, v:T) : Unit
   def newInstance(ref:IoRef[Id, IoArray[Id, T]], buf:RandomAccess) : IoArray[Id, T]
   def unitByteSize : Long
-  def write(output:DataOutputStream, data:Seq[T]) = {
-    output.writeLong(data.size)
+  def write(output:DataOutputStream, size:Long, data:Iterator[T]) = {
+    output.writeLong(size)
     data.foreach { writeUnit(output, _) }
+  }
+  def write(output:DataOutputStream, data:Seq[T]) = {
+    write(output, data.size, data.iterator)
+  }
+  def writeMerged2(output:DataOutputStream, a:IoArray[Id, T], bSize:Long, b:Iterator[T]) = {
+    output.writeLong(a.lsize + bSize)
+    a.buf.writeTo(a.offset, output, unitByteSize*a.lsize)
+    b.foreach { writeUnit(output, _) }
+  }
+  def writeMerged(output:DataOutputStream, a:IoArray[Id, T], b:IoArray[Id, T]) = {
+    output.writeLong(a.lsize + b.lsize)
+    a.buf.writeTo(a.offset, output, unitByteSize*a.lsize)
+    b.buf.writeTo(b.offset, output, unitByteSize*b.lsize)
   }
   def open(data:IoData[Id]) = {
     newInstance(IoRef(this, data.ref), data.openRandomAccess)

@@ -29,13 +29,16 @@ trait TypedSerializer[T] extends Serializer[T] {
 
 class ObjectIoSeqType[Id, T](i:RandomAccessReading[T], o:OutputWriting[T])(
   implicit val t: TypeTag[Seq[T]], vTag:TypeTag[T])
-  extends IoTypeOf[Id, IoSeq[Id, T], Seq[T]]()(t)
-  with SeqIoType[Id, IoSeq[Id, T], T] {
+  extends IoTypeOf[Id, ObjectIoSeq[Id, T], Seq[T]]()(t)
+  with SeqIoType[Id, ObjectIoSeq[Id, T], T] {
 
   override def write(output: DataOutputStream, v: Seq[T]): Unit = {
     val w = new ObjectIoSeqWriter[T](output, o)
     v.foreach { w.write(_) }
     w.writeIndex
+  }
+  override def writeMerged(out: DataOutputStream, seqA: ObjectIoSeq[Id, T], seqB: ObjectIoSeq[Id, T]): Unit = {
+    ObjectIoSeqWriter.writeMerged(out, seqA, seqB)
   }
 
   override def open(buf: IoData[Id])= {
@@ -43,6 +46,7 @@ class ObjectIoSeqType[Id, T](i:RandomAccessReading[T], o:OutputWriting[T])(
   }
 
   override def valueTypeTag = vTag
+
 }
 
 
@@ -66,30 +70,42 @@ class ObjectIoSeqWriter[T](out:OutputStream, io:OutputWriting[T]) extends Closea
   }
 }
 
-class ObjectIoSeq[Id, T](val ref:IoRef[Id, _ <: IoObject[Id]], buf:RandomAccess, i:RandomAccessReading[T]) extends IoSeq[Id, T] {
+object ObjectIoSeqWriter {
+  def writeMerged(out: DataOutputStream, seqA: ObjectIoSeq[_, _], seqB: ObjectIoSeq[_, _]): Unit = {
+    val o = new DataOutputStream(out)
+    // 1. write first data areas
+    seqA.buf.writeTo(0, o, seqA.indexPos)
+    val bOffset = o.size
+    seqB.buf.writeTo(0, o, seqB.indexPos)
+    // 2. then, the A index can be written as it is
+    val indexPos = o.size
+/*    (0L until seqA.lsize).foreach { i =>
+      seqA.objectPos(i)
+    }*/
+    seqA.buf.writeTo(seqA.indexPos, o, seqA.buf.size - seqA.indexPos - 8)
+    //    b index needs to be parsed
+    (0L until seqB.lsize).foreach { i =>
+      o.writeLong(bOffset + seqB.objectPos(i))
+    }
+    // 3. last, write the index position
+    o.writeLong(indexPos)
+    o.close
+  }
+}
+
+class ObjectIoSeq[Id, T](val ref:IoRef[Id, _ <: IoObject[Id]], val buf:RandomAccess, val i:RandomAccessReading[T]) extends IoSeq[Id, T] {
 //  new RuntimeException().printStackTrace()
 
-/*  System.out.println("io " + i.getClass.toString)
-  System.out.println("data id " + ref.dataRef.id)
-  System.out.println("index size " + buf.size)*/
   val indexPos = buf.getBeLong(buf.size - 8)
-//  System.out.println("index pos " + indexPos)
   val lsize = ((buf.size-8)-indexPos) / 8
-/*  System.out.println("size " + lsize)
-  System.out.println("positions " + (0 until lsize.toInt).map(objectPos(_)))
-  System.out.println("hashes: " + this.hashCode + "/" + buf.hashCode)
-  System.out.println("addr: " + buf.address)*/
 
-  def objectPos(l:Long) = buf.getBeLong(indexPos + l*8)
+  def objectPos(l:Long) = {
+    buf.getBeLong(indexPos + l*8)
+  }
   override def apply(l: Long): T = {
-/*    System.out.println("getting item " + l)
-    System.out.println("hashes: " + this.hashCode + "/" + buf.hashCode)
-    System.out.println("addr: " + buf.address)
-    System.out.println("position: " + objectPos(l))*/
     i.read(buf, objectPos(l))
   }
   override def close(): Unit = {
-//    System.out.println("object io seq closed")
     buf.close
   }
 }
@@ -148,11 +164,11 @@ class VariantIo(tpes:Array[TypedSerializer[_]], fallback:Serializer[Any]) extend
     }
   }
   override def read(o: RandomAccess, pos: Long): Any = {
-    tpe(o.getBeInt(pos)).read(o, pos+4)
+    tpe(o.getByte(pos)).read(o, pos+1)
   }
   override def size(o: RandomAccess, pos: Long): Long = {
-    val t = tpes(o.getBeInt(pos))
-    tpe(o.getBeInt(pos)).size(o,pos+4)
+    val t = tpes(o.getByte(pos))
+    tpe(o.getBeInt(pos)).size(o,pos+1)
   }
 }
 

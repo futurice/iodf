@@ -1,6 +1,6 @@
 package com.futurice.iodf
 
-import java.io.File
+import java.io.{DataOutputStream, File}
 import java.util
 
 import com.futurice.testtoys.{TestSuite, TestTool}
@@ -25,14 +25,14 @@ case class ExampleItem( name:String, property:Boolean, quantity:Int, text:String
   */
 class DfTest extends TestSuite("df") {
 
-  def tRefCount(t:TestTool) = {
+  def tRefCount(t: TestTool) = {
     t.tln(RefCounted.openRefs + " refs open.")
   }
 
-  def tDir(t:TestTool, dir:File): Unit = {
+  def tDir(t: TestTool, dir: File): Unit = {
     t.tln((dir.listFiles().map(_.length()).sum / 1024) + "KB in " + dir.getName + ":")
     dir.listFiles().sorted.foreach { f =>
-      t.tln(f"  ${(f.length()/1024) + "KB"}%-6s ${f.getName}")
+      t.tln(f"  ${(f.length() / 1024) + "KB"}%-6s ${f.getName}")
 
     }
   }
@@ -40,20 +40,102 @@ class DfTest extends TestSuite("df") {
   test("bits") { t =>
     using(new MMapDir(t.fileDir)) { dir =>
       val bits = new SparseIoBitsType[String]()
-      using (bits.create(dir.ref("bits"), new SparseBits(Seq(0L, 2L), 4))) { b =>
+      using(bits.create(dir.ref("bits"), new SparseBits(Seq(0L, 2L), 4))) { b =>
 
         t.tln("bit(3):        " + b(2));
 
         t.tln("bit count is   " + b.f + "/" + b.n)
         t.tln("true bits are: " + b.trues.mkString(", ") + " (" + b.trues.lsize + ")")
-        t.tln("bits by index: " + (0L until b.n).map { b(_) }.mkString(", "))
-        t.tln("bits by iter:  " + b.map { _.toString }.mkString(", "))
+        t.tln("bits by index: " + (0L until b.n).map {
+          b(_)
+        }.mkString(", "))
+        t.tln("bits by iter:  " + b.map {
+          _.toString
+        }.mkString(", "))
       }
     }
   }
 
+  test("dense-bits") { t =>
+    using(IoScope.open) { implicit bind =>
+      val dir = bind(new MMapDir(t.fileDir))
+      val bits = new DenseIoBitsType[String]()
+
+      val b1 = bind(bits.create(dir.ref("bits"), Seq(false, false, true, false, true)))
+      val b2 = bind(bits.create(dir.ref("bits2"), Seq(false, true, true, false)))
+      val b3 = bind(bits.create(dir.ref("bits3"), (0 until 150).map(_ % 3 == 0)))
+      using(new DataOutputStream(dir.ref("bitsM2").openOutput)) { o =>
+        bits.writeAnyMerged(o, b3, b1)
+      }
+      val bM2 = bind(bits.open(bind(dir.open("bitsM2"))))
+
+      using(new DataOutputStream(dir.ref("bitsM").openOutput)) { o =>
+        bits.writeAnyMerged(o, b1, b2)
+      }
+      val bM = bind(bits.open(bind(dir.open("bitsM"))))
+
+      using(new DataOutputStream(dir.ref("bitsM3").openOutput)) { o =>
+        bits.writeAnyMerged(o, b1, b3)
+      }
+      val bM3 = bind(bits.open(bind(dir.open("bitsM3"))))
+
+      using(new DataOutputStream(dir.ref("bitsM4").openOutput)) { o =>
+        bits.writeAnyMerged(o, b3, b3)
+      }
+      val bM4 = bind(bits.open(bind(dir.open("bitsM4"))))
+
+      def tBits(b:DenseIoBits[String]) {
+        t.tln("bit(2):        " + b(2));
+
+        t.tln("bit count is   " + b.f + "/" + b.n)
+        t.tln("true bits are: " + b.trues.mkString(", "))
+        t.tln("bits by index: " + (0L until b.n).map {
+          b(_)
+        }.mkString(", "))
+        t.tln("bits by iter:  " + b.map {
+          _.toString
+        }.mkString(", "))
+        t.tln
+      }
+      def findErrors[Id, T](col:IoSeq[Id, T], colA:IoSeq[Id,T], colB:IoSeq[Id, T]) = {
+        (if (col.lsize != colA.lsize + colB.lsize)
+          Seq(("SIZE", col.lsize, colA.lsize, colB.lsize))
+        else Seq())++
+          (0L until colA.lsize).filter { i =>
+            col(i) != colA(i)
+          }.map(i => ("A", i, col(i), colA(i))) ++
+          (0L until colB.lsize).filter{ i =>
+            col(colA.lsize + i) != colB(i)
+          }.map(i => ("B", colA.lsize + i, col(colA.lsize+i), colB(i)))
+      }
+
+      t.tln("b1")
+      tBits(b1)
+      t.tln("b2")
+      tBits(b2)
+      t.tln("b3")
+      tBits(b3)
+      t.tln("bM")
+
+      tBits(bM)
+      t.tln("errors: " + findErrors(bM, b1, b2).mkString(","))
+      t.tln("bM2")
+
+      tBits(bM2)
+      t.tln("errors: " + findErrors(bM2, b3, b1).mkString(","))
+
+      t.tln("bM3")
+      tBits(bM3)
+      t.tln("errors: " + findErrors(bM3, b1, b3).mkString(","))
+
+      t.tln("bM4")
+      tBits(bM4)
+      t.tln("errors: " + findErrors(bM4, b3, b3).mkString(","))
+    }
+  }
+
   test("bits-perf") { t =>
-    val sizes = Array(16, 256, 4*1024, 1024*1024)
+    val sizes = Array(16, 256, 4 * 1024, 1024 * 1024)
 
     sizes.foreach { sz =>
       using(new MMapDir(t.fileDir)) { dir =>
@@ -90,7 +172,7 @@ class DfTest extends TestSuite("df") {
       t.t("populating bitset of size " + size + "...")
       val b = t.tMsLn({
         val rv = new util.BitSet(size)
-        (0 until size).filter(_ % density == 0).foreach (rv.set(_))
+        (0 until size).filter(_ % density == 0).foreach(rv.set(_))
         rv
       })
 
@@ -197,7 +279,7 @@ class DfTest extends TestSuite("df") {
   test("index") { t =>
     RefCounted.trace {
 
-      def tDb(df:Df[String, String], index:Df[String, (String, Any)]) = {
+      def tDb(df: Df[String, String], index: Df[String, (String, Any)]) = {
         t.tln
         t.tln("colIds are: ")
         t.tln
@@ -256,7 +338,6 @@ class DfTest extends TestSuite("df") {
         using(new MMapDir(dirFile)) { dir =>
           val dfs = Dfs.default
 
-
           val rnd = new Random(0)
           val letters = "abcdefghijklmnopqrstuvxyz"
 
@@ -272,7 +353,7 @@ class DfTest extends TestSuite("df") {
 
           val (creationMs, _) =
             TestTool.ms(
-              using(dfs.haveTypedDb(items, dir)) { db =>
+              using(dfs.createTypedDb(items, dir)) { db =>
                 t.tln
                 t.tln("index column id count: " + db.indexDf.colCount)
                 t.tln
@@ -418,7 +499,7 @@ class DfTest extends TestSuite("df") {
               }
               t.iln(ms3 + " ms.")
               t.tln
-              t.tln("  checksums:    " + fAB + "/" + fABC )
+              t.tln("  checksums:    " + fAB + "/" + fABC)
               t.iln("  time/freq:    " + ((ms3 * 1000) / n) + " us")
               t.tln
             } finally {
@@ -434,4 +515,135 @@ class DfTest extends TestSuite("df") {
     tRefCount(t)
   }
 
+  test("merging") { t =>
+    RefCounted.trace {
+      using(IoScope.open) { implicit bind =>
+        val io = IoContext()
+        val dfs = Dfs.default
+        val dirA = bind(new MMapDir(new File(t.fileDir, "dbA")))
+        val dirB = bind(new MMapDir(new File(t.fileDir, "dbB")))
+        val dirM = bind(new MMapDir(new File(t.fileDir, "dbM")))
+
+        val letters = "abcdefghijklmnopqrstuvxyz"
+
+        def makeItems(seed: Int, sz:Int) = {
+          val rnd = new Random(seed)
+
+          def nextLetter = letters.charAt(rnd.nextInt(letters.size))
+
+          (0 until sz).map { i =>
+            ExampleItem(nextLetter.toString,
+              rnd.nextBoolean(),
+              (rnd.nextGaussian() * 5).toInt,
+              (0 until rnd.nextInt(4)).map(e => (0 until (1 + rnd.nextInt(2))).map(e => nextLetter).mkString).mkString(" "))
+          }
+        }
+
+        val itemsA = makeItems(0, 1000)
+        val itemsB = makeItems(1, 1000)
+
+        t.t("creating dbA..")
+        val dbA =
+          t.iMsLn(
+            bind(dfs.createTypedDb(itemsA, dirA)))
+        t.t("creating dbB..")
+        val dbB =
+          t.iMsLn(
+            bind(dfs.createTypedDb(itemsB, dirB)))
+        t.t("merging dbs..")
+        t.iMsLn(
+          dfs.writeMergedDb(dbA, dbB, dirM))
+        t.t("opening merged db..")
+        val dbM =
+          t.iMsLn(
+            bind(dfs.openTypedDb[ExampleItem](dirM)))
+
+        t.tln
+        t.tln("merged db size: " + dbM.lsize)
+        t.tln("merged db columns: " + dbM.colIds.mkString(", "))
+        t.tln("merged db index entry count: " + dbM.indexDf.colIds.lsize)
+        t.tln
+        t.tln("merged db content:")
+        def findErrors[Id, T](col:IoSeq[Id, T], colA:IoSeq[Id,T], colB:IoSeq[Id, T]) = {
+          (if (col.lsize != colA.lsize + colB.lsize)
+            Seq(("SIZE", col.lsize, colA.lsize, colB.lsize))
+          else Seq())++
+            (0L until colA.lsize).filter { i =>
+              col(i) != colA(i)
+            }.map(i => ("A", i, col(i), colA(i))) ++
+            (0L until colB.lsize).filter{ i =>
+              col(colA.lsize + i) != colB(i)
+            }.map(i => ("B", colA.lsize + i, col(colA.lsize+i), colB(i)))
+        }
+        dbM.colIds.foreach { id =>
+          using (IoScope.open) { implicit bind =>
+            val col = dbM.col[Any](id)
+            val colA = dbA.col[Any](id)
+            val colB = dbB.col[Any](id)
+            t.tln(f"  $id values: ")
+            t.tln(f"     M:${col.take(4).mkString(",")}..${col.takeRight(4).mkString(",")}")
+            t.tln(f"     A:${colA.take(4).mkString(",")}..${colA.takeRight(4).mkString(",")}")
+            t.tln(f"     B:${colB.take(4).mkString(",")}..${colB.takeRight(4).mkString(",")}")
+            t.tln(f"     errors: " + findErrors(col, colA, colB))
+          }
+        }
+        t.tln
+        t.tln("merged db indexes:")
+
+        (0L until dbM.indexDf.colIds.lsize).filter(_ % 32 == 0).take(16).foreach { index =>
+          val id = dbM.indexDf.colIds(index)
+          using (IoScope.open) { implicit bind =>
+            val col = dbM.index(id)
+            val colA = dbA.index(id)
+            val colB = dbB.index(id)
+            t.tln(f"  $id values: ")
+            t.tln(f"     M:${col.take(4).mkString(",")}..${col.takeRight(4).mkString(",")}")
+            t.tln(f"     A:${colA.take(4).mkString(",")}..${colA.takeRight(4).mkString(",")}")
+            t.tln(f"     B:${colB.take(4).mkString(",")}..${colB.takeRight(4).mkString(",")}")
+            val errors =
+              (0L until colA.lsize).filter { i =>
+                col(i) != colA(i)
+              }.map(i => ("A", i, col(i), colA(i))) ++
+              (0L until colB.lsize).filter{ i =>
+                col(colA.lsize + i) != colB(i)
+              }.map(i => ("B", colA.lsize + i, col(colA.lsize+i), colB(i)))
+            t.tln(f"     typeM:   " + col.getClass)
+            t.tln(f"     typeA:   " + colA.getClass)
+            t.tln(f"     typeB:   " + colB.getClass)
+            t.tln(f"     errors: " + findErrors(col, colA, colB).mkString(","))
+          }
+        }
+        t.tln
+        t.tln("check index rows:")
+        (0L until dbM.indexDf.colIds.lsize).foreach { index =>
+          val id = dbM.indexDf.colIds(index)
+          val col = dbM.index(id)
+          val colA = dbA.index(id)
+          val colB = dbB.index(id)
+          val err = findErrors(col, colA, colB)
+          if (err.size != 0) {
+            t.tln(f"  bad row: $index/$id")
+            t.tln(f"  $id values: ")
+            t.tln(f"     M:${col.take(4).mkString(",")}..${col.takeRight(4).mkString(",")}")
+            t.tln(f"     A:${colA.take(4).mkString(",")}..${colA.takeRight(4).mkString(",")}")
+            t.tln(f"     B:${colB.take(4).mkString(",")}..${colB.takeRight(4).mkString(",")}")
+            val errors =
+              (0L until colA.lsize).filter { i =>
+                col(i) != colA(i)
+              }.map(i => ("A", i, col(i), colA(i))) ++
+                (0L until colB.lsize).filter{ i =>
+                  col(colA.lsize + i) != colB(i)
+                }.map(i => ("B", colA.lsize + i, col(colA.lsize+i), colB(i)))
+            t.tln(f"     typeM:   " + col.getClass)
+            t.tln(f"     typeA:   " + colA.getClass)
+            t.tln(f"     typeB:   " + colB.getClass)
+            t.tln(f"     errors:  " + err.mkString(","))
+          }
+
+        }
+
+        t.tln
+      }
+    }
+  }
 }

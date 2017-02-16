@@ -11,42 +11,37 @@ import scala.reflect.runtime.universe._
 
 case class SparseBits(trues:Seq[Long], size:Long) {}
 
-class SparseToDenseIoBitsType[Id](implicit val t:TypeTag[SparseBits])
-  extends IoTypeOf[Id, DenseIoBits[Id], SparseBits]()(t)
-    with SeqIoType[Id, DenseIoBits[Id], Boolean] {
-
-  override def write(output: DataOutputStream, v: SparseBits): Unit = {
-    output.writeLong(v.size)
-    var i = 0
-    val bits = new util.BitSet(v.size.toInt)
-    v.trues.foreach { l => bits.set(l.toInt) }
-    val bytes = bits.toByteArray
-    bytes.foreach { b =>
-      output.writeByte(b)
-    }
-    // write trailing bytes
-    val byteSize = DenseIoBits.bitsToByteSize(v.size)
-    (bytes.size until byteSize.toInt).foreach { i => output.writeByte(0) }
-  }
-
-  override def open(buf: IoData[Id]) = {
-    new DenseIoBits[Id](IoRef(this, buf.ref), buf.openRandomAccess)
-  }
-  override def valueTypeTag =
-    _root_.scala.reflect.runtime.universe.typeTag[Boolean]
-}
-
-
 class SparseIoBitsType[Id](implicit val t:TypeTag[SparseBits])
   extends IoTypeOf[Id, SparseIoBits[Id], SparseBits]()(t)
     with SeqIoType[Id, SparseIoBits[Id], Boolean] {
   val longs = new LongIoArrayType[Id]()
 
+  override def defaultSeq(lsize:Long) = {
+    new EmptyIoBits[Id](lsize)
+  }
   override def write(output: DataOutputStream, v: SparseBits): Unit = {
     output.writeLong(v.size)
     longs.write(output, v.trues)
   }
-
+  def writeMerged(out: DataOutputStream, seqA: SparseIoBits[Id], seqB: SparseIoBits[Id]): Unit = {
+    out.writeLong(seqA.lsize+seqB.lsize)
+    longs.writeMerged2(out, seqA.trues, seqB.trues.lsize, seqB.trues.iterator.map(_+seqA.lsize))
+  }
+  override def writeAnyMerged(out:DataOutputStream, seqA:Any, seqB:Any) = {
+    (seqA, seqB) match {
+      case (a:SparseIoBits[Id], b:SparseIoBits[Id]) =>
+        writeMerged(out, a, b)
+      case (a:SparseIoBits[Id], b:EmptyIoBits[Id]) =>
+        out.writeLong(a.lsize+b.lsize)
+        a.trues.buf.writeTo(0, out, a.trues.buf.size) // write copy
+      case (a:EmptyIoBits[Id], b:SparseIoBits[Id]) =>
+        out.writeLong(a.lsize+b.lsize)
+        longs.write(out, b.trues.lsize, b.trues.iterator.map(_+a.lsize))
+      case (a:SparseIoBits[Id], b:DenseIoBits[Id]) =>
+        out.writeLong(a.lsize+b.lsize)
+        longs.writeMerged2(out, a.trues, b.f, b.trues.iterator.map(_+a.lsize))
+    }
+  }
   override def open(buf: IoData[Id]) = {
     using(buf.openRandomAccess) { ra =>
       val sz = ra.getBeLong(0)
@@ -61,6 +56,7 @@ class SparseIoBitsType[Id](implicit val t:TypeTag[SparseBits])
 
   override def valueTypeTag =
     _root_.scala.reflect.runtime.universe.typeTag[Boolean]
+
 }
 
 /**
@@ -70,6 +66,44 @@ class SparseIoBits[IoId](val ref:IoRef[IoId, SparseIoBits[IoId]],
                          val trues:LongIoArray[IoId],
                          val lsize : Long) extends IoBits[IoId]{
 
+  def beLongs = {
+    val longs = DenseIoBits.bitsToLongCount(lsize)
+    new Iterator[Long] {
+      var at = 0L
+      var i = 0L
+      override def hasNext = i < longs
+      override def next = {
+        var rv = 0L
+        while (at < trues.size && trues(at) < (i+1)*64) {
+          // these BE longs are crazy :-/
+          val offset = trues(at)-i*64
+          val byte = 7-(offset / 8)
+          val bit = offset%8
+          rv |= (1L << bit) << (8*byte)
+          at += 1
+        }
+        i += 1
+        rv
+      }
+    }
+  }
+  def leLongs = {
+    val longs = DenseIoBits.bitsToLongCount(lsize)
+    new Iterator[Long] {
+      var at = 0L
+      var i = 0L
+      override def hasNext = i < longs
+      override def next = {
+        var rv = 0L
+        while (at < trues.size && trues(at) < (i+1)*64) {
+          rv |= (1L << (trues(at)-i*64))
+          at += 1
+        }
+        i += 1
+        rv
+      }
+    }
+  }
   override def apply(l: Long): Boolean = {
 /*    var i = 0L
     while (i < trues.lsize && trues(i) < l) {

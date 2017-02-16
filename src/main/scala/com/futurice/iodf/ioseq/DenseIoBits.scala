@@ -5,7 +5,7 @@ import java.util
 
 import com.futurice.iodf.store.{Dir, FileRef, IoData, RandomAccess}
 import xerial.larray.buffer.LBufferAPI
-import com.futurice.iodf._
+import com.futurice.iodf.{IoRef, _}
 
 import scala.reflect.runtime.universe._
 
@@ -13,32 +13,109 @@ import scala.reflect.runtime.universe._
 object DenseIoBits {
   def bitsToLongCount(bitSize:Long) = ((bitSize+63L) / 64L)
   def bitsToByteSize(bitSize:Long) = bitsToLongCount(bitSize) * 8
+
+  def writeLeLong(out:DataOutputStream, long:Long) = {
+    out.writeByte((long & 0xFF).toInt)
+    out.writeByte((long >>> (8*1)).toInt & 0xFF)
+    out.writeByte((long >>> (8*2)).toInt & 0xFF)
+    out.writeByte((long >>> (8*3)).toInt & 0xFF)
+    out.writeByte((long >>> (8*4)).toInt & 0xFF)
+    out.writeByte((long >>> (8*5)).toInt & 0xFF)
+    out.writeByte((long >>> (8*6)).toInt & 0xFF)
+    out.writeByte((long >>> (8*7)).toInt & 0xFF)
+  }
+
+  def write(output: DataOutputStream, bitN:Int, leLongs:Iterable[Long]): Unit = {
+    output.writeLong(bitN)
+    leLongs.foreach { writeLeLong( output,  _ ) }
+  }
+  def writeMerged(out: DataOutputStream,
+                  aSize:Long,
+                  as:Iterator[Long],
+                  bSize:Long,
+                  bs:Iterator[Long]): Unit = {
+    out.writeLong(aSize + bSize)
+    val alongs = (aSize / 64)
+    (0L until alongs).foreach { i => writeLeLong(out, as.next) }
+    val overbits = (aSize % 64).toInt
+    var bLongCount = bitsToLongCount(bSize)
+    if (overbits > 0) {
+      var overflow = as.next
+      var i = 0
+      while (i < bLongCount) {
+        val v = bs.next
+        val w = (v << overbits) | overflow
+        writeLeLong(out, w)
+        overflow = v >>> (64 - overbits)
+        i += 1
+      }
+      if (bitsToLongCount(aSize + bSize) > alongs + bLongCount) {
+        writeLeLong(out, overflow)
+      }
+    } else {
+      (0L until bLongCount).foreach { i => writeLeLong(out, bs.next) }
+    }
+  }
+  def writeMerged(out: DataOutputStream, a:DenseIoBits[_], b:DenseIoBits[_]): Unit = {
+    writeMerged(out, a.lsize, a.leLongs.iterator, b.lsize, b.leLongs.iterator)
+  }
+  def defaultSeq[Id](lsize:Long) = {
+    new EmptyIoBits[Id](lsize)
+  }
+  def writeAnyMerged[Id](out: DataOutputStream, seqA:Any, seqB:Any): Unit = {
+    (seqA, seqB) match {
+      case (a:DenseIoBits[Id], b:DenseIoBits[Id]) =>
+        writeMerged(out, a, b)
+      case (a:DenseIoBits[Id], b:EmptyIoBits[Id]) =>
+        writeMerged(out, a.lsize, a.leLongs.iterator, b.lsize, Stream.continually(0L).iterator)
+      case (a:EmptyIoBits[Id], b:DenseIoBits[Id]) =>
+        writeMerged(out, a.lsize, Stream.continually(0L).iterator, b.lsize, b.leLongs.iterator)
+      case (a:DenseIoBits[Id], b:SparseIoBits[Id]) =>
+        writeMerged(out, a.lsize, a.leLongs.iterator, b.lsize, b.leLongs)
+    }
+  }
+}
+
+// TODO: there are three different mappings from different data structures
+//       to dense bits. These should be merged !!!
+
+class SparseToDenseIoBitsType[Id](implicit val t:TypeTag[SparseBits])
+  extends IoTypeOf[Id, DenseIoBits[Id], SparseBits]()(t)
+    with SeqIoType[Id, DenseIoBits[Id], Boolean] {
+
+  override def write(output: DataOutputStream, v: SparseBits): Unit = {
+    output.writeLong(v.size)
+    var i = 0
+    val bits = new util.BitSet(v.size.toInt)
+    v.trues.foreach { l => bits.set(l.toInt) }
+    val bytes = bits.toByteArray
+    bytes.foreach { b =>
+      output.writeByte(b)
+    }
+    // write trailing bytes
+    val byteSize = DenseIoBits.bitsToByteSize(v.size)
+    (bytes.size until byteSize.toInt).foreach { i => output.writeByte(0) }
+  }
+  override def writeMerged(output: DataOutputStream, a:DenseIoBits[Id], b:DenseIoBits[Id]) =
+    DenseIoBits.writeMerged(output, a, b)
+  override def writeAnyMerged(output: DataOutputStream, a:Any, b:Any) =
+    DenseIoBits.writeAnyMerged(output, a, b)
+  override def defaultSeq(lsize: Long): Any = DenseIoBits.defaultSeq(lsize)
+
+  override def open(buf: IoData[Id]) = {
+    new DenseIoBits[Id](IoRef(this, buf.ref), buf.openRandomAccess)
+  }
+  override def valueTypeTag =
+    _root_.scala.reflect.runtime.universe.typeTag[Boolean]
 }
 
 class DenseIoBitsType[Id](implicit val t:TypeTag[Seq[Boolean]])
   extends IoTypeOf[Id, DenseIoBits[Id], Seq[Boolean]]()(t)
     with SeqIoType[Id, DenseIoBits[Id], Boolean] {
 
-/*  def create(id:Id, data:Seq[Boolean], dir:Dir[Id]) = {
-    val buf = dir.create(id, 8 + DenseIoBitsType.bitsToByteSize(data.size))
-    buf.putLong(0, data.size)
-    val rv =
-      new DenseIoBits[Id](IoRef(this, dir, id), buf)
-    data.zipWithIndex.foreach { case (d, i) =>
-      rv.update(i, d)
-    }
-    rv
-  }
-  def open(id:Id, dir:Dir[Id], pos:Long) = {
-    new DenseIoBits[Id](IoRef(this, dir, id, pos), dir.open(id, pos))
-  }*/
-  /*  def tryCreate[I](id:Id, data:I, dir:Dir[Id]) = {
-      Some( create(id, data.asInstanceOf[In], dir) )
-    }*/
-  def write(output: DataOutputStream, bitN:Int, v:Iterable[Long]): Unit = {
-    output.writeLong(bitN)
-    v.foreach { output.writeLong( _ ) }
-  }
+  def write(output: DataOutputStream, bitN:Int, v:Iterable[Long]) =
+    DenseIoBits.write(output, bitN, v)
+
   override def write(output: DataOutputStream, v:Seq[Boolean]): Unit = {
     output.writeLong(v.size)
     var i = 0
@@ -59,6 +136,12 @@ class DenseIoBitsType[Id](implicit val t:TypeTag[Seq[Boolean]])
     val byteSize = DenseIoBits.bitsToByteSize(v.size)
     (written until byteSize.toInt).foreach { i => output.writeByte(0) }
   }
+  override def writeMerged(output: DataOutputStream, a:DenseIoBits[Id], b:DenseIoBits[Id]) =
+    DenseIoBits.writeMerged(output, a, b)
+  override def writeAnyMerged(output: DataOutputStream, a:Any, b:Any) =
+    DenseIoBits.writeAnyMerged(output, a, b)
+  override def defaultSeq(lsize: Long): Any = DenseIoBits.defaultSeq(lsize)
+
   override def open(buf: IoData[Id]): DenseIoBits[Id] = {
     new DenseIoBits[Id](IoRef(this, buf.ref), buf.openRandomAccess)
   }
@@ -81,6 +164,12 @@ class DenseIoBitsType2[Id](implicit val t:TypeTag[DenseBits])
     val byteSize = DenseIoBits.bitsToByteSize(v.size)
     (bs.size until byteSize.toInt).foreach { i => output.writeByte(0) }
   }
+  override def writeMerged(output: DataOutputStream, a:DenseIoBits[Id], b:DenseIoBits[Id]) =
+    DenseIoBits.writeMerged(output, a, b)
+  override def writeAnyMerged(output: DataOutputStream, a:Any, b:Any) =
+    DenseIoBits.writeAnyMerged(output, a, b)
+  override def defaultSeq(lsize: Long): Any = DenseIoBits.defaultSeq(lsize)
+
   override def open(buf: IoData[Id]): DenseIoBits[Id] = {
     new DenseIoBits[Id](IoRef(this, buf.ref), buf.openRandomAccess)
   }
@@ -107,16 +196,26 @@ class DenseIoBits[IoId](val ref:IoRef[IoId, DenseIoBits[IoId]], val origBuf:Rand
   def lsize = bitSize
   def offset = 8
 
-  def beLong(l:Long) : Long = buf.getBeLong(l*8)
   def long(l:Long) : Long = buf.getNativeLong(l*8)
+//  def beLong(l:Long) : Long = buf.getBeLong(l*8)
+  def leLong(l:Long) : Long = buf.getLeLong(l*8)
+
   def putLong(index:Long, l:Long) = buf.putNativeLong(index*8, l)
 
   def longs = for (pos <- (0L until longCount)) yield long(pos)
+//  def beLongs = for (pos <- (0L until longCount)) yield beLong(pos)
+  def leLongs = for (pos <- (0L until longCount)) yield leLong(pos)
 
   def f = {
     var rv = 0L
-    longs.foreach { l =>
-      rv += java.lang.Long.bitCount(l)
+    val us = buf.unsafe
+    var i = buf.address
+    val end = i + 8*longCount
+    while (i < end) {
+      rv += java.lang.Long.bitCount(
+        us.getLong(i)
+      )
+      i += 8
     }
     rv
   }
@@ -151,10 +250,18 @@ class DenseIoBits[IoId](val ref:IoRef[IoId, DenseIoBits[IoId]], val origBuf:Rand
       throw new IllegalArgumentException("given bitset is of different length")
     }
     var rv = 0L
-    (0L until longCount).foreach { i =>
+    buf.checkRange(0, 8*longCount)
+    bits.buf.checkRange(0, 8*longCount)
+    var i = buf.address
+    var j = bits.buf.address
+    val end = i + 8*longCount
+    val us = buf.unsafe
+    while (i < end) {
       rv += java.lang.Long.bitCount(
-        long(i) & bits.long(i)
+        us.getLong(i) & us.getLong(j)
       )
+      i += 8
+      j += 8
     }
     rv
   }

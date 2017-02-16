@@ -1,6 +1,7 @@
 package com.futurice.iodf
 
 import java.io.{BufferedOutputStream, Closeable, DataOutputStream, File}
+import java.util
 
 import com.futurice.iodf.store._
 import com.futurice.iodf.ioseq._
@@ -41,6 +42,13 @@ trait WithValueTypeTag[M] {
 }
 
 trait SeqIoType[Id, T <: IoObject[Id], M] extends IoType[Id, T] with WithValueTypeTag[M] {
+  def defaultSeq(lsize:Long) : Any = {
+    throw new RuntimeException("not implemented")
+  }
+  def writeMerged(out:DataOutputStream, seqA:T, seqB:T) : Unit
+  def writeAnyMerged(out:DataOutputStream, seqA:Any, seqB:Any) = {
+    writeMerged(out, seqA.asInstanceOf[T], seqB.asInstanceOf[T])
+  }
 }
 
 abstract class IoTypeOf[Id, T <: IoObject[Id], In](implicit typ:TypeTag[In]) extends IoType[Id, T] {
@@ -172,13 +180,13 @@ trait Df[IoId, ColId] extends java.io.Closeable {
   def col[T <: Any](id: ColId)(implicit scope:IoScope) = {
     scope.bind(openCol[T](id))
   }
-  def col[T <: Any](i: Int)(implicit scope:IoScope) = {
+  def col[T <: Any](i: Long)(implicit scope:IoScope) = {
     scope.bind(openCol[T](i))
   }
-  def openCol[T <: Any](i:Int) : IoSeq[IoId, T] = {
+  def openCol[T <: Any](i:Long) : IoSeq[IoId, T] = {
     _cols(i).asInstanceOf[IoSeq[IoId, T]]
   }
-  def apply[T <: Any](i:Int, j:Long) : T = {
+  def apply[T <: Any](i:Long, j:Long) : T = {
     using (openCol[T](i)) { _(j) }
   }
   def openCol[T <: Any](id:ColId) : IoSeq[IoId, T] = {
@@ -191,7 +199,40 @@ trait Df[IoId, ColId] extends java.io.Closeable {
     using (openCol[T](id)) { _(i) }
   }
 }
+/*
+class MultiDf[IoId, ColId](dfs:Array[Df[IoId, ColId]])(implicit val colIdOrdering:Ordering[ColId]) extends Df[IoId, ColId] {
 
+  override val colIds: IoSeq[IoId, ColId] = {
+    new IoSeq[IoId, ColId]{
+      // Potentially slow, because O(N) complexity
+      override def apply(l: Long): ColId = ???
+
+      override def lsize: Long = ???
+
+      override def ref: IoRef[IoId, _ <: IoObject[IoId]] = ???
+
+      override def close(): Unit = ???
+    }
+  }
+
+  override val _cols: IoSeq[IoId, IoSeq[IoId, Any]] =
+    new IoSeq[IoId, IoSeq[IoId, Any]]{
+      // Potentially slow, because O(N) complexity
+      override def apply(l: Long): IoSeq[IoId, Any] = ???
+
+      override def lsize: Long = ???
+
+      override def ref: IoRef[IoId, _ <: IoObject[IoId]] = ???
+
+      override def close(): Unit = ???
+    }
+
+  // size in Long
+  override lazy val lsize: Long = dfs.map(_.lsize).sum
+
+  override def close(): Unit = ???
+}
+*/
 trait TypedDf[IoId, T] extends Df[IoId, String] {
   def apply(i:Long) : T
   def thisColIndex : Int
@@ -290,8 +331,9 @@ class IndexedDf[IoId, T](val df:TypedDf[IoId, T],
                          val indexDf:Df[IoId, (String, Any)]) extends Closeable {
 
   def apply(i:Long) = df(i)
+  def colIds = df.colIds
   def col[T <: Any](id:String)(implicit scope:IoScope) = df.col[T](id)
-  def col[T <: Any](i:Int)(implicit scope:IoScope) = df.col[T](i)
+  def col[T <: Any](i:Long)(implicit scope:IoScope) = df.col[T](i)
   def index(idValue:(String, Any))(implicit scope:IoScope) : IoBits[IoId] = {
     scope.bind(openIndex(idValue))
   }
@@ -307,6 +349,8 @@ class IndexedDf[IoId, T](val df:TypedDf[IoId, T],
   def openIndex(i:Int) : IoBits[IoId] = {
     indexDf.openCol(i).asInstanceOf[IoBits[IoId]]
   }
+
+  def lsize = df.lsize
 
   def n = df.lsize
   def f(i:Int) = {
@@ -352,6 +396,7 @@ trait IoTypes[IoId] {
 
   // shortcuts: reconsider
   def idOrdering : Ordering[IoId]
+  def anyOrdering : Ordering[Any]
   def idSeqType : SeqIoType[IoId, _ <: IoSeq[IoId, IoId], IoId]
   def longSeqType: SeqIoType[IoId, _ <: IoSeq[IoId, Long], Long]
 
@@ -416,6 +461,20 @@ trait IoTypes[IoId] {
             }).asInstanceOf[Ordering[Any]] // TODO: refactor, there has to be a better way
           }
           def idOrdering = idOrd
+          def anyOrdering : Ordering[Any] = new Ordering[Any] {
+            val b = orderingOf[Boolean]
+            val i = orderingOf[Int]
+            val l = orderingOf[Long]
+            val s = orderingOf[String]
+            override def compare(x: Any, y: Any): Int = {
+              (x, y) match {
+                case (xv: Boolean, yv:Boolean) => b.compare(xv, yv)
+                case (xv: Int, yv:Int) => i.compare(xv, yv)
+                case (xv: Long, yv:Long) => l.compare(xv, yv)
+                case (xv: String, yv:String) => s.compare(xv, yv)
+              }
+            }
+          }
           def idSeqType : SeqIoType[Id, _ <: IoSeq[Id, Id], Id] = {
             ioTypeOf[Seq[Id]].asInstanceOf[SeqIoType[Id, _ <: IoSeq[Id, Id], Id]]
           }
@@ -454,7 +513,8 @@ trait IoTypes[IoId] {
             str,
             new IntIoArrayType[String],
             new LongIoArrayType[String],
-            new DenseIoBitsType[String](),
+            new DenseIoBitsType[String](),  // converts Seq[Boolean]
+            new DenseIoBitsType2[String](), // converts BitSet
             new SparseIoBitsType[String](),
             //        new SparseToDenseIoBitsType[String](),
             new IntIoArrayType[String],
@@ -501,6 +561,96 @@ class Dfs[IoId : ClassTag](types:IoTypes[IoId])(implicit val seqSeqTag : TypeTag
         _colIds.close; __cols.close
       }
       override def colIdOrdering: Ordering[ColId] = ord
+    }
+  }
+
+  def writeMerged[ColId](a:Df[IoId,ColId], b:Df[IoId, ColId], dir:Dir[IoId])(
+      implicit colIdSeqTag: TypeTag[Seq[ColId]],
+      ordering:Ordering[ColId]) : Unit = {
+    val newColIds = new ArrayBuffer[ColId]()
+    val aIndex = new ArrayBuffer[Long]()
+    val bIndex = new ArrayBuffer[Long]()
+    val aIds = a.colIds
+    val bIds = b.colIds
+    var aAt = 0L
+    var bAt = 0L
+    while (aAt < aIds.size && bAt < bIds.size) {
+      val aId = aIds(aAt)
+      val bId = bIds(bAt)
+      val o = ordering.compare(aId, bId)
+      if (o == 0) {
+        aIndex += aAt
+        bIndex += bAt
+        newColIds += aId
+        aAt += 1
+        bAt += 1
+      } else if (o < 0) {
+        aIndex += aAt
+        bIndex += -1
+        newColIds += aId
+        aAt += 1
+      } else {
+        aIndex += -1
+        bIndex += bAt
+        newColIds += bId
+        bAt += 1
+      }
+    }
+    while (aAt < aIds.size) {
+      aIndex += aAt
+      bIndex += -1
+      newColIds += aIds(aAt)
+      aAt += 1
+    }
+    while (bAt < bIds.size) {
+      aIndex += -1
+      bIndex += bAt
+      newColIds += bIds(bAt)
+      bAt += 1
+    }
+
+    val vd =
+      (0 until newColIds.size).map { index =>
+        val fileRef = FileRef(dir, dir.id(index+2))
+        val vt =
+          using (new DataOutputStream(fileRef.openOutput)) { out =>
+            (aIndex(index), bIndex(index)) match {
+              case (-1, bi) =>
+                using(b.openCol(bi)) { bSeq =>
+                  val t = bSeq.ref.typ.asInstanceOf[SeqIoType[IoId, _ <: IoSeq[IoId,Any], _]]
+                  t.writeAnyMerged(out, t.defaultSeq(a.lsize), bSeq)
+                  t
+                }
+              case (ai, -1) =>
+                using(a.openCol(ai)) { aSeq =>
+                  val t = aSeq.ref.typ.asInstanceOf[SeqIoType[IoId, _ <: IoSeq[IoId,Any], _]]
+                  t.writeAnyMerged(out, aSeq, t.defaultSeq(b.lsize))
+                  t
+                }
+              case (ai, bi)  =>
+                using(a.openCol(ai)) { aSeq =>
+                  using(b.openCol(bi)) { bSeq =>
+                    val t = aSeq.ref.typ.asInstanceOf[SeqIoType[IoId, _ <: IoSeq[IoId,Any], _]]
+                    t.writeAnyMerged(out, aSeq, bSeq)
+                    t
+                  }
+                }
+            }
+          }
+        new IoRefObject[IoId, IoSeq[IoId, Any]](
+          IoRef(vt, fileRef.toDataRef)) : IoObject[IoId]
+      }
+    try {
+      types.writeIoObject(
+        newColIds : Seq[ColId],
+        FileRef(dir, dir.id(0)))
+      types.writeIoObject(
+        vd : Seq[IoObject[IoId]],
+        FileRef(dir, dir.id(1)))
+    } finally {
+      vd.foreach {
+        _.close
+      }
     }
   }
 
@@ -646,9 +796,10 @@ class Dfs[IoId : ClassTag](types:IoTypes[IoId])(implicit val seqSeqTag : TypeTag
 
             val ref =
               if (data.size * 1024 > df.lsize) {
-                val set = data.toSet
+                val bitset = new util.BitSet(df.lsize.toInt)
+                data.foreach { i => bitset.set(i.toInt) }
                 types.writeIoObject(
-                  (0L until df.lsize).map(set.contains(_)): Seq[Boolean],
+                  new DenseBits(bitset, df.lsize),
                   dir.ref(dir.id(cols.size + 2)))
               } else {
                 types.writeIoObject(
@@ -663,7 +814,7 @@ class Dfs[IoId : ClassTag](types:IoTypes[IoId])(implicit val seqSeqTag : TypeTag
         }
       }
       types.writeIoObject(
-        ids: Seq[Any],
+        ids: Seq[(ColId,Any)],
         FileRef(dir, dir.id(0)))
       types.writeIoObject(
         cols: Seq[IoObject[IoId]],
@@ -678,7 +829,7 @@ class Dfs[IoId : ClassTag](types:IoTypes[IoId])(implicit val seqSeqTag : TypeTag
                        boolSeqTag: TypeTag[Seq[Boolean]],
                        ord:Ordering[ColId]) = {
     val ioIds =
-      types.openIoObject[Seq[Any]](
+      types.openIoObject[Seq[(ColId,Any)]](
         FileRef(dir, dir.id(0))).asInstanceOf[IoSeq[IoId, (ColId, Any)]]
     val ioCols =
       types.openIoObject[Seq[IoObject[IoId]]](
@@ -757,26 +908,38 @@ class Dfs[IoId : ClassTag](types:IoTypes[IoId])(implicit val seqSeqTag : TypeTag
                                   types.longSeqType,
                                   types.intToId _)(classTag[IoId], types.idOrdering)
   }
-
-  def haveTypedDb[T : ClassTag](provideItems: => Seq[T],
-                                dir:Dir[IoId],
-                                indexConf : IndexConf[String] = IndexConf[String]())(
-                                 implicit tag:TypeTag[T]) : IndexedDf[IoId, T] = {
-    if (!dir.exists(dir.id(0)) || !dir.exists(dir.id(1))) {
-      using (openWrittenCfs(dir, 0)) { d =>
-        writeTyped[T](
-          provideItems,
-          d)
-      }
-      using (openCfs(dir, 0)) { d0 =>
-        using (openTyped[T](d0)) { df =>
-          using(openWrittenCfs(dir, 1)) { d =>
-            writeIndex[String](
-              df, d, indexConf)
-          }
+  def writeMergedDb[T](a:IndexedDf[IoId,T],
+                           b:IndexedDf[IoId, T],
+                           dir:Dir[IoId])(
+    implicit t: TypeTag[Seq[(String, Any)]]) : Unit = {
+    using (openWrittenCfs(dir, 0)) { d =>
+      writeMerged(a.df, b.df, d)
+    }
+    using(openWrittenCfs(dir, 1)) { d =>
+      writeMerged(a.indexDf, b.indexDf, d)(
+        t, Ordering.Tuple2(Ordering[String], types.anyOrdering))
+    }
+  }
+  def writeTypedDb[T : ClassTag](provideItems:Seq[T],
+                                 dir:Dir[IoId],
+                                 indexConf : IndexConf[String] = IndexConf[String]())(
+                                 implicit tag:TypeTag[T]) : Unit = {
+    using (openWrittenCfs(dir, 0)) { d =>
+      writeTyped[T](
+        provideItems,
+        d)
+    }
+    using (openCfs(dir, 0)) { d0 =>
+      using (openTyped[T](d0)) { df =>
+        using(openWrittenCfs(dir, 1)) { d =>
+          writeIndex[String](
+            df, d, indexConf)
         }
       }
     }
+  }
+  def openTypedDb[T: ClassTag](dir:Dir[IoId])(
+                               implicit tag:TypeTag[T]) : IndexedDf[IoId, T] = {
     using (openCfs(dir, 0)) { d =>
       val df = openTyped[T](d)
       using(openCfs(dir, 1)) { d2 =>
@@ -784,6 +947,22 @@ class Dfs[IoId : ClassTag](types:IoTypes[IoId])(implicit val seqSeqTag : TypeTag
           openIndex(df, d2))
       }
     }
+  }
+  def createTypedDb[T:ClassTag](items : Seq[T],
+                                dir:Dir[IoId],
+                                indexConf : IndexConf[String] = IndexConf[String]())(
+                                 implicit tag:TypeTag[T]) : IndexedDf[IoId, T] = {
+    writeTypedDb(items, dir, indexConf)
+    openTypedDb[T](dir)
+  }
+  def haveTypedDb[T : ClassTag](provideItems: => Seq[T],
+                                dir:Dir[IoId],
+                                indexConf : IndexConf[String] = IndexConf[String]())(
+                                 implicit tag:TypeTag[T]) : IndexedDf[IoId, T] = {
+    if (!dir.exists(dir.id(0)) || !dir.exists(dir.id(1))) {
+      writeTypedDb(provideItems, dir, indexConf)
+    }
+    openTypedDb[T](dir)
   }
 }
 case class TypeIoSchema[IoId, T](t:Class[_],

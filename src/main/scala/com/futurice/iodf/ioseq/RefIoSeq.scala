@@ -14,8 +14,8 @@ import scala.reflect.runtime.universe._
   */
 class RefIoSeq[Id, T <: IoObject[Id]](
     override val ref:IoRef[Id, RefIoSeq[Id, T]],
-    types:IoTypes[Id],
-    buf:ObjectIoSeq[Id, (Int, Id, Long)]) extends IoSeq[Id, T] {
+    val types:IoTypes[Id],
+    val buf:ObjectIoSeq[Id, (Int, Id, Long)]) extends IoSeq[Id, T] {
   def dir = ref.dataRef.dir // assume that the referred items are in the same directory
   override def apply(l: Long): T = {
     val (typ, id, pos) = buf(l)
@@ -40,6 +40,9 @@ class RefIoSeqType[Id, T <: IoObject[Id]](
       output,
       data.map { e => (types.ioTypeId(e.ref.typ).get, e.ref.dataRef.id, e.ref.dataRef.pos) })
   }
+  override def writeMerged(out: DataOutputStream, seqA: RefIoSeq[Id, T], seqB: RefIoSeq[Id, T]): Unit = {
+    entryType.writeMerged(out, seqA.buf, seqB.buf)
+  }
 
   override def open(buf: IoData[Id]): RefIoSeq[Id, T] = {
     new RefIoSeq[Id, T](
@@ -48,6 +51,7 @@ class RefIoSeqType[Id, T <: IoObject[Id]](
       entryType.open(buf))
   }
   override def valueTypeTag = vTag
+
 }
 
 /*    new RefIoSeq[Id, T](

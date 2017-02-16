@@ -120,9 +120,9 @@ class RandomAccess(val countedM:RefCounted[MemoryResource],
   }
 
   def checkRange(offset:Long, sz:Long) = {
-/*    if (offset < 0 || offset + sz > size) {
+    if (offset < 0 || offset + sz > size) {
       throw new RuntimeException(offset + s" is outside the range [0, $size]")
-    }*/
+    }
   }
 
   def getByte(offset:Long) = {
@@ -152,8 +152,27 @@ class RandomAccess(val countedM:RefCounted[MemoryResource],
   def copyTo(srcOffset:Long, bytes:Array[Byte]) : Unit =
     copyTo(srcOffset, bytes, 0, bytes.size)
 
+  def writeTo(srcOffset:Long, out:OutputStream, n:Long) : Unit = {
+    checkRange(srcOffset, n)
+    var i = srcOffset+address
+    val end = srcOffset+address+n
+    val bufsz = 8*1024
+    val buf = new Array[Byte](bufsz)
+    while (i < end) {
+      val bend = Math.min(end, i + bufsz)
+      var w = 0
+      while (i < bend) {
+        buf(w) = unsafe.getByte(i)
+        i += 1
+        w +=1
+      }
+      out.write(buf, 0, w)
+    }
+  }
+
   // big endian long
   def getBeLong(offset:Long) = {
+    checkRange(offset, 8)
     val m = address + offset
     ((getMemoryByte(m) : Long) << (8*7)) +
     ((getMemoryByte(m + 1) & 0xFF : Long) << (8*6)) +
@@ -164,8 +183,22 @@ class RandomAccess(val countedM:RefCounted[MemoryResource],
     ((getMemoryByte(m + 6) & 0xFF : Long) << (8*1)) +
     (getMemoryByte(m + 7) & 0xFF : Long)
   }
+  // little endian long
+  def getLeLong(offset:Long) = {
+    checkRange(offset, 8)
+    val m = address + offset
+    ((getMemoryByte(m) & 0xFF: Long)) +
+     ((getMemoryByte(m + 1) & 0xFF : Long) << (8*1)) +
+     ((getMemoryByte(m + 2) & 0xFF : Long) << (8*2)) +
+     ((getMemoryByte(m + 3) & 0xFF : Long) << (8*3)) +
+     ((getMemoryByte(m + 4) & 0xFF : Long) << (8*4)) +
+     ((getMemoryByte(m + 5) & 0xFF : Long) << (8*5)) +
+     ((getMemoryByte(m + 6) & 0xFF : Long) << (8*6)) +
+     ((getMemoryByte(m + 7) & 0xFF : Long) << (8*7))
+  }
 
   def getBeInt(offset:Long) = {
+    checkRange(offset, 4)
     val m = address + offset
     ((getMemoryByte(m) & 0xFF : Int) << (8*3)) +
     ((getMemoryByte(m + 1) & 0xFF : Int) << (8*2)) +
@@ -175,6 +208,7 @@ class RandomAccess(val countedM:RefCounted[MemoryResource],
 
 
   def getBeShort(offset:Long) = {
+    checkRange(offset, 2)
     val m = address + offset
       ((getMemoryByte(m) & 0xFF).toShort << (8*1)) +
       (getMemoryByte(m + 1) & 0xFF).toShort
