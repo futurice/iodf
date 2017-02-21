@@ -87,14 +87,17 @@ class DfTest extends TestSuite("df") {
       def tBits(b:DenseIoBits[String]) {
         t.tln("bit(2):        " + b(2));
 
-        t.tln("bit count is   " + b.f + "/" + b.n)
-        t.tln("true bits are: " + b.trues.mkString(", "))
-        t.tln("bits by index: " + (0L until b.n).map {
+        t.tln("bit count is     " + b.f + "/" + b.n)
+        t.tln("true bits length " + b.trues.size)
+        t.tln("true bits are:   " + b.trues.mkString(", "))
+        t.tln("real true bits:  " + b.zipWithIndex.filter(_._1).map(_._2).mkString(", "))
+        t.tln("bits by index:   " + (0L until b.n).map {
           b(_)
         }.mkString(", "))
-        t.tln("bits by iter:  " + b.map {
+        t.tln("bits by iter:    " + b.map {
           _.toString
         }.mkString(", "))
+        if (b.f != b.trues.size) throw new RuntimeException
         t.tln
       }
       def findErrors[Id, T](col:IoSeq[Id, T], colA:IoSeq[Id,T], colB:IoSeq[Id, T]) = {
@@ -160,14 +163,27 @@ class DfTest extends TestSuite("df") {
       // 1 billion
       val density = 64
       val sparsity = 16 * 1024
+      val sparsity2 = size / 1024 // 1024 samples
 
       t.t("creating sparse bits of size " + size + "...")
-      val s =
+      val s = {
+        val bits = (0 until size).filter(_ % sparsity == 0).map(_.toLong)
         t.tMsLn(
           bind(
             sparse.create(
               dir.ref("sparse"),
-              new SparseBits((0 until size).filter(_ % sparsity == 0).map(_.toLong), size))))
+              new SparseBits(bits, size))))
+      }
+
+      t.t("creating really sparse bits of size " + size + "...")
+      val s2 = {
+        val bits = (0 until size).filter(_ % sparsity2 == 0).map(_.toLong)
+        t.tMsLn(
+          bind(
+            sparse.create(
+              dir.ref("sparse2"),
+              new SparseBits(bits, size))))
+      }
 
       t.t("populating bitset of size " + size + "...")
       val b = t.tMsLn({
@@ -186,6 +202,8 @@ class DfTest extends TestSuite("df") {
       t.tln
       t.t("counting sparse f..")
       val sf = t.tMsLn(s.f)
+      t.t("counting really sparse f..")
+      val s2f = t.tMsLn(s2.f)
       t.t("counting dense f..")
       val df = t.tMsLn(d.f)
       t.t("counting bitset f..")
@@ -196,6 +214,10 @@ class DfTest extends TestSuite("df") {
       val ss =
         t.tMsLn(
           s.fAnd(s))
+      t.t("counting really sparse & really sparse..")
+      val ss2 =
+        t.tMsLn(
+          s2.fAnd(s2))
       t.t("counting dense & dense..")
       val dd =
         t.tMsLn(
@@ -204,6 +226,10 @@ class DfTest extends TestSuite("df") {
       val sd =
         t.tMsLn(
           s.fAnd(d))
+      t.t("counting really sparse & dense..")
+      val sd2 =
+        t.tMsLn(
+          s2.fAnd(d))
       t.t("counting bitset & bitset..")
       val bb =
         t.tMsLn({
@@ -222,8 +248,8 @@ class DfTest extends TestSuite("df") {
 
   val items =
     Seq(ExampleItem("a", true, 3, "some text"),
-      ExampleItem("b", false, 2, "more text"),
-      ExampleItem("c", true, 4, "even more text"))
+        ExampleItem("b", false, 2, "more text"),
+        ExampleItem("c", true, 4, "even more text"))
   val indexConf =
     IndexConf[String]().withAnalyzer("text", e => e.asInstanceOf[String].split(" ").toSeq)
 

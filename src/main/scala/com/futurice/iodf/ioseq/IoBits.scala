@@ -23,9 +23,13 @@ abstract class IoBits[IoId] extends IoSeq[IoId, Boolean] {
   implicit def &[IoId1, IoId2](b:IoBits[IoId1])(implicit io:IoContext[IoId2], scope:IoScope) = {
     scope.bind(io.bits.createAnd(io.dir, this, b))
   }
+  implicit def &~[IoId1, IoId2](b:IoBits[IoId1])(implicit io:IoContext[IoId2], scope:IoScope) = {
+    scope.bind(io.bits.createAndNot(io.dir, this, b))
+  }
   implicit def ~[IoId1](implicit io:IoContext[IoId1], scope:IoScope) = {
     scope.bind(io.bits.createNot(io.dir, this))
   }
+
 
 }
 
@@ -42,7 +46,7 @@ class EmptyIoBits[IoId](val lsize : Long) extends IoBits[IoId] {
 object IoBits {
   def fAnd(dense:DenseIoBits[_], sparse: SparseIoBits[_]) = {
     var rv = 0L
-    sparse.trues.foreach { t =>
+    for (t <- sparse.trues) {
       if (dense(t)) rv += 1
     }
     rv
@@ -178,7 +182,7 @@ TODO
           val begin = i*64
           val end = begin+64
           while (at < s.trues.size && s.trues(at) < end) {
-            l &= ~(1<<(s.trues(at)-begin))
+            l &= ~((1L<<(s.trues(at)-begin))&0xffffffff)
             at+=1
           }
           l

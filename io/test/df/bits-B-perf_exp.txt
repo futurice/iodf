@@ -1,15 +1,19 @@
-creating sparse bits of size 1000000000...12867 ms (was 16061 ms)
-populating bitset of size 1000000000...14554 ms (was 17524 ms)
-creating dense bits of size 1000000000...2690 ms (was 2502 ms)
+creating sparse bits of size 1000000000...22 ms (was 28 ms)
+creating really sparse bits of size 1000000000...0 ms (0% of old 1 ms)
+populating bitset of size 1000000000...13780 ms (was 14892 ms)
+creating dense bits of size 1000000000...2511 ms (was 2463 ms)
 
 counting sparse f..0 ms (was 0 ms)
-counting dense f..26 ms (0% of old 5460 ms)
-counting bitset f..10 ms (was 18 ms)
+counting really sparse f..0 ms (was 0 ms)
+counting dense f..25 ms (was 29 ms)
+counting bitset f..10 ms (was 11 ms)
 
-counting sparse & sparse..224 ms (was 244 ms)
-counting dense & dense..29 ms (was 32 ms)
-counting sparse & dense..129 ms (was 142 ms)
-counting bitset & bitset..63 ms (was 77 ms)
+counting sparse & sparse..10 ms (was 25 ms)
+counting really sparse & really sparse..0 ms (was 0 ms)
+counting dense & dense..31 ms (was 33 ms)
+counting sparse & dense..10 ms (was 12 ms)
+counting really sparse & dense..1 ms (was 0 ms)
+counting bitset & bitset..67 ms (was 70 ms)
 
 sparse: f 61036, dense f: 15625000, bitset: 15625000
 sparse&sparse: 61036, dense&dense:, 15625000 sparse&dense: 61036, bitset&bitset: 15625000

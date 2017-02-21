@@ -1,6 +1,6 @@
 package com.futurice.iodf.store
 
-import java.io.{DataOutputStream, File, IOException, OutputStream}
+import java.io._
 
 import com.futurice.iodf.{IoScope, IoSeq, SeqIoType, Utils}
 import com.futurice.iodf.ioseq.Serializer
@@ -19,7 +19,29 @@ class WrittenCfsDir[IoId, DirIoId](
    implicit tag:ClassTag[IoId],
    idOrdering:Ordering[IoId]) extends Dir[IoId] {
 
-  val out = new DataOutputStream(ref.openOutput)
+  val out = new OutputStream {
+    val o = new BufferedOutputStream(ref.openOutput)
+    var size = 0L
+    override def write(b:Int): Unit = {
+      o.write(b)
+      size += 1
+    }
+    override def write(b:Array[Byte]) {
+      o.write(b)
+      size += b.size
+    }
+    override def write(b:Array[Byte], off:Int , len:Int) {
+      o.write(b, off, len)
+      size += len
+    }
+    override def flush() {
+      o.flush()
+    }
+    @throws[IOException]
+    override def close(): Unit = {
+      o.close()
+    }
+  }
 
   val ids  = new ArrayBuffer[IoId];
   val pos = new ArrayBuffer[Long];
@@ -32,7 +54,7 @@ class WrittenCfsDir[IoId, DirIoId](
   override def openOutput(id:IoId): OutputStream = {
     if (!ready) throw new IllegalStateException("cfd dir can be written one file at a time.")
     ids += id
-    pos += out.size()
+    pos += out.size
     ready = false
     new OutputStream {
       override def write(b:Int): Unit = {
@@ -57,22 +79,22 @@ class WrittenCfsDir[IoId, DirIoId](
   override def close(): Unit = {
     val idIndex = ids.zipWithIndex.toArray.sortBy(_._1)
     val idPos = out.size
-    idSeqType.writeAny(out, idIndex.map(_._1).toSeq)
+    val dout = new DataOutputStream(out)
+    idSeqType.writeAny(dout, idIndex.map(_._1).toSeq)
     val ordPos = out.size
-    longSeqType.writeAny(out, idIndex.map(_._2.toLong).toSeq)
+    longSeqType.writeAny(dout, idIndex.map(_._2.toLong).toSeq)
     val posPos = out.size
-    longSeqType.writeAny(out, pos)
-
+    longSeqType.writeAny(dout, pos)
 
     /*    out.writeInt(idPos.size)
      idPos.foreach { case (id, pos) =>
         idIo.write(out, id)
         out.writeLong(pos)
     }*/
-    out.writeLong(idPos)
-    out.writeLong(ordPos)
-    out.writeLong(posPos)
-    out.close()
+    dout.writeLong(idPos)
+    dout.writeLong(ordPos)
+    dout.writeLong(posPos)
+    dout.close()
   }
 }
 

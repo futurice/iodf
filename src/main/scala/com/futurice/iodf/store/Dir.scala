@@ -89,7 +89,7 @@ class RandomAccess(val countedM:RefCounted[MemoryResource],
   val address = m.address() + offset
   val size = maxSize.getOrElse(m.dataSize() - offset)
 
-  def unsafe = UnsafeUtil.getUnsafe
+  val unsafe = UnsafeUtil.getUnsafe
 
   if (address < m.address() || address + size > m.address() + m.size())
     throw new RuntimeException("slice out of bounds")

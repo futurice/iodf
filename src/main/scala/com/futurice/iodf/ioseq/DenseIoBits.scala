@@ -27,7 +27,9 @@ object DenseIoBits {
 
   def write(output: DataOutputStream, bitN:Int, leLongs:Iterable[Long]): Unit = {
     output.writeLong(bitN)
-    leLongs.foreach { writeLeLong( output,  _ ) }
+    for (l <- leLongs) {
+      writeLeLong( output,  l )
+    }
   }
   def writeMerged(out: DataOutputStream,
                   aSize:Long,
@@ -89,12 +91,14 @@ class SparseToDenseIoBitsType[Id](implicit val t:TypeTag[SparseBits])
     val bits = new util.BitSet(v.size.toInt)
     v.trues.foreach { l => bits.set(l.toInt) }
     val bytes = bits.toByteArray
-    bytes.foreach { b =>
+    for (b <- bytes) {
       output.writeByte(b)
     }
     // write trailing bytes
     val byteSize = DenseIoBits.bitsToByteSize(v.size)
-    (bytes.size until byteSize.toInt).foreach { i => output.writeByte(0) }
+    for (i <- bytes.size until byteSize.toInt) {
+      output.writeByte(0)
+    }
   }
   override def writeMerged(output: DataOutputStream, a:DenseIoBits[Id], b:DenseIoBits[Id]) =
     DenseIoBits.writeMerged(output, a, b)
@@ -120,12 +124,14 @@ class DenseIoBitsType[Id](implicit val t:TypeTag[Seq[Boolean]])
     output.writeLong(v.size)
     var i = 0
     var written = 0
-    while (i < v.size) {
+    val sz = v.size
+    val it = v.iterator
+    while (i < sz) {
       var l = 0.toByte
       var mask = 1.toByte
-      val max = Math.min(i+8, v.size)
+      val max = Math.min(i+8, sz)
       while (i < max) {
-        if (v(i)) l = (l | mask).toByte
+        if (it.next) l = (l | mask).toByte
         mask = (mask << 1).toByte
         i += 1
       }
@@ -133,7 +139,7 @@ class DenseIoBitsType[Id](implicit val t:TypeTag[Seq[Boolean]])
       written += 1
     }
     // write trailing bytes
-    val byteSize = DenseIoBits.bitsToByteSize(v.size)
+    val byteSize = DenseIoBits.bitsToByteSize(sz)
     (written until byteSize.toInt).foreach { i => output.writeByte(0) }
   }
   override def writeMerged(output: DataOutputStream, a:DenseIoBits[Id], b:DenseIoBits[Id]) =
@@ -162,7 +168,9 @@ class DenseIoBitsType2[Id](implicit val t:TypeTag[DenseBits])
       output.writeByte(b)
     }
     val byteSize = DenseIoBits.bitsToByteSize(v.size)
-    (bs.size until byteSize.toInt).foreach { i => output.writeByte(0) }
+    for (i <- bs.size until byteSize.toInt) {
+      output.writeByte(0)
+    }
   }
   override def writeMerged(output: DataOutputStream, a:DenseIoBits[Id], b:DenseIoBits[Id]) =
     DenseIoBits.writeMerged(output, a, b)
@@ -295,12 +303,12 @@ class DenseIoBits[IoId](val ref:IoRef[IoId, DenseIoBits[IoId]], val origBuf:Rand
         prepareNext()
 
         def prepareNext() {
-          while (v == 0 && l + 1 < lsize / 8) {
+          while (v == 0 && l + 1 < (lsize+7)/ 8) {
             l += 1
             v = buf.getByte(l)
           }
           val zeros = java.lang.Long.numberOfTrailingZeros(v)
-          v = (v & (~(1 << zeros))).toByte
+          v = ((v & (~(1 << zeros))) & 0xff).toByte
           n = l*8 + zeros
           if (n >= lsize) {
             n = -1
@@ -316,6 +324,35 @@ class DenseIoBits[IoId](val ref:IoRef[IoId, DenseIoBits[IoId]], val origBuf:Rand
           rv
         }
       }
+/*      new Iterator[Long] {
+        var l = 0L
+        var v = buf.getLeLong(l)
+        var n = 0L
+
+        prepareNext()
+
+        def prepareNext() {
+          while (v == 0L && l + 1 < longCount) {
+            l += 1
+            v = buf.getLeLong(l)
+          }
+          val zeros = java.lang.Long.numberOfTrailingZeros(v)
+          v = (v & (~(1L << zeros)))
+          n = l*64 + zeros
+          if (n >= lsize) {
+            n = -1L
+          }
+        }
+        override def hasNext: Boolean = {
+          n != -1L
+        }
+
+        override def next(): Long = {
+          val rv = n
+          prepareNext
+          rv
+        }
+      }*/
     }
   }
 

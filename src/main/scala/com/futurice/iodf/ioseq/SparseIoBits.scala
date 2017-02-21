@@ -39,6 +39,9 @@ class SparseIoBitsType[Id](implicit val t:TypeTag[SparseBits])
         longs.write(out, b.trues.lsize, b.trues.iterator.map(_+a.lsize))
       case (a:SparseIoBits[Id], b:DenseIoBits[Id]) =>
         out.writeLong(a.lsize+b.lsize)
+        if (b.trues.size != b.f) {
+          throw new RuntimeException(f"FAILURE: ${b.trues.size} vs ${b.f}") // 18 vs 19
+        }
         longs.writeMerged2(out, a.trues, b.f, b.trues.iterator.map(_+a.lsize))
     }
   }
@@ -74,7 +77,8 @@ class SparseIoBits[IoId](val ref:IoRef[IoId, SparseIoBits[IoId]],
       override def hasNext = i < longs
       override def next = {
         var rv = 0L
-        while (at < trues.size && trues(at) < (i+1)*64) {
+        val sz = trues.size
+        while (at < sz && trues(at) < (i+1)*64) {
           // these BE longs are crazy :-/
           val offset = trues(at)-i*64
           val byte = 7-(offset / 8)
@@ -95,7 +99,8 @@ class SparseIoBits[IoId](val ref:IoRef[IoId, SparseIoBits[IoId]],
       override def hasNext = i < longs
       override def next = {
         var rv = 0L
-        while (at < trues.size && trues(at) < (i+1)*64) {
+        val sz = trues.size
+        while (at < sz && trues(at) < (i+1)*64) {
           rv |= (1L << (trues(at)-i*64))
           at += 1
         }
@@ -129,7 +134,9 @@ class SparseIoBits[IoId](val ref:IoRef[IoId, SparseIoBits[IoId]],
     var rv = 0
     var i = 0
     var j = 0
-    while (i < trues.size && j < b.trues.size) {
+    val t1 = trues.size
+    val t2 = b.trues.size
+    while (i < t1 && j < t2) {
       val t1 = trues(i)
       val t2 = b.trues(j)
       if (t1 < t2) i += 1

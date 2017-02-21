@@ -692,14 +692,13 @@ class Dfs[IoId : ClassTag](types:IoTypes[IoId])(implicit val seqSeqTag : TypeTag
     }
   }
 
-  def create[ColId](
-                     t:Seq[(ColId, _ <: IoType[IoId, _ <: IoObject[IoId]])],
-                     cols:Seq[Seq[_ <: Any]],
-                     dir:Dir[IoId])(
-                     implicit colIdSeqTag: TypeTag[Seq[ColId]],
-                     ordering:Ordering[ColId]) : Df[IoId, ColId] = {
+  def create[ColId](t:Seq[(ColId, _ <: IoType[IoId, _ <: IoObject[IoId]])],
+                    cols:Seq[Seq[_ <: Any]],
+                    dir:Dir[IoId])(
+                    implicit colIdSeqTag: TypeTag[Seq[ColId]],
+                    ordering:Ordering[ColId]) : Df[IoId, ColId] = {
     write(t, cols, dir)
-    open(t, dir)
+    open(dir)
     /*
         val order = t.map(_._1).zipWithIndex.sortBy(_._1).map(_._2)
 
@@ -728,8 +727,7 @@ class Dfs[IoId : ClassTag](types:IoTypes[IoId])(implicit val seqSeqTag : TypeTag
         apply(ioIds, ioCols, orderedCols(0).size)*/
   }
 
-  def open[ColId](t:Seq[(ColId, _ <: IoType[IoId, _])],
-                  dir:Dir[IoId])(implicit colIdSeqTag: TypeTag[Seq[ColId]],
+  def open[ColId](dir:Dir[IoId])(implicit colIdSeqTag: TypeTag[Seq[ColId]],
                                  colIdOrdering : Ordering[ColId])
   : Df[IoId, ColId] = {
     val ioIds =
@@ -781,7 +779,7 @@ class Dfs[IoId : ClassTag](types:IoTypes[IoId])(implicit val seqSeqTag : TypeTag
           }
           val analyzer = conf.analyzer(id)
           val distinct =
-            col.par.flatMap(analyzer(_)).toArray.distinct.sorted(ordering)
+            col.toArray.flatMap(analyzer(_)).distinct.sorted(ordering)
           val toIndex = distinct.zipWithIndex.toMap
           val indexes = Array.fill(distinct.size)(new ArrayBuffer[Long]())
           col.zipWithIndex.foreach { case (v, i) =>
@@ -876,9 +874,7 @@ class Dfs[IoId : ClassTag](types:IoTypes[IoId])(implicit val seqSeqTag : TypeTag
   def openTyped[T : ClassTag](dir:Dir[IoId])(implicit tag:TypeTag[T]) : TypedDf[IoId, T] = {
     val t = typeSchema[T]
     new TypedDfView[IoId, T](
-      open[String](
-        t.fieldIoTypes,
-        dir))
+      open[String](dir))
   }
 
   def createTyped[T : ClassTag](items:Seq[T], dir:Dir[IoId])(
@@ -909,8 +905,8 @@ class Dfs[IoId : ClassTag](types:IoTypes[IoId])(implicit val seqSeqTag : TypeTag
                                   types.intToId _)(classTag[IoId], types.idOrdering)
   }
   def writeMergedDb[T](a:IndexedDf[IoId,T],
-                           b:IndexedDf[IoId, T],
-                           dir:Dir[IoId])(
+                       b:IndexedDf[IoId, T],
+                       dir:Dir[IoId])(
     implicit t: TypeTag[Seq[(String, Any)]]) : Unit = {
     using (openWrittenCfs(dir, 0)) { d =>
       writeMerged(a.df, b.df, d)
