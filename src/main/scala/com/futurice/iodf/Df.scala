@@ -1,6 +1,6 @@
 package com.futurice.iodf
 
-import java.io.{BufferedOutputStream, Closeable, DataOutputStream, File}
+import java.io._
 import java.util
 
 import com.futurice.iodf.store._
@@ -654,6 +654,19 @@ class Dfs[IoId : ClassTag](types:IoTypes[IoId])(implicit val seqSeqTag : TypeTag
     }
   }
 
+  def writeSeq[T](vs:Seq[T], out:DataOutputStream)(implicit seqTag: TypeTag[Seq[T]]) = {
+    val t = types.ioTypeOf[Seq[T]]
+    t.write(out, vs)
+    t
+  }
+
+  def openSeq[T](ref:DataRef[IoId])(implicit seqTag: TypeTag[Seq[T]]) = {
+    val t = types.ioTypeOf[Seq[T]]
+    using (ref.open) { d =>
+      t.open(d).asInstanceOf[IoSeq[IoId, T]]
+    }
+  }
+
   def write[ColId](t:Seq[(ColId, _ <: IoType[IoId, _ <: IoObject[IoId]])],
                    cols:Seq[Seq[_ <: Any]],
                    dir:Dir[IoId])(
@@ -959,6 +972,34 @@ class Dfs[IoId : ClassTag](types:IoTypes[IoId])(implicit val seqSeqTag : TypeTag
       writeTypedDb(provideItems, dir, indexConf)
     }
     openTypedDb[T](dir)
+  }
+
+  def mergeTypedDbs[T : ClassTag](from:Seq[File], mergeDir:File, targetDir:File)(implicit tag:TypeTag[T]) = {
+    var segments = from
+
+    val dfs = Dfs.default
+    var id = 0
+
+    while (segments.size > 1) {
+      val newSegments = new ArrayBuffer[File]()
+      segments.grouped(2).foreach { g =>
+        if (g.size == 2) {
+          using(IoScope.open) { implicit bind =>
+            val db0 = bind(dfs.openTypedDb[T](new MMapDir(g(0))))
+            val db1 = bind(dfs.openTypedDb[T](new MMapDir(g(1))))
+            val f = new File(mergeDir, f"_$id")
+            id += 1
+            dfs.writeMergedDb[T](db0, db1, new MMapDir(f))
+            newSegments += f
+          }
+        } else {
+          newSegments += g(0)
+        }
+      }
+      segments = newSegments
+    }
+
+    segments.head.renameTo(targetDir)
   }
 }
 case class TypeIoSchema[IoId, T](t:Class[_],

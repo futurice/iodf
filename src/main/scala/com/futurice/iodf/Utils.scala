@@ -71,5 +71,8 @@ object Utils {
       d.close
     }
   }
+  def scoped[E](f : IoScope => E) = {
+    using(IoScope.open) { scope => f(scope) }
+  }
 
 }

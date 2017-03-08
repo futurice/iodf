@@ -73,8 +73,12 @@ case class RefCounted[V <: Closeable](val v:V, var count:Int = 0) extends Closea
 }
 
 case class MemoryResource(memory:Memory, resource:Closeable) extends Closeable {
+  val l = Logger.getLogger("MemoryResource")
+  l.info(memory.address() + " opened:\n" + new RuntimeException().getStackTrace.mkString("\n"))
+  var isClosed = false
   def close = {
-//    System.out.println(memory.address() + " closed")
+    l.info(memory.address() + " closed")
+    isClosed = true
     resource.close
   }
 }
@@ -122,6 +126,9 @@ class RandomAccess(val countedM:RefCounted[MemoryResource],
   def checkRange(offset:Long, sz:Long) = {
     if (offset < 0 || offset + sz > size) {
       throw new RuntimeException(offset + s" is outside the range [0, $size]")
+    }
+    if (countedM.count <= 0 || countedM.v.isClosed) {
+      throw new RuntimeException("memory resource " + countedM.v.memory.address + " is closed")
     }
   }
 
