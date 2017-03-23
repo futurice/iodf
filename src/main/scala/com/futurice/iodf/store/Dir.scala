@@ -73,11 +73,11 @@ case class RefCounted[V <: Closeable](val v:V, var count:Int = 0) extends Closea
 }
 
 case class MemoryResource(memory:Memory, resource:Closeable) extends Closeable {
-  val l = Logger.getLogger("MemoryResource")
-  l.info(memory.address() + " opened:\n" + new RuntimeException().getStackTrace.mkString("\n"))
+/*  val l = Logger.getLogger("MemoryResource")
+  l.info(memory.address() + " opened:\n" + new RuntimeException().getStackTrace.mkString("\n"))*/
   var isClosed = false
   def close = {
-    l.info(memory.address() + " closed")
+//    l.info(memory.address() + " closed")
     isClosed = true
     resource.close
   }

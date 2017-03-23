@@ -321,6 +321,9 @@ case class CoStats(n:Long, fA:Long, fB:Long, fAB:Long) {
   def mi = (0 until 4).map(miPart).sum
 }
 object CoStats {
+  def apply(a: IoBits[_], b: IoBits[_], n:Long) : CoStats = {
+    CoStats(n, a.f, b.f, a.fAnd(b))
+  }
   def apply(a: IoBits[_], b: IoBits[_]) : CoStats = {
     CoStats(a.lsize, a.f, b.f, a.fAnd(b))
   }
@@ -351,6 +354,7 @@ class IndexedDf[IoId, T](val df:TypedDf[IoId, T],
   }
 
   def lsize = df.lsize
+  def size = lsize.toInt
 
   def n = df.lsize
   def f(i:Int) = {
@@ -985,11 +989,15 @@ class Dfs[IoId : ClassTag](types:IoTypes[IoId])(implicit val seqSeqTag : TypeTag
       segments.grouped(2).foreach { g =>
         if (g.size == 2) {
           using(IoScope.open) { implicit bind =>
+            l.info("merging " + g(0) + " and " + g(1) + "...")
+            val before = System.currentTimeMillis()
             val db0 = bind(dfs.openTypedDb[T](new MMapDir(g(0))))
             val db1 = bind(dfs.openTypedDb[T](new MMapDir(g(1))))
             val f = new File(mergeDir, f"_$id")
             id += 1
             dfs.writeMergedDb[T](db0, db1, new MMapDir(f))
+            val ms = System.currentTimeMillis() - before
+            l.info("took " + ms + " ms.")
             newSegments += f
           }
         } else {
@@ -1009,13 +1017,20 @@ case class TypeIoSchema[IoId, T](t:Class[_],
   def fieldIoTypes: Seq[(String, _ <: IoType[IoId, _ <: IoObject[IoId]])] =
     Seq("this" -> thisIoType) ++ fields.map(e => (e._2, e._3)).toSeq
 
+  def getAccessor(name:String) =
+    t.getMethods.find(m => (m.getName == name) && (m.getParameterCount == 0))
+
+  def getter(name:String) = {
+    getAccessor(name).map { a =>
+      (v: T) => a.invoke(v)
+    }
+  }
+
   def toColumns(items: Seq[T]) =
     Seq(items) ++
       fields.map { case (field, name, vt) =>
         //          System.out.println("matching '" + name + "' with " + t.getMethods.map(e => e.getName + "/" + e.getParameterCount + "/" + (e.getName == name)).mkString(","))
-        val accessor =
-          t.getMethods.find(m => (m.getName == name)
-            && (m.getParameterCount == 0)).get
+        val accessor = getAccessor(name).get
         items.map { i => accessor.invoke(i) }
       }
 }

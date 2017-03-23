@@ -1,0 +1,16 @@
+knn for: Animal(4,flies white swims,true,true)
+  1.661397651364811: Animal(2,flies white swims,false,false)
+  3.5072243418631417: Animal(4,moo white walks,false,false)
+  3.5072243418631417: Animal(2,flies yellow swims,true,true)
+  3.5072243418631417: Animal(2,flies yellow swims,false,true)
+  5.02357183123123: Animal(4,moo black walks,true,false)
+  5.353051032361472: Animal(2,yellow walks,true,false)
+
+knn for: Animal(4,flies yellow swims,true,false)
+  1.661397651364811: Animal(2,flies yellow swims,true,true)
+  1.661397651364811: Animal(2,flies yellow swims,false,true)
+  3.3227953027296224: Animal(2,flies white swims,false,false)
+  3.5072243418631417: Animal(2,yellow walks,true,false)
+  5.02357183123123: Animal(4,moo black walks,true,false)
+  5.168621993227953: Animal(4,moo white walks,false,false)
+

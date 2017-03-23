@@ -71,6 +71,7 @@ class IoBitsType[IoId](val sparse:SparseIoBitsType[IoId], val dense:DenseIoBitsT
     create(FileRef(dir, dir.freeId), bools)
   }
 
+
   def writeAnd[IoId1, IoId2](output: DataOutputStream, b1:IoBits[IoId1], b2:IoBits[IoId2]) : SeqIoType[IoId, _ <: IoBits[IoId], Boolean] = {
     if (b1.n != b2.n) throw new IllegalArgumentException()
     (b1, b2) match {
@@ -221,6 +222,7 @@ TODO
   def createNot[IoId1, IoId2](dir: Dir[IoId], b:IoBits[IoId1]) : IoBits[IoId] = {
     createNot(FileRef(dir, dir.freeId), b)
   }
+
 
 }
 

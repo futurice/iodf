@@ -1,0 +1,35 @@
+based on hit dataframe, key-value weights are:
+  0.071 features=urheilu
+  0.071 features=ivalo
+  2.387 features=eu
+  1.313 features=ulkomaat
+  0.762 features=rovaniemi
+  0.762 features=kotimaa
+  1.313 features=lappi
+  0.654 features=trump
+
+knn for: Article(5,lappi ivalo urheilu)
+  distance:0.7624583713238167 : Article(0,lappi ivalo kotimaa) ctr:0.6
+  distance:0.7624583713238167 : Article(2,lappi rovaniemi urheilu) ctr:0.6
+-> ctr estimate: 0.600
+
+knn for: Article(6,lappi rovaniemi trump)
+  distance:0.07085428161913021 : Article(2,lappi rovaniemi urheilu) ctr:0.6
+  distance:0.7624583713238169 : Article(1,lappi rovaniemi kotimaa) ctr:0.8
+-> ctr estimate: 0.700
+
+knn for: Article(7,lappi)
+  distance:0.8333126529429469 : Article(0,lappi ivalo kotimaa) ctr:0.6
+  distance:0.8333126529429469 : Article(2,lappi rovaniemi urheilu) ctr:0.6
+-> ctr estimate: 0.600
+
+knn for: Article(8,ulkomaat)
+  distance:0.6542588221430088 : Article(3,ulkomaat trump) ctr:0.4
+  distance:2.1459345355758592 : Article(0,lappi ivalo kotimaa) ctr:0.6
+-> ctr estimate: 0.500
+
+knn for: Article(9,ulkomaat eu)
+  distance:0.0 : Article(4,ulkomaat eu) ctr:0.2
+  distance:0.6542588221430088 : Article(3,ulkomaat trump) ctr:0.4
+-> ctr estimate: 0.300
+
