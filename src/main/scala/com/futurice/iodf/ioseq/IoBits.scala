@@ -55,22 +55,37 @@ object IoBits {
 
 class IoBitsType[IoId](val sparse:SparseIoBitsType[IoId], val dense:DenseIoBitsType[IoId], sparsityThreshold:Long = 4*1024) {
 
-  def write(output: DataOutputStream, bools:Seq[Boolean]) = {
+  def writeDense(output: DataOutputStream, bools:Seq[Boolean]) = {
     dense.write(output, bools)
     dense
   }
 
-  def create(file:FileRef[IoId], bools:Seq[Boolean]): IoBits[IoId] = {
+  def createDense(file:FileRef[IoId], bools:Seq[Boolean]): IoBits[IoId] = {
     val typ = using( file.openOutput) { output =>
-      write(new DataOutputStream(output), bools)
+      writeDense(new DataOutputStream(output), bools)
     }
     using(file.open) { typ.open(_) }
   }
 
-  def create(dir: Dir[IoId], bools:Seq[Boolean]) : IoBits[IoId] = {
-    create(FileRef(dir, dir.freeId), bools)
+  def createDense(dir: Dir[IoId], bools:Seq[Boolean]) : IoBits[IoId] = {
+    createDense(FileRef(dir, dir.freeId), bools)
   }
 
+  def writeSparse(output: DataOutputStream, trues:Iterable[Long], size:Long) = {
+    sparse.write(output, SparseBits(trues, size))
+    sparse
+  }
+
+  def createSparse(file:FileRef[IoId], trues:Iterable[Long], size:Long): IoBits[IoId] = {
+    val typ = using( file.openOutput) { output =>
+      writeSparse(new DataOutputStream(output), trues, size)
+    }
+    using(file.open) { typ.open(_) }
+  }
+
+  def createSparse(dir: Dir[IoId], trues:Iterable[Long], size:Long) : IoBits[IoId] = {
+    createSparse(FileRef(dir, dir.freeId), trues, size)
+  }
 
   def writeAnd[IoId1, IoId2](output: DataOutputStream, b1:IoBits[IoId1], b2:IoBits[IoId2]) : SeqIoType[IoId, _ <: IoBits[IoId], Boolean] = {
     if (b1.n != b2.n) throw new IllegalArgumentException()

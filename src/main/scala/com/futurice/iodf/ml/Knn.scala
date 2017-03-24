@@ -84,7 +84,7 @@ object Knn {
       df,
       in,
       df.index(predicted),
-      scope.bind(io.bits.create(
+      scope.bind(io.bits.createDense(
         io.dir,
         (0 until df.size).map(i => true))), // true vector
       varDFilter)

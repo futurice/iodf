@@ -9,7 +9,7 @@ import com.futurice.iodf.store.{FileRef, IoData}
 
 import scala.reflect.runtime.universe._
 
-case class SparseBits(trues:Seq[Long], size:Long) {}
+case class SparseBits(trues:Iterable[Long], size:Long) {}
 
 class SparseIoBitsType[Id](implicit val t:TypeTag[SparseBits])
   extends IoTypeOf[Id, SparseIoBits[Id], SparseBits]()(t)
@@ -21,7 +21,7 @@ class SparseIoBitsType[Id](implicit val t:TypeTag[SparseBits])
   }
   override def write(output: DataOutputStream, v: SparseBits): Unit = {
     output.writeLong(v.size)
-    longs.write(output, v.trues)
+    longs.write(output, v.trues.size, v.trues.iterator)
   }
   def writeMerged(out: DataOutputStream, seqA: SparseIoBits[Id], seqB: SparseIoBits[Id]): Unit = {
     out.writeLong(seqA.lsize+seqB.lsize)
