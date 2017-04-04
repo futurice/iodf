@@ -268,6 +268,26 @@ object MathUtils {
   val INV_LOG2 = 1/Math.log(2)
   def log2(v:Double) = Math.log(v) * INV_LOG2
 
+  /** https://en.wikipedia.org/wiki/Inverse-variance_weighting */
+  def inverseVarianceWeighting(est1:Double, var1:Double, est2:Double, var2:Double) = {
+    (est1 / var1 + est2 / var2) / (1 / var1 + 1 / var2)
+  }
+
+  def eP2(f:Long, n:Long, priorP:Double, priorW:Double = 1.0, biasPriorW:Double = 4.0) = {
+    val priorVar = priorP * (1-priorP)
+    if (n == 0 || priorVar == 0.0) priorP
+    else {
+      val freqEst = f / n.toDouble
+      val bias = priorP - eP(f, n, priorP, biasPriorW / priorVar)
+
+      inverseVarianceWeighting(
+        freqEst,
+        priorW/n,
+        priorP,
+        priorVar +bias*bias)
+    }
+  }
+
   def eP(f:Long, n:Long, priorP:Double, priorW:Double) = {
     (f + priorP * priorW) / (n + priorW).toDouble
   }
@@ -291,10 +311,10 @@ object MathUtils {
   }
 }
 
-case class CoStats(n:Long, fA:Long, fB:Long, fAB:Long) {
+case class CoStats(n:Long, fA:Long, fB:Long, fAB:Long, priorW:Double = 2, priorA:Double =0.5, priorB:Double =0.5) {
 
-  def pA = MathUtils.eP(fA, n, 0.5, 2)
-  def pB = MathUtils.eP(fB, n, 0.5, 2)
+  def pA = MathUtils.eP(fA, n, priorA, priorW)
+  def pB = MathUtils.eP(fB, n, priorB, priorW)
 
   def hA = MathUtils.h(pA)
   def hB = MathUtils.h(pB)
@@ -307,7 +327,7 @@ case class CoStats(n:Long, fA:Long, fB:Long, fAB:Long) {
       val fS = MathUtils.relStateF(s, n, fA, fB, fAB)
       val naive = pAs * pBs
       naivePs(s) = naive
-      ps(s) = MathUtils.eP(fS, n, naive, 2)
+      ps(s) = MathUtils.eP(fS, n, naive, 2 / naive)
     }
     (naivePs, ps)
   }
@@ -320,9 +340,13 @@ case class CoStats(n:Long, fA:Long, fB:Long, fAB:Long) {
   }
   def mi = (0 until 4).map(miPart).sum
 }
+
 object CoStats {
-  def apply(a: IoBits[_], b: IoBits[_], n:Long) : CoStats = {
+  def apply(a: IoBits[_], b: IoBits[_], n:Long, priorW:Double, priorA:Double, priorB:Double) : CoStats = {
     CoStats(n, a.f, b.f, a.fAnd(b))
+  }
+  def apply(a: IoBits[_], b: IoBits[_], n:Long) : CoStats = {
+    apply(a, b, n, 2.0, 0.5, 0.5)
   }
   def apply(a: IoBits[_], b: IoBits[_]) : CoStats = {
     CoStats(a.lsize, a.f, b.f, a.fAnd(b))
@@ -808,9 +832,10 @@ class Dfs[IoId : ClassTag](types:IoTypes[IoId])(implicit val seqSeqTag : TypeTag
             ids += (id -> value)
             val data = indexes(index)
             val before = System.currentTimeMillis()
+            val dense = IoBits.isDense(data.size, df.lsize)
 
             val ref =
-              if (data.size * 1024 > df.lsize) {
+              if (dense) {
                 val bitset = new util.BitSet(df.lsize.toInt)
                 data.foreach { i => bitset.set(i.toInt) }
                 types.writeIoObject(
@@ -822,7 +847,7 @@ class Dfs[IoId : ClassTag](types:IoTypes[IoId])(implicit val seqSeqTag : TypeTag
                   dir.ref(dir.id(cols.size + 2)))
               }
 
-            //System.out.println("write took " + (System.currentTimeMillis() - before) + " ms")
+            System.out.println(f"writing ${id}->$value of dense=$dense with f/n ${data.size}/${df.lsize}  took ${(System.currentTimeMillis() - before)} ms")
             cols +=
               new IoRefObject[IoId, IoObject[IoId]](ref)
           }

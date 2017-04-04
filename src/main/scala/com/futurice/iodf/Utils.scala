@@ -8,6 +8,9 @@ import com.futurice.iodf.store.{Dir, RamDir}
 import scala.annotation.tailrec
 import scala.collection.mutable.ArrayBuffer
 
+/**
+  * NOT thread safe: DO NOT SHARE scopes across threads!
+  */
 class IoScope extends Closeable{
   val closeables = ArrayBuffer[Closeable]()
   override def close(): Unit = {
@@ -31,7 +34,8 @@ class IoContext[IoId](openedDir:Dir[IoId]) extends Closeable {
   val dir = openedDir
 
   val bits =
-    new IoBitsType(new SparseIoBitsType[IoId](),
+    new IoBitsType(
+      new SparseIoBitsType[IoId](),
       new DenseIoBitsType[IoId]())
 
   override def close(): Unit = {

@@ -3,6 +3,7 @@ package com.futurice.iodf
 import java.io.File
 
 import com.futurice.iodf.Utils._
+import com.futurice.iodf.ioseq.DenseIoBits
 import com.futurice.iodf.ml.Knn
 import com.futurice.iodf.store.{MMapDir, RefCounted}
 import com.futurice.testtoys.TestSuite
@@ -97,12 +98,13 @@ class MlTest extends TestSuite("ml") {
 
         t.tln("based on hit dataframe, key-value weights are:")
         weights.foreach { case ((key,value), w) =>
-          t.tln(f"  $w%.3f $key=$value")
+          t.tln(f"  ${w._1}%.3f/${w._2}%.3f $key=$value")
         }
         t.tln
         val knn =
           new Knn(
             df,
+            DenseIoBits(0L until df.lsize map (e => true)),
             indexConf,
             weights)
 

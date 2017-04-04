@@ -151,15 +151,13 @@ class DfTest extends TestSuite("df") {
     }
   }
 
-  test("bits-B-perf") { t =>
-
+  def testPerf(t:TestTool, size:Int) = {
     using(IoScope.open) { bind =>
       val dir = bind(new MMapDir(t.fileDir))
 
       val sparse = new SparseIoBitsType[String]()
       val dense = new DenseIoBitsType2[String]()
 
-      val size = 1000000000
       // 1 billion
       val density = 64
       val sparsity = 16 * 1024
@@ -168,7 +166,7 @@ class DfTest extends TestSuite("df") {
       t.t("creating sparse bits of size " + size + "...")
       val s = {
         val bits = (0 until size).filter(_ % sparsity == 0).map(_.toLong)
-        t.tMsLn(
+        t.tUsLn(
           bind(
             sparse.create(
               dir.ref("sparse"),
@@ -178,7 +176,7 @@ class DfTest extends TestSuite("df") {
       t.t("creating really sparse bits of size " + size + "...")
       val s2 = {
         val bits = (0 until size).filter(_ % sparsity2 == 0).map(_.toLong)
-        t.tMsLn(
+        t.tUsLn(
           bind(
             sparse.create(
               dir.ref("sparse2"),
@@ -186,7 +184,7 @@ class DfTest extends TestSuite("df") {
       }
 
       t.t("populating bitset of size " + size + "...")
-      val b = t.tMsLn({
+      val b = t.tUsLn({
         val rv = new util.BitSet(size)
         (0 until size).filter(_ % density == 0).foreach(rv.set(_))
         rv
@@ -194,45 +192,45 @@ class DfTest extends TestSuite("df") {
 
       t.t("creating dense bits of size " + size + "...")
       val d =
-        t.tMsLn(
+        t.tUsLn(
           bind(
             dense.create(
               dir.ref("dense"),
               new DenseBits(b, size))))
       t.tln
       t.t("counting sparse f..")
-      val sf = t.tMsLn(s.f)
+      val sf = t.tUsLn(s.f)
       t.t("counting really sparse f..")
-      val s2f = t.tMsLn(s2.f)
+      val s2f = t.tUsLn(s2.f)
       t.t("counting dense f..")
-      val df = t.tMsLn(d.f)
+      val df = t.tUsLn(d.f)
       t.t("counting bitset f..")
-      val bf = t.tMsLn(b.cardinality())
+      val bf = t.tUsLn(b.cardinality())
       t.tln
 
       t.t("counting sparse & sparse..")
       val ss =
-        t.tMsLn(
+        t.tUsLn(
           s.fAnd(s))
       t.t("counting really sparse & really sparse..")
       val ss2 =
-        t.tMsLn(
+        t.tUsLn(
           s2.fAnd(s2))
       t.t("counting dense & dense..")
       val dd =
-        t.tMsLn(
+        t.tUsLn(
           d.fAnd(d))
       t.t("counting sparse & dense..")
       val sd =
-        t.tMsLn(
+        t.tUsLn(
           s.fAnd(d))
       t.t("counting really sparse & dense..")
       val sd2 =
-        t.tMsLn(
+        t.tUsLn(
           s2.fAnd(d))
       t.t("counting bitset & bitset..")
       val bb =
-        t.tMsLn({
+        t.tUsLn({
           val b2 = new util.BitSet(size)
           b2.or(b)
           b2.and(b)
@@ -244,6 +242,15 @@ class DfTest extends TestSuite("df") {
     }
 
   }
+
+  test("bits-M-perf") { t =>
+    testPerf(t, 1000000)
+  }
+
+  test("bits-B-perf") { t =>
+    testPerf(t, 1000000000)
+  }
+
 
 
   val items =

@@ -14,6 +14,10 @@ object DenseIoBits {
   def bitsToLongCount(bitSize:Long) = ((bitSize+63L) / 64L)
   def bitsToByteSize(bitSize:Long) = bitsToLongCount(bitSize) * 8
 
+  def apply[IoId](bits:Seq[Boolean])(implicit io:IoContext[IoId]) = {
+    io.bits.createDense(io.dir, bits)
+  }
+
   def writeLeLong(out:DataOutputStream, long:Long) = {
     out.writeByte((long & 0xFF).toInt)
     out.writeByte((long >>> (8*1)).toInt & 0xFF)
@@ -279,6 +283,12 @@ class DenseIoBits[IoId](val ref:IoRef[IoId, DenseIoBits[IoId]], val origBuf:Rand
     val addr = i / 8L
     val offset = i % 8
     ((buf.getByte(addr) >> offset) & 1) == 1
+  }
+
+  def unsafeApply(i:Long) : Boolean = {
+    val addr = i / 8L
+    val offset = i % 8
+    ((buf.unsafe.getByte(buf.address + addr) >> offset) & 1) == 1
   }
 
 /*  def nextTrueBit(i:Long) : Boolean = {

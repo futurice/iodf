@@ -130,10 +130,12 @@ class SparseIoBits[IoId](val ref:IoRef[IoId, SparseIoBits[IoId]],
       case b : EmptyIoBits[_] => 0
     }
   }
-  def fAnd(b : SparseIoBits[_]): Long = {
-    var rv = 0
-    var i = 0
-    var j = 0
+  def fAnd(b : SparseIoBits[_]): Long = fAndSparse(b)
+
+  def fAndSparse(b : SparseIoBits[_]): Long = {
+    var rv = 0L
+    var i = 0L
+    var j = 0L
     val t1 = trues.size
     val t2 = b.trues.size
     while (i < t1 && j < t2) {
@@ -148,6 +150,14 @@ class SparseIoBits[IoId](val ref:IoRef[IoId, SparseIoBits[IoId]],
       }
     }
     rv
+  }
+
+}
+
+object SparseIoBits {
+
+  def apply[IoId](trues:Seq[Long], size:Long)(io:IoContext[IoId]) = {
+    io.bits.createSparse(io.dir, trues, size)
   }
 
 }

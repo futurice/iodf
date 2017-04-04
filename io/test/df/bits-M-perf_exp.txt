@@ -1,0 +1,19 @@
+creating sparse bits of size 1000000...-29000 Micros (-111538% of old 26 Micros)
+creating really sparse bits of size 1000000...-1000 Micros (-100000% of old 1 Micros)
+populating bitset of size 1000000...-27000 Micros (-158823% of old 17 Micros)
+creating dense bits of size 1000000...-13000 Micros (-162500% of old 8 Micros)
+
+counting sparse f..0 Micros (was 0 Micros)
+counting really sparse f..0 Micros (was 0 Micros)
+counting dense f..-3000 Micros (-150000% of old 2 Micros)
+counting bitset f..-2000 Micros (was 0 Micros)
+
+counting sparse & sparse..-1000 Micros (was 0 Micros)
+counting really sparse & really sparse..-2000 Micros (-200000% of old 1 Micros)
+counting dense & dense..-2000 Micros (-100000% of old 2 Micros)
+counting sparse & dense..-3000 Micros (-100000% of old 3 Micros)
+counting really sparse & dense..-2000 Micros (-100000% of old 2 Micros)
+counting bitset & bitset..-1000 Micros (was 0 Micros)
+
+sparse: f 62, dense f: 15625, bitset: 15625
+sparse&sparse: 62, dense&dense:, 15625 sparse&dense: 62, bitset&bitset: 15625

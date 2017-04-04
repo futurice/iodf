@@ -51,7 +51,8 @@ object RefCounted {
 }
 
 
-case class RefCounted[V <: Closeable](val v:V, var count:Int = 0) extends Closeable {
+case class RefCounted[V <: Closeable](val v:V, val initCount:Int = 0) extends Closeable {
+  @volatile var count = initCount
   RefCounted.opened(this)
   def open = synchronized  {
 //    System.out.println("inc " + RefCounted.this.hashCode())
@@ -178,30 +179,37 @@ class RandomAccess(val countedM:RefCounted[MemoryResource],
   }
 
   // big endian long
+  def unsafeGetBeLongByAddress(address:Long) = {
+    ((getMemoryByte(address) : Long) << (8*7)) +
+      ((getMemoryByte(address + 1) & 0xFF : Long) << (8*6)) +
+      ((getMemoryByte(address + 2) & 0xFF : Long) << (8*5)) +
+      ((getMemoryByte(address + 3) & 0xFF : Long) << (8*4)) +
+      ((getMemoryByte(address + 4) & 0xFF : Long) << (8*3)) +
+      ((getMemoryByte(address + 5) & 0xFF : Long) << (8*2)) +
+      ((getMemoryByte(address + 6) & 0xFF : Long) << (8*1)) +
+      (getMemoryByte(address + 7) & 0xFF : Long)
+  }
+
+  // big endian long
   def getBeLong(offset:Long) = {
     checkRange(offset, 8)
     val m = address + offset
-    ((getMemoryByte(m) : Long) << (8*7)) +
-    ((getMemoryByte(m + 1) & 0xFF : Long) << (8*6)) +
-    ((getMemoryByte(m + 2) & 0xFF : Long) << (8*5)) +
-    ((getMemoryByte(m + 3) & 0xFF : Long) << (8*4)) +
-    ((getMemoryByte(m + 4) & 0xFF : Long) << (8*3)) +
-    ((getMemoryByte(m + 5) & 0xFF : Long) << (8*2)) +
-    ((getMemoryByte(m + 6) & 0xFF : Long) << (8*1)) +
-    (getMemoryByte(m + 7) & 0xFF : Long)
+    unsafeGetBeLongByAddress(m)
+  }
+  def unsafeGetLeLongByAddress(address:Long) = {
+    ((getMemoryByte(address) & 0xFF: Long)) +
+      ((getMemoryByte(address + 1) & 0xFF : Long) << (8*1)) +
+      ((getMemoryByte(address + 2) & 0xFF : Long) << (8*2)) +
+      ((getMemoryByte(address + 3) & 0xFF : Long) << (8*3)) +
+      ((getMemoryByte(address + 4) & 0xFF : Long) << (8*4)) +
+      ((getMemoryByte(address + 5) & 0xFF : Long) << (8*5)) +
+      ((getMemoryByte(address + 6) & 0xFF : Long) << (8*6)) +
+      ((getMemoryByte(address + 7) & 0xFF : Long) << (8*7))
   }
   // little endian long
   def getLeLong(offset:Long) = {
     checkRange(offset, 8)
-    val m = address + offset
-    ((getMemoryByte(m) & 0xFF: Long)) +
-     ((getMemoryByte(m + 1) & 0xFF : Long) << (8*1)) +
-     ((getMemoryByte(m + 2) & 0xFF : Long) << (8*2)) +
-     ((getMemoryByte(m + 3) & 0xFF : Long) << (8*3)) +
-     ((getMemoryByte(m + 4) & 0xFF : Long) << (8*4)) +
-     ((getMemoryByte(m + 5) & 0xFF : Long) << (8*5)) +
-     ((getMemoryByte(m + 6) & 0xFF : Long) << (8*6)) +
-     ((getMemoryByte(m + 7) & 0xFF : Long) << (8*7))
+    unsafeGetLeLongByAddress(address + offset)
   }
 
   def getBeInt(offset:Long) = {

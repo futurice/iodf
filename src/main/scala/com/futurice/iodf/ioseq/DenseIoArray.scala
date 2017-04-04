@@ -15,7 +15,7 @@ import xerial.larray.buffer.LBufferAPI
 abstract class IoArray[Id, T](val ref:IoRef[Id, _ <: IoObject[Id]],
                               val buf:RandomAccess)
   extends IoSeq[Id, T] {
-  def offset = 8
+  def offset = 8L
   val lsize = buf.getBeLong(0)
   override def close(): Unit = {
     buf.close()

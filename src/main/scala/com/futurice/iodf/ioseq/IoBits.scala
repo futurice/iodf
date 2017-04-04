@@ -44,12 +44,43 @@ class EmptyIoBits[IoId](val lsize : Long) extends IoBits[IoId] {
 }
 
 object IoBits {
+
+  def denseSparseSplit = 1024L
+
+  def isDense(f:Long, n:Long) = {
+    f * denseSparseSplit > n
+  }
+  def isSparse(f:Long, n:Long) = !isDense(f, n)
+
   def fAnd(dense:DenseIoBits[_], sparse: SparseIoBits[_]) = {
+    if (dense.lsize != sparse.lsize) throw new RuntimeException("fAnd operation on bitsets of different sizes")
     var rv = 0L
-    for (t <- sparse.trues) {
-      if (dense(t)) rv += 1
+
+/*    var i = 0
+    var e = sparse.trues.lsize
+    while (i < e) {
+      if (dense.unsafeApply(sparse.trues(i))) rv += 1
+      i += 1
+    }*/
+
+    val ts = sparse.trues
+    val sz = ts.lsize*8
+//    dense.buf.checkRange(0, dense.longCount*8)
+    ts.buf.checkRange(ts.offset, sz)
+    var i = ts.buf.address + ts.offset
+    val end = i + sz
+    while (i < end) {
+      val t = ts.buf.unsafeGetBeLongByAddress(i)
+      if (dense.apply(t)) rv += 1
+      i += 8
     }
     rv
+  }
+  def apply[IoId](trues:Iterable[Long], size:Long)(implicit io:IoContext[IoId]) = {
+    io.bits.create(trues, size)(io)
+  }
+  def apply[IoId](bits:Seq[Boolean])(implicit io:IoContext[IoId]) = {
+    io.bits.create(bits)(io)
   }
 }
 
@@ -70,6 +101,9 @@ class IoBitsType[IoId](val sparse:SparseIoBitsType[IoId], val dense:DenseIoBitsT
   def createDense(dir: Dir[IoId], bools:Seq[Boolean]) : IoBits[IoId] = {
     createDense(FileRef(dir, dir.freeId), bools)
   }
+  def createDense(io: IoContext[IoId], bools:Seq[Boolean]) : IoBits[IoId] = {
+    createDense(io.dir, bools)
+  }
 
   def writeSparse(output: DataOutputStream, trues:Iterable[Long], size:Long) = {
     sparse.write(output, SparseBits(trues, size))
@@ -85,6 +119,22 @@ class IoBitsType[IoId](val sparse:SparseIoBitsType[IoId], val dense:DenseIoBitsT
 
   def createSparse(dir: Dir[IoId], trues:Iterable[Long], size:Long) : IoBits[IoId] = {
     createSparse(FileRef(dir, dir.freeId), trues, size)
+  }
+
+  def create(trues:Iterable[Long], size:Long)(implicit io: IoContext[IoId]) : IoBits[IoId] = {
+    if (IoBits.isSparse(trues.size, size)) {
+      createSparse(io.dir, trues, size)
+    } else {
+      val lookup = trues.toSet
+      createDense(io.dir, (0L until size).map(lookup))
+    }
+  }
+  def create(bits:Seq[Boolean])(implicit io: IoContext[IoId]) : IoBits[IoId] = {
+    if (IoBits.isSparse(bits.count(e => e), bits.size)) {
+      createSparse(io.dir, bits.zipWithIndex.filter(_._1).map(_._2.toLong), bits.size)
+    } else {
+      createDense(io.dir, bits)
+    }
   }
 
   def writeAnd[IoId1, IoId2](output: DataOutputStream, b1:IoBits[IoId1], b2:IoBits[IoId2]) : SeqIoType[IoId, _ <: IoBits[IoId], Boolean] = {

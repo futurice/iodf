@@ -90,13 +90,13 @@ class RamDir[Id](ids:IdSchema[Id])(implicit t:ClassTag[Id]) extends Dir[Id] {
     }
   }
 
-  override def open(id: Id, pos: Long, size:Option[Long]): IoData[Id] = {
+  override def open(id: Id, pos: Long, size:Option[Long]): IoData[Id] = synchronized {
     dir(id).openView(pos, size)
   }
-  override def list: Array[Id] = {
+  override def list: Array[Id] = synchronized {
     dir.keySet.toArray
   }
-  override def close(): Unit = {
+  override def close(): Unit = synchronized {
     dir.foreach {
       _._2.close()
     }
