@@ -1008,6 +1008,7 @@ class Dfs[IoId : ClassTag](types:IoTypes[IoId])(implicit val seqSeqTag : TypeTag
 
     val dfs = Dfs.default
     var id = 0
+    var createdSegments = Set[File]()
 
     while (segments.size > 1) {
       val newSegments = new ArrayBuffer[File]()
@@ -1024,12 +1025,21 @@ class Dfs[IoId : ClassTag](types:IoTypes[IoId])(implicit val seqSeqTag : TypeTag
             val ms = System.currentTimeMillis() - before
             l.info("took " + ms + " ms.")
             newSegments += f
+            createdSegments += f
           }
         } else {
           newSegments += g(0)
         }
       }
       segments = newSegments
+      // cleanup
+      val delete = createdSegments -- segments
+      delete.foreach { f =>
+        l.info("cleaning " + f.getAbsolutePath)
+        f.listFiles().foreach { _.delete }
+        f.delete()
+      }
+      createdSegments = (createdSegments -- delete)
     }
 
     segments.head.renameTo(targetDir)
