@@ -1014,32 +1014,34 @@ class Dfs[IoId : ClassTag](types:IoTypes[IoId])(implicit val seqSeqTag : TypeTag
       val newSegments = new ArrayBuffer[File]()
       segments.grouped(2).foreach { g =>
         if (g.size == 2) {
+          val f = new File(mergeDir, f"_$id")
+          id += 1
           using(IoScope.open) { implicit bind =>
             l.info("merging " + g(0) + " and " + g(1) + "...")
             val before = System.currentTimeMillis()
+
             val db0 = bind(dfs.openTypedDb[T](new MMapDir(g(0))))
             val db1 = bind(dfs.openTypedDb[T](new MMapDir(g(1))))
-            val f = new File(mergeDir, f"_$id")
-            id += 1
             dfs.writeMergedDb[T](db0, db1, new MMapDir(f))
             val ms = System.currentTimeMillis() - before
             l.info("took " + ms + " ms.")
-            newSegments += f
-            createdSegments += f
           }
+          // cleanup
+          val delete = Seq(g(0), g(1))
+          delete.filter(createdSegments.contains(_)).foreach { f =>
+            l.info("cleaning " + f.getAbsolutePath)
+            f.listFiles().foreach { _.delete }
+            f.delete()
+          }
+          createdSegments = (createdSegments -- delete)
+
+          newSegments += f
+          createdSegments += f
         } else {
           newSegments += g(0)
         }
       }
       segments = newSegments
-      // cleanup
-      val delete = createdSegments -- segments
-      delete.foreach { f =>
-        l.info("cleaning " + f.getAbsolutePath)
-        f.listFiles().foreach { _.delete }
-        f.delete()
-      }
-      createdSegments = (createdSegments -- delete)
     }
 
     segments.head.renameTo(targetDir)

@@ -75,10 +75,10 @@ object ObjectIoSeqWriter {
     val o = new DataOutputStream(out)
     // 1. write first data areas
     seqA.buf.writeTo(0, o, seqA.indexPos)
-    val bOffset = o.size
+    val bOffset = seqA.indexPos
     seqB.buf.writeTo(0, o, seqB.indexPos)
     // 2. then, the A index can be written as it is
-    val indexPos = o.size
+    val indexPos : Long = seqA.indexPos + seqB.indexPos
 /*    (0L until seqA.lsize).foreach { i =>
       seqA.objectPos(i)
     }*/
@@ -93,17 +93,26 @@ object ObjectIoSeqWriter {
   }
 }
 
-class ObjectIoSeq[Id, T](val ref:IoRef[Id, _ <: IoObject[Id]], val buf:RandomAccess, val i:RandomAccessReading[T]) extends IoSeq[Id, T] {
+class ObjectIoSeq[Id, T](
+  val ref:IoRef[Id, _ <: IoObject[Id]],
+  val buf:RandomAccess,
+  val i:RandomAccessReading[T]) extends IoSeq[Id, T] {
 //  new RuntimeException().printStackTrace()
 
   val indexPos = buf.getBeLong(buf.size - 8)
   val lsize = ((buf.size-8)-indexPos) / 8
 
   def objectPos(l:Long) = {
-    buf.getBeLong(indexPos + l*8)
+    val rv = buf.getBeLong(indexPos + l*8)
+    if (rv < 0 || rv >= indexPos) throw new RuntimeException(f"object data position $rv out of data area [0, $indexPos]")
+    rv
   }
   override def apply(l: Long): T = {
-    i.read(buf, objectPos(l))
+    if (l >= 0 && l < lsize) {
+      i.read(buf, objectPos(l))
+    } else {
+      throw new ArrayIndexOutOfBoundsException(f"index $l is out of range [0, $lsize]")
+    }
   }
   override def close(): Unit = {
     buf.close
