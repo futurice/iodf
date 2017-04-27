@@ -8,6 +8,7 @@ import com.futurice.iodf.ioseq.Serializer
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
+
 /**
   * Created by arau on 14.12.2016.
   */
@@ -72,8 +73,34 @@ class WrittenCfsDir[IoId, DirIoId](
     }
   }
   override def open(id:IoId, pos:Long, size:Option[Long]): IoData[IoId] = {
-    throw new IllegalStateException("WritteCfsDir can only be written, it cannot be opened")
+    out.flush
+    val i = ids.indexOf(id)
+    if (i == -1) throw new IllegalArgumentException(id + " not found.")
+
+    val end = (i, ready) match {
+      case (i, true) if (i+1 == this.pos.size) =>
+        out.size
+      case (i, false) if (i+1 == this.pos.size) =>
+        throw new IllegalArgumentException(id + " not fully written yet.")
+      case _ => this.pos(i+1)
+    }
+
+    val p = this.pos(i)
+    val begin = p + pos
+    val origSize = size
+    val sz = size.getOrElse(end - begin)
+    val data = ref.open(begin, Some(sz))
+    // TODO: check size
+    new IoData[IoId] {
+      def close = data.close
+      def ref = new DataRef[IoId](WrittenCfsDir.this, id, pos, origSize)
+      def openRandomAccess = data.openRandomAccess
+      def size = data.size
+      def openView(offset:Long, size:Option[Long] = None) =
+        open(id, begin+offset, size.orElse(Some(sz)))
+    }
   }
+
   override def list = ids.toArray
 
   override def close(): Unit = {

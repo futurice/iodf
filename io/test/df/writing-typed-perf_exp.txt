@@ -1,0 +1,37 @@
+testing, how writing index behaves time & memory wise
+
+indexing 32768 random items:
+  creating items..92 ms (was 28 ms)
+  indexing items..325 ms
+  mem base: 39.3 MB
+  mem MB:   -4.5<-4.2<-3.8 (n:2)
+  disk:     1284 KB
+
+indexing 65536 random items:
+  creating items..94 ms (was 58 ms)
+  indexing items..252 ms
+  mem base: 30.4 MB
+  mem MB:   8.6<14.1<19.7 (n:2)
+  disk:     2569 KB
+
+indexing 131072 random items:
+  creating items..178 ms (was 114 ms)
+  indexing items..406 ms
+  mem base: 30.4 MB
+  mem MB:   17.1<25.9<34.7 (n:2)
+  disk:     5137 KB
+
+indexing 262144 random items:
+  creating items..382 ms (was 273 ms)
+  indexing items..910 ms
+  mem base: 30.4 MB
+  mem MB:   34.3<52.8<63.0 (n:3)
+  disk:     10271 KB
+
+scaling:
+
+  time ms:     325,252,406,910
+  mem MB mean: -4.2,14.1,25.9,52.8
+  mem MB max:  -3.8,19.7,34.7,63.0
+  disk KB:     1284,2569,5137,10271
+

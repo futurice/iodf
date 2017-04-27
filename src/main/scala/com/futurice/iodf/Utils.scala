@@ -1,12 +1,13 @@
 package com.futurice.iodf
 
-import java.io.Closeable
+import java.io.{Closeable, File}
 
 import com.futurice.iodf.ioseq.{DenseIoBitsType, IoBits, IoBitsType, SparseIoBitsType}
 import com.futurice.iodf.store.{Dir, RamDir}
 
 import scala.annotation.tailrec
 import scala.collection.mutable.ArrayBuffer
+import scala.concurrent.Promise
 
 /**
   * NOT thread safe: DO NOT SHARE scopes across threads!
@@ -68,6 +69,16 @@ object Utils {
     recursion(0, sortedSeq.size - 1)
   }
 
+  def atomicWrite(file:File)(writer:File => Unit): Unit = {
+    val tmpFile = new File(file.getParentFile, file.getName + ".tmp")
+    try {
+      writer(tmpFile)
+      tmpFile.renameTo(file)
+    } finally {
+      tmpFile.delete()
+    }
+  }
+
   def using[T <: AutoCloseable, E](d:T)(f : T => E) = {
     try {
       f(d)
@@ -79,4 +90,50 @@ object Utils {
     using(IoScope.open) { scope => f(scope) }
   }
 
+  def memory = {
+    System.gc();
+    val rt = Runtime.getRuntime();
+    (rt.totalMemory() - rt.freeMemory())
+  }
+}
+
+case class SamplingStats(samples:Long, sum:Long, min:Long, max:Long) {
+  def mean = sum / samples.toDouble
+}
+
+class MemoryMonitor(samplingFreqMillis:Long) extends Closeable {
+
+  @volatile
+  private var continue = true
+
+  private val promise = Promise[SamplingStats]()
+
+  val thread = new Thread(new Runnable() {
+    def run = {
+      try {
+        var (n, sum, min, max) = (0L, 0L, Long.MaxValue, Long.MinValue)
+        while (continue) {
+          Thread.sleep(samplingFreqMillis)
+          val m = Utils.memory
+          n += 1
+          sum += m
+          min = Math.min(min, m)
+          max = Math.max(max, m)
+        }
+        promise.success(SamplingStats(n, sum, min, max))
+      } catch {
+        case e : Throwable => promise.failure(e)
+      }
+    }
+  })
+
+  thread.start()
+
+  def close = {
+    continue = false
+  }
+  def finish = {
+    continue = false
+    promise.future
+  }
 }

@@ -10,8 +10,32 @@ import com.futurice.iodf.ioseq._
 
 import scala.reflect.runtime.universe._
 import scala.util.Random
+import scala.concurrent.duration._
+import scala.concurrent.Await
 
-case class ExampleItem( name:String, property:Boolean, quantity:Int, text:String )
+case class ExampleItem( name:String, property:Boolean, quantity:Int, text:String, bigNumber:Long )
+
+
+object ExampleItem {
+
+  val letters = "abcdefghijklmnopqrstuvxyz"
+
+  def nextLetter(rnd:Random) = letters.charAt(rnd.nextInt(letters.size))
+
+  def apply(rnd:Random) : ExampleItem = {
+    ExampleItem(nextLetter(rnd).toString,
+      rnd.nextBoolean(),
+      (rnd.nextGaussian() * 5).toInt,
+      (0 until rnd.nextInt(4)).map(e => (0 until (1 + rnd.nextInt(2))).map(e => nextLetter(rnd)).mkString).mkString(" "),
+      (rnd.nextGaussian() * 5).toLong * 1000000000L)
+  }
+
+  def makeItems(seed: Int, sz:Int) = {
+    val rnd = new Random(seed)
+    (0 until sz).map { i => ExampleItem(rnd) }
+  }
+
+}
 
 /*object Foobar {
   def getInnerType[T](list:List[T])(implicit tag:TypeTag[T]) = tag.tpe.toString
@@ -151,7 +175,7 @@ class DfTest extends TestSuite("df") {
     }
   }
 
-  def testPerf(t:TestTool, size:Int) = {
+  def testBitPerf(t:TestTool, size:Int) = {
     using(IoScope.open) { bind =>
       val dir = bind(new MMapDir(t.fileDir))
 
@@ -244,27 +268,27 @@ class DfTest extends TestSuite("df") {
   }
 
   test("bits-M-perf") { t =>
-    testPerf(t, 1000000)
+    testBitPerf(t, 1000000)
   }
 
-  test("bits-B-perf") { t =>
-    testPerf(t, 1000000000)
-  }
+/*  test("bits-B-perf") { t =>
+    testBitPerf(t, 1000000000)
+  }*/
 
 
 
   val items =
-    Seq(ExampleItem("a", true, 3, "some text"),
-        ExampleItem("b", false, 2, "more text"),
-        ExampleItem("c", true, 4, "even more text"))
+    Seq(ExampleItem("a", true, 3, "some text", 1000000000L),
+        ExampleItem("b", false, 2, "more text", 1L),
+        ExampleItem("c", true, 4, "even more text", 324234L))
   val indexConf =
     IndexConf[String]().withAnalyzer("text", e => e.asInstanceOf[String].split(" ").toSeq)
 
   test("creation") { t =>
     RefCounted.trace {
-      val dfs = Dfs.default
+      val dfs = Dfs.fs
       using(new MMapDir(t.fileDir)) { dir =>
-        using(dfs.createTyped[ExampleItem](items, dir)) { df =>
+        using(dfs.createTypedDf[ExampleItem](items, dir)) { df =>
           t.tln
           t.tln("fields are: ")
           df.fieldNames.foreach { id => t.tln("  " + id) }
@@ -285,7 +309,7 @@ class DfTest extends TestSuite("df") {
         t.tln
         t.tln("db closed")
         t.tln("db reopened")
-        using(dfs.openTyped[ExampleItem](dir)) { df =>
+        using(dfs.openTypedDf[ExampleItem](dir)) { df =>
           t.tln
           t.tln("colIds are: ")
           df.colIds.foreach { id => t.tln("  " + id) }
@@ -340,8 +364,8 @@ class DfTest extends TestSuite("df") {
 
       using(new MMapDir(new File(t.fileDir, "db"))) { dir =>
         using(new MMapDir(new File(t.fileDir, "idx"))) { dir2 =>
-          val dfs = Dfs.default
-          using(dfs.createTyped[ExampleItem](items, dir)) { df =>
+          val dfs = Dfs.fs
+          using(dfs.createTypedDf[ExampleItem](items, dir)) { df =>
             using(dfs.createIndex(df, dir2, indexConf)) { index =>
               tDb(df, index)
             }
@@ -349,7 +373,7 @@ class DfTest extends TestSuite("df") {
           t.tln
           t.tln("db and index closed")
           t.tln("db and index reopened")
-          using(dfs.openTyped[ExampleItem](dir)) { df =>
+          using(dfs.openTypedDf[ExampleItem](dir)) { df =>
             using(dfs.openIndex(df, dir2)) { index =>
               tDb(df, index)
             }
@@ -363,233 +387,259 @@ class DfTest extends TestSuite("df") {
 
   test("1024-entry-index") { t =>
     RefCounted.trace {
-      val dirFile = new File(t.fileDir, "db")
-      using(RamDir()) { ram =>
-        val ioBits =
-          new IoBitsType(new SparseIoBitsType[Int](),
-            new DenseIoBitsType[Int]())
-        using(new MMapDir(dirFile)) { dir =>
-          val dfs = Dfs.default
+      val file = new File(t.fileDir, "df")
+      val dfs = Dfs.fs
 
-          val rnd = new Random(0)
-          val letters = "abcdefghijklmnopqrstuvxyz"
+      val items = ExampleItem.makeItems(0, 1024)
 
-          def nextLetter = letters.charAt(rnd.nextInt(letters.size))
-
-          val items =
-            (0 until 1024).map { i =>
-              ExampleItem(nextLetter.toString,
-                rnd.nextBoolean(),
-                (rnd.nextGaussian() * 5).toInt,
-                (0 until rnd.nextInt(4)).map(e => (0 until (1 + rnd.nextInt(2))).map(e => nextLetter).mkString).mkString(" "))
+      val (creationMs, _) =
+        TestTool.ms(
+          using(dfs.createIndexedDfFile[ExampleItem](items, file)) { df =>
+            t.tln
+            t.tln("index column id count: " + df.indexDf.colCount)
+            t.tln
+            t.tln("first column ids are: ")
+            t.tln
+            df.indexDf.colIds.take(8).foreach {
+              id => t.tln("  " + id)
             }
-
-          val (creationMs, _) =
-            TestTool.ms(
-              using(dfs.createTypedDb(items, dir)) { db =>
-                t.tln
-                t.tln("index column id count: " + db.indexDf.colCount)
-                t.tln
-                t.tln("first column ids are: ")
-                t.tln
-                db.indexDf.colIds.take(8).foreach {
-                  id => t.tln("  " + id)
-                }
-                t.tln
-                t.tln("first columns are: ")
-                t.tln
-                (0 until 8).map { i =>
-                  using(db.indexDf.openCol[Any](i)) { col =>
-                    t.tln("  " + col.take(8).map {
-                      _.toString
-                    }.mkString(","))
-                  }
-                }
-              })
-
-          t.tln
-          t.iln("db and index created and closed in " + creationMs + " ms")
-          val before = System.currentTimeMillis()
-
-          t.tln
-          tDir(t, dirFile)
-          t.tln
-
-          using(dfs.haveTypedDb(items, dir)) { view =>
-            val df = view.df
-            val index = view.indexDf
-            t.iln("db and index reopened in " + (System.currentTimeMillis() - before) + " ms")
-
             t.tln
-            t.t("sanity checking...")
-            t.tMsLn(
-              (0 until df.lsize.toInt).foreach { i =>
-                if (items(i) != df(i)) {
-                  t.tln(f" at $i original item ${items(i)} != original ${df(i)}")
-                }
-              })
-
+            t.tln("first columns are: ")
             t.tln
-            val b = items.map(i => if (i.property) 1 else 0).sum
-            val b2 = view.f("property" -> true)
-            t.tln(f"property frequencies: original $b vs index $b2")
-
-            val n = items.map(i => if (i.name == "h") 1 else 0).sum
-            val n2 = view.f("name" -> "h")
-            t.tln(f"name=h frequencies: original $n vs index $n2")
-
-            val ids = index.colIds.toArray
-            val rnd = new Random(0)
-            t.tln;
-          {
-            t.t("searching 1024 ids...")
-            var sum = 0
-            val n = 1024
-            val (ms, _) = TestTool.ms {
-              (0 until n).foreach { i =>
-                sum += index.indexOf(ids(rnd.nextInt(ids.size)))
+            (0 until 8).map { i =>
+              using(df.indexDf.openCol[Any](i)) { col =>
+                t.tln("  " + col.take(8).map {
+                  _.toString
+                }.mkString(","))
               }
             }
-            t.iln(ms + " ms.")
-            t.tln
-            t.tln("  checksum:    " + sum)
-            t.iln("  time/lookup: " + ((ms * 1000) / n) + " us")
-            t.tln
-          };
-          {
-            t.t("making 1024 cofreq calculations...")
-            var fA, fB, fAB = 0L
-            val n = 1024
-            val (ms, _) = TestTool.ms {
-              (0 until n).foreach { i =>
-                val co =
-                  view.coStats(ids(rnd.nextInt(ids.size)),
-                    ids(rnd.nextInt(ids.size)))
-                fA += co.fA
-                fB += co.fB
-                fAB += co.fAB
-              }
+          })
+
+      t.tln
+      t.iln("db and index created and closed in " + creationMs + " ms")
+      val before = System.currentTimeMillis()
+
+      t.tln
+      tDir(t, t.fileDir)
+      t.tln
+
+      using(dfs.openIndexedDfFile[ExampleItem](file)) { view =>
+        val df = view.df
+        val index = view.indexDf
+        t.iln("db and index reopened in " + (System.currentTimeMillis() - before) + " ms")
+
+        t.tln
+        t.t("sanity checking...")
+        t.tMsLn(
+          (0 until df.lsize.toInt).foreach { i =>
+            if (items(i) != df(i)) {
+              t.tln(f" at $i original item ${items(i)} != original ${df(i)}")
             }
-            t.iln(ms + " ms.")
-            t.tln
-            t.tln("  checksums:    " + fA + "/" + fA + "/" + fAB)
-            t.iln("  time/freq:    " + ((ms * 1000) / n) + " us")
-            t.tln
-          };
-          {
-            var fs, fA, fB, fAB = 0L
-            val n = 1024
+          })
 
-            t.i("opening bitsets (no id lookup)...")
-            val bits = t.iMsLn {
-              (0 until n).map { i =>
-                view.openIndex(rnd.nextInt(index.colCount))
-              }
-            }: Seq[IoBits[String]]
-            try {
-              t.tln
-              t.i("counting freqs...")
-              val (ms, _) = TestTool.ms {
-                (0 until n).foreach { i =>
-                  fs += bits(i).f
-                }
-              }
-              t.iln(ms + " ms.")
-              t.tln
-              t.tln("  checksum:     " + fs)
-              t.iln("  time/freq:    " + ((ms * 1000) / n) + " us")
+        t.tln
+        val b = items.map(i => if (i.property) 1 else 0).sum
+        val b2 = view.f("property" -> true)
+        t.tln(f"property frequencies: original $b vs index $b2")
 
-              t.tln
-              t.i("comparing bits...")
-              val (ms2, _) = TestTool.ms {
-                (0 until n).foreach { i =>
-                  val bA = bits(i)
-                  val bB = bits(rnd.nextInt(bits.size))
-                  fA += bA.f
-                  fB += bB.f
-                  fAB += bA.fAnd(bB)
-                }
-              }
-              t.iln(ms2 + " ms.")
-              t.tln
-              t.tln("  checksums:    " + fA + "/" + fB + "/" + fAB)
-              t.iln("  time/freq:    " + ((ms2 * 1000) / n) + " us")
-              t.tln
-              t.i("making three way bit and comparisons...")
-              var fABC = 0L
-              fAB = 0
-              val (ms3, _) = TestTool.ms {
-                (0 until n).foreach { i =>
-                  val bA = bits(i)
-                  val bB = bits(rnd.nextInt(bits.size))
+        val n = items.map(i => if (i.name == "h") 1 else 0).sum
+        val n2 = view.f("name" -> "h")
+        t.tln(f"name=h frequencies: original $n vs index $n2")
 
-                  using(ioBits.createAnd(ram, bA, bB)) { bAB =>
-                    val bC = bits(rnd.nextInt(bits.size))
-                    fAB += bAB.f
-                    fABC += bC.fAnd(bAB)
-                  }
-                }
-              }
-              t.iln(ms3 + " ms.")
-              t.tln
-              t.tln("  checksums:    " + fAB + "/" + fABC)
-              t.iln("  time/freq:    " + ((ms3 * 1000) / n) + " us")
-              t.tln
-            } finally {
-              bits.foreach {
-                _.close
+        val ids = index.colIds.toArray
+        val rnd = new Random(0)
+        t.tln;
+      {
+        t.t("searching 1024 ids...")
+        var sum = 0
+        val n = 1024
+        val (ms, _) = TestTool.ms {
+          (0 until n).foreach { i =>
+            sum += index.indexOf(ids(rnd.nextInt(ids.size)))
+          }
+        }
+        t.iln(ms + " ms.")
+        t.tln
+        t.tln("  checksum:    " + sum)
+        t.iln("  time/lookup: " + ((ms * 1000) / n) + " us")
+        t.tln
+      };
+      {
+        t.t("making 1024 cofreq calculations...")
+        var fA, fB, fAB = 0L
+        val n = 1024
+        val (ms, _) = TestTool.ms {
+          (0 until n).foreach { i =>
+            val co =
+              view.coStats(ids(rnd.nextInt(ids.size)),
+                ids(rnd.nextInt(ids.size)))
+            fA += co.fA
+            fB += co.fB
+            fAB += co.fAB
+          }
+        }
+        t.iln(ms + " ms.")
+        t.tln
+        t.tln("  checksums:    " + fA + "/" + fA + "/" + fAB)
+        t.iln("  time/freq:    " + ((ms * 1000) / n) + " us")
+        t.tln
+      };
+      using (IoScope.open) { implicit scope =>
+        implicit val io = IoContext()
+        var fs, fA, fB, fAB = 0L
+        val n = 1024
+
+        t.i("opening bitsets (no id lookup)...")
+        val bits = t.iMsLn {
+          (0 until n).map { i =>
+            view.openIndex(rnd.nextInt(index.colCount))
+          }
+        }: Seq[IoBits[String]]
+        try {
+          t.tln
+          t.i("counting freqs...")
+          val (ms, _) = TestTool.ms {
+            (0 until n).foreach { i =>
+              fs += bits(i).f
+            }
+          }
+          t.iln(ms + " ms.")
+          t.tln
+          t.tln("  checksum:     " + fs)
+          t.iln("  time/freq:    " + ((ms * 1000) / n) + " us")
+
+          t.tln
+          t.i("comparing bits...")
+          val (ms2, _) = TestTool.ms {
+            (0 until n).foreach { i =>
+              val bA = bits(i)
+              val bB = bits(rnd.nextInt(bits.size))
+              fA += bA.f
+              fB += bB.f
+              fAB += bA.fAnd(bB)
+            }
+          }
+          t.iln(ms2 + " ms.")
+          t.tln
+          t.tln("  checksums:    " + fA + "/" + fB + "/" + fAB)
+          t.iln("  time/freq:    " + ((ms2 * 1000) / n) + " us")
+          t.tln
+          t.i("making three way bit and comparisons...")
+          var fABC = 0L
+          fAB = 0
+          val (ms3, _) = TestTool.ms {
+            (0 until n).foreach { i =>
+              val bA = bits(i)
+              val bB = bits(rnd.nextInt(bits.size))
+
+              using(bA createAnd bB) { bAB =>
+                val bC = bits(rnd.nextInt(bits.size))
+                fAB += bAB.f
+                fABC += bC.fAnd(bAB)
               }
             }
           }
+          t.iln(ms3 + " ms.")
+          t.tln
+          t.tln("  checksums:    " + fAB + "/" + fABC)
+          t.iln("  time/freq:    " + ((ms3 * 1000) / n) + " us")
+          t.tln
+        } finally {
+          bits.foreach {
+            _.close
           }
         }
       }
+      }
+      tRefCount(t)
     }
-    tRefCount(t)
   }
+
+
+  def testWritingPerf(testName:String, writer:(Seq[ExampleItem], File, IndexConf[String])=>Unit) =
+    test(testName) { t =>
+    RefCounted.trace {
+      using(IoScope.open) { implicit bind =>
+        implicit val io = IoContext()
+
+        t.tln("testing, how writing index behaves time & memory wise")
+        t.tln
+
+        def M = 1024*1024.0
+
+        val res =
+          Seq(15, 16, 17, 18).map { exp =>
+            val scale = 1 << exp
+            val file = new File(t.fileDir, "df")
+
+            t.tln(f"indexing $scale random items:")
+            val baseMem = Utils.memory
+
+            t.t(f"  creating items..")
+            val items = t.iMsLn(ExampleItem.makeItems(0, scale))
+
+
+            t.t(f"  indexing items..")
+            using (new MemoryMonitor(100)) { mem : MemoryMonitor=>
+              val (ms, _) =
+                TestTool.ms(
+                  writer(items, file, IndexConf()))
+              t.iln(f"$ms ms")
+
+              val stats =
+                Await.result(mem.finish, Duration.Inf)
+
+              val diskKb = file.length / 1024
+
+              t.iln(f"  mem base: ${baseMem/M}%.1f MB")
+              t.iln(f"  mem MB:   ${(stats.min-baseMem)/M}%.1f<${(stats.mean-baseMem)/M}%.1f<${(stats.max-baseMem)/M}%.1f (n:${stats.samples})")
+              t.iln(f"  disk:     $diskKb KB")
+              t.tln
+
+              (ms, baseMem, stats, diskKb)
+            }
+          }
+        t.tln("scaling:")
+        t.tln
+        t.iln("  time ms:     " + res.map(_._1).mkString(","))
+        t.iln("  mem MB mean: " + res.map(e => f"${(e._3.mean-e._2)/M}%.1f").mkString(","))
+        t.iln("  mem MB max:  " + res.map(e => f"${(e._3.max-e._2)/M}%.1f").mkString(","))
+        t.tln("  disk KB:     " + res.map(_._4).mkString(","))
+        t.tln
+      }
+    }
+  }
+
+  testWritingPerf("writing-indexed-perf", Dfs.fs.writeIndexedDfFile)
+  testWritingPerf("writing-typed-perf", (items, dir, index) => Dfs.fs.writeTypedDfFile(items, dir))
 
   test("merging") { t =>
     RefCounted.trace {
       using(IoScope.open) { implicit bind =>
         val io = IoContext()
-        val dfs = Dfs.default
+        val dfs = Dfs.fs
         val dirA = bind(new MMapDir(new File(t.fileDir, "dbA")))
         val dirB = bind(new MMapDir(new File(t.fileDir, "dbB")))
         val dirM = bind(new MMapDir(new File(t.fileDir, "dbM")))
 
-        val letters = "abcdefghijklmnopqrstuvxyz"
-
-        def makeItems(seed: Int, sz:Int) = {
-          val rnd = new Random(seed)
-
-          def nextLetter = letters.charAt(rnd.nextInt(letters.size))
-
-          (0 until sz).map { i =>
-            ExampleItem(nextLetter.toString,
-              rnd.nextBoolean(),
-              (rnd.nextGaussian() * 5).toInt,
-              (0 until rnd.nextInt(4)).map(e => (0 until (1 + rnd.nextInt(2))).map(e => nextLetter).mkString).mkString(" "))
-          }
-        }
-
-        val itemsA = makeItems(0, 1000)
-        val itemsB = makeItems(1, 1000)
+        val itemsA = ExampleItem.makeItems(0, 1000)
+        val itemsB = ExampleItem.makeItems(1, 1000)
 
         t.t("creating dbA..")
         val dbA =
           t.iMsLn(
-            bind(dfs.createTypedDb(itemsA, dirA)))
+            bind(dfs.createIndexedDf(itemsA, dirA)))
         t.t("creating dbB..")
         val dbB =
           t.iMsLn(
-            bind(dfs.createTypedDb(itemsB, dirB)))
+            bind(dfs.createIndexedDf(itemsB, dirB)))
         t.t("merging dbs..")
         t.iMsLn(
-          dfs.writeMergedDb(dbA, dbB, dirM))
+          dfs.writeMergedIndexedDf(dbA, dbB, dirM))
         t.t("opening merged db..")
         val dbM =
           t.iMsLn(
-            bind(dfs.openTypedDb[ExampleItem](dirM)))
+            bind(dfs.openIndexedDf[ExampleItem](dirM)))
 
         t.tln
         t.tln("merged db size: " + dbM.lsize)

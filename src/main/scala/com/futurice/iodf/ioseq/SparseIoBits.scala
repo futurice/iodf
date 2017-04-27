@@ -156,8 +156,11 @@ class SparseIoBits[IoId](val ref:IoRef[IoId, SparseIoBits[IoId]],
 
 object SparseIoBits {
 
-  def apply[IoId](trues:Seq[Long], size:Long)(io:IoContext[IoId]) = {
+  def create[IoId](trues:Iterable[Long], size:Long)(io:IoContext[IoId]) = {
     io.bits.createSparse(io.dir, trues, size)
+  }
+  def apply[IoId](trues:Iterable[Long], size:Long)(io:IoContext[IoId], scope:IoScope) = {
+    scope.bind(io.bits.createSparse(io.dir, trues, size))
   }
 
 }

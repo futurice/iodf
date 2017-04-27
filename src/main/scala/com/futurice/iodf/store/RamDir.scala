@@ -83,7 +83,6 @@ class RamDir[Id](ids:IdSchema[Id])(implicit t:ClassTag[Id]) extends Dir[Id] {
                 MemoryResource(buf.m, new Closeable {
                   def close = {
                     buf.release()
-                    synchronized { dir.remove(id) }
                   }
                 })))
       }

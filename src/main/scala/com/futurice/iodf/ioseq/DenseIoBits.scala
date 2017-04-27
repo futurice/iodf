@@ -14,10 +14,15 @@ object DenseIoBits {
   def bitsToLongCount(bitSize:Long) = ((bitSize+63L) / 64L)
   def bitsToByteSize(bitSize:Long) = bitsToLongCount(bitSize) * 8
 
-  def apply[IoId](bits:Seq[Boolean])(implicit io:IoContext[IoId]) = {
+  def create[IoId](bits:Seq[Boolean])(implicit io:IoContext[IoId]) = {
     io.bits.createDense(io.dir, bits)
   }
-
+  def apply[IoId](bits:Seq[Boolean])(implicit io:IoContext[IoId], scope:IoScope) = {
+    scope.bind(create(bits))
+  }
+/*  def apply[IoId](bits:Seq[Boolean])(implicit io:IoContext[IoId], scope:IoScope) = {
+    scope.bind(open(bits))
+  }*/
   def writeLeLong(out:DataOutputStream, long:Long) = {
     out.writeByte((long & 0xFF).toInt)
     out.writeByte((long >>> (8*1)).toInt & 0xFF)
@@ -70,13 +75,13 @@ object DenseIoBits {
   }
   def writeAnyMerged[Id](out: DataOutputStream, seqA:Any, seqB:Any): Unit = {
     (seqA, seqB) match {
-      case (a:DenseIoBits[Id], b:DenseIoBits[Id]) =>
+      case (a:DenseIoBits[_], b:DenseIoBits[_]) =>
         writeMerged(out, a, b)
-      case (a:DenseIoBits[Id], b:EmptyIoBits[Id]) =>
+      case (a:DenseIoBits[_], b:EmptyIoBits[_]) =>
         writeMerged(out, a.lsize, a.leLongs.iterator, b.lsize, Stream.continually(0L).iterator)
-      case (a:EmptyIoBits[Id], b:DenseIoBits[Id]) =>
+      case (a:EmptyIoBits[_], b:DenseIoBits[_]) =>
         writeMerged(out, a.lsize, Stream.continually(0L).iterator, b.lsize, b.leLongs.iterator)
-      case (a:DenseIoBits[Id], b:SparseIoBits[Id]) =>
+      case (a:DenseIoBits[_], b:SparseIoBits[_]) =>
         writeMerged(out, a.lsize, a.leLongs.iterator, b.lsize, b.leLongs)
     }
   }

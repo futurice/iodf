@@ -1,66 +1,65 @@
 
-index column id count: 717
+index column id count: 752
 
 first column ids are: 
 
-  (name,a)
-  (name,b)
-  (name,c)
-  (name,d)
-  (name,e)
-  (name,f)
-  (name,g)
-  (name,h)
+  (bigNumber,-15000000000)
+  (bigNumber,-12000000000)
+  (bigNumber,-11000000000)
+  (bigNumber,-10000000000)
+  (bigNumber,-9000000000)
+  (bigNumber,-8000000000)
+  (bigNumber,-7000000000)
+  (bigNumber,-6000000000)
 
 first columns are: 
 
   false,false,false,false,false,false,false,false
-  false,false,false,false,false,false,true,true
-  false,false,false,false,false,false,false,false
-  false,false,false,true,false,false,false,false
   false,false,false,false,false,false,false,false
   false,false,false,false,false,false,false,false
   false,false,false,false,false,false,false,false
   false,false,false,false,false,false,false,false
+  false,false,false,false,false,false,false,false
+  false,false,false,false,false,false,false,true
+  false,false,false,false,true,true,false,false
 
-db and index created and closed in 404 ms
+db and index created and closed in 386 ms
 
-260KB in db:
-  171KB  _0
-  88KB   _1
+138KB in 1024-entry-index_out:
+  138KB  df
 
 db and index reopened in 11 ms
 
-sanity checking...152 ms (was 167 ms)
+sanity checking...54 ms 
 
-property frequencies: original 494 vs index 494
-name=h frequencies: original 41 vs index 41
+property frequencies: original 498 vs index 498
+name=h frequencies: original 43 vs index 43
 
-searching 1024 ids...134 ms.
+searching 1024 ids...28 ms.
 
-  checksum:    372633
-  time/lookup: 130 us
+  checksum:    389474
+  time/lookup: 27 us
 
-making 1024 cofreq calculations...443 ms.
+making 1024 cofreq calculations...75 ms.
 
-  checksums:    7405/7405/24
-  time/freq:    432 us
+  checksums:    7500/7500/35
+  time/freq:    73 us
 
-opening bitsets (no id lookup)...102 ms (was 229 ms)
+opening bitsets (no id lookup)...9 ms 
 
-counting freqs...2 ms.
+counting freqs...1 ms.
 
-  checksum:     6674
-  time/freq:    1 us
+  checksum:     8983
+  time/freq:    0 us
 
-comparing bits...7 ms.
+comparing bits...3 ms.
 
-  checksums:    6674/6198/32
-  time/freq:    6 us
+  checksums:    8983/7480/114
+  time/freq:    2 us
 
-making three way bit and comparisons...11025 ms.
+making three way bit and comparisons...54 ms.
 
-  checksums:    15/0
-  time/freq:    10766 us
+  checksums:    147/0
+  time/freq:    52 us
 
 0 refs open.

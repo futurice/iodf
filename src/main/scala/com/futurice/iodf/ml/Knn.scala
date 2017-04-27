@@ -17,7 +17,7 @@ class Knn[IoId, T](df:IndexedDf[IoId, T],
                    indexConf:IndexConf[String],
                    keyValueW:Map[(String, Any), (Double, Double)])(implicit tag:ClassTag[T],tt:TypeTag[T]) {
 
-  val schema = Dfs.default.typeSchema[T]
+  val schema = Dfs.fs.typeSchema[T]
 
   val baseDistance = {
     using (IoContext.open) { implicit io =>

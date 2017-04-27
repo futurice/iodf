@@ -3,23 +3,25 @@ package com.futurice.iodf.store
 import java.io.{Closeable, InputStream, OutputStream}
 import java.util.logging.{Level, Logger}
 
+import com.futurice.iodf.IoScope
 import xerial.larray.buffer.{LBufferAPI, Memory, UnsafeUtil}
 
 import scala.collection.mutable
 
 object RefCounted {
   val l = Logger.getLogger("RefCounted")
+  @volatile
   var openRefs = 0
   var traces : Option[mutable.Map[RefCounted[_], Exception]] = None
 
 
   def opened(ref:RefCounted[_ <: java.io.Closeable]) = synchronized {
+//    new RuntimeException().printStackTrace()
  //   l.log(Level.INFO, "open objects " + open + " -> " + (open+i))
     traces match {
       case Some(tr) => tr += (ref -> new RuntimeException("leaked reference"))
       case None =>
     }
-    new mutable.HashMap[RefCounted[_], RuntimeException]
     openRefs += 1
   }
 
@@ -42,7 +44,7 @@ object RefCounted {
       if (traces.get.size > 0) {
         l.log(Level.SEVERE, traces.get.size + " references leaked.")
         traces.get.take(1).map { t =>
-          l.log(Level.SEVERE, t._1.v + " leaked!", t._2)
+          l.log(Level.SEVERE, t._1.value + " leaked with count " + t._1.count + "!", t._2)
         }
       }
       traces = tracesBefore
@@ -51,23 +53,33 @@ object RefCounted {
 }
 
 
-case class RefCounted[V <: Closeable](val v:V, val initCount:Int = 0) extends Closeable {
+case class RefCounted[V <: Closeable](val value:V, val initCount:Int = 0) extends Closeable {
   @volatile var count = initCount
   RefCounted.opened(this)
+
+  def apply() = value
+
+  def bind(implicit scope:IoScope) = {
+    var rv = open
+    scope.bind(this)
+    rv
+  }
   def open = synchronized  {
 //    System.out.println("inc " + RefCounted.this.hashCode())
 //    new RuntimeException().printStackTrace()
     count += 1
-    v
+    value
   }
-  override def hashCode(): Int = v.hashCode()
+  override def hashCode(): Int = value.hashCode()
   def close = synchronized {
-//    System.out.println("dc " + RefCounted.this.hashCode())
+//    System.out.println("dec " + RefCounted.this.hashCode())
 //    new RuntimeException().printStackTrace()
     count -= 1
     if (count == 0) {
+//      System.out.println("closed " + RefCounted.this.hashCode())
+//      new RuntimeException().printStackTrace()
       RefCounted.closed(this)
-      v.close
+      value.close
     }
   }
 
@@ -113,7 +125,7 @@ class RandomAccess(val countedM:RefCounted[MemoryResource],
     try {
       unsafe.getByte(memory)
     } catch {
-      case e =>
+      case e : Throwable =>
         System.out.println("exception for " + address + " of size " + size + " when accessing " + memory + ", block:" + m.address() + " sz: " +m.size())
         throw e
     }
@@ -128,8 +140,8 @@ class RandomAccess(val countedM:RefCounted[MemoryResource],
     if (offset < 0 || offset + sz > size) {
       throw new RuntimeException(offset + s" is outside the range [0, $size]")
     }
-    if (countedM.count <= 0 || countedM.v.isClosed) {
-      throw new RuntimeException("memory resource " + countedM.v.memory.address + " is closed")
+    if (countedM.count <= 0 || countedM.value.isClosed) {
+      throw new RuntimeException("memory resource " + countedM.value.memory.address + " is closed")
     }
   }
 
@@ -295,14 +307,19 @@ trait Dir[Id] extends Closeable {
 }
 
 case class FileRef[Id](dir:Dir[Id], id:Id) {
-  def open = dir.open(id)
+  def open : IoData[Id] = open()
+  def open(pos:Long = 0, size:Option[Long] = None) : IoData[Id]  = dir.open(id, pos, size)
   def openOutput = dir.openOutput(id)
   def toDataRef = new DataRef[Id](dir, id, 0, None)
 //  def create(l:Long) = dir.create(id, l)
 }
 /* TODO: add maxSize:Option[Long] */
 case class DataRef[Id](dir:Dir[Id], id:Id, pos:Long = 0, size:Option[Long] = None) {
-  def open = dir.open(id, pos, size)
+  def open : IoData[Id] = open()
+  def open(p:Long = 0, sz:Option[Long] = None) = {
+    val begin = pos + p
+    dir.open(id, begin, sz.orElse(size.map(_-begin)))
+  }
 
   def view(offset:Long, sz:Option[Long] = None) = {
     new DataRef(dir, id,

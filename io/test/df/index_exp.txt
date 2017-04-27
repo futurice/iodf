@@ -1,6 +1,9 @@
 
 colIds are: 
 
+  (bigNumber,1)
+  (bigNumber,324234)
+  (bigNumber,1000000000)
   (name,a)
   (name,b)
   (name,c)
@@ -16,12 +19,15 @@ colIds are:
 
 id indexes:
 
-  name->b         : 1
-  property->false : 3
-  quantity->4     : 7
+  name->b         : 4
+  property->false : 6
+  quantity->4     : 10
 
 columns are: 
 
+     (bigNumber,1): false,true,false
+  (bigNumber,324234): false,false,true
+  (bigNumber,1000000000): true,false,false
           (name,a): true,false,false
           (name,b): false,true,false
           (name,c): false,false,true
@@ -40,6 +46,9 @@ db and index reopened
 
 colIds are: 
 
+  (bigNumber,1)
+  (bigNumber,324234)
+  (bigNumber,1000000000)
   (name,a)
   (name,b)
   (name,c)
@@ -55,12 +64,15 @@ colIds are:
 
 id indexes:
 
-  name->b         : 1
-  property->false : 3
-  quantity->4     : 7
+  name->b         : 4
+  property->false : 6
+  quantity->4     : 10
 
 columns are: 
 
+     (bigNumber,1): false,true,false
+  (bigNumber,324234): false,false,true
+  (bigNumber,1000000000): true,false,false
           (name,a): true,false,false
           (name,b): false,true,false
           (name,c): false,false,true

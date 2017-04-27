@@ -38,7 +38,8 @@ class RefIoSeqType[Id, T <: IoObject[Id]](
   override def write(output: DataOutputStream, data: Seq[IoObject[Id]]) = {
     entryType.write(
       output,
-      data.map { e => (types.ioTypeId(e.ref.typ).get, e.ref.dataRef.id, e.ref.dataRef.pos) })
+      data.map { e =>
+        (types.ioTypeId(e.ref.typ), e.ref.dataRef.id, e.ref.dataRef.pos) })
   }
   override def writeMerged(out: DataOutputStream, seqA: RefIoSeq[Id, T], seqB: RefIoSeq[Id, T]): Unit = {
     entryType.writeMerged(out, seqA.buf, seqB.buf)

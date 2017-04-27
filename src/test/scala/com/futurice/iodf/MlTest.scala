@@ -55,11 +55,11 @@ class MlTest extends TestSuite("ml") {
 
   test("knn") { t =>
     RefCounted.trace {
-      val dfs = Dfs.default
+      val dfs = Dfs.fs
       scoped { implicit bind =>
         implicit val io = IoContext()
         val dir = bind(new MMapDir(t.fileDir))
-        val df = bind(dfs.createTypedDb[Animal](items, dir, indexConf))
+        val df = bind(dfs.createIndexedDf[Animal](items, dir, indexConf))
         val knn =
           Knn(
             df,
@@ -82,13 +82,13 @@ class MlTest extends TestSuite("ml") {
 
   test("knn-weights") { t =>
     RefCounted.trace {
-      val dfs = Dfs.default
+      val dfs = Dfs.fs
       scoped { implicit bind =>
         implicit val io = IoContext()
         val dir = bind(new MMapDir(new File(t.fileDir, "articles")))
-        val df = bind(dfs.createTypedDb[Article](articles, dir, indexConf))
+        val df = bind(dfs.createIndexedDf[Article](articles, dir, indexConf))
         val dir2 = bind(new MMapDir(new File(t.fileDir, "decisions")))
-        val df2 = bind(dfs.createTypedDb[Decision](decisions, dir2, indexConf))
+        val df2 = bind(dfs.createIndexedDf[Decision](decisions, dir2, indexConf))
         val weights =
           Knn.keyValueWeights(
             df2,

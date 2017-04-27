@@ -20,14 +20,23 @@ abstract class IoBits[IoId] extends IoSeq[IoId, Boolean] {
 
   def trues : Iterable[Long]
 
+  def createAnd[IoId1, IoId2](b:IoBits[IoId1])(implicit io:IoContext[IoId2]) = {
+    io.bits.createAnd(io.dir, this, b)
+  }
+  def createAndNot[IoId1, IoId2](b:IoBits[IoId1])(implicit io:IoContext[IoId2]) = {
+    io.bits.createAndNot(io.dir, this, b)
+  }
+  def createNot[IoId1, IoId2](implicit io:IoContext[IoId2]) = {
+    io.bits.createNot(io.dir, this)
+  }
   implicit def &[IoId1, IoId2](b:IoBits[IoId1])(implicit io:IoContext[IoId2], scope:IoScope) = {
-    scope.bind(io.bits.createAnd(io.dir, this, b))
+    scope.bind(createAnd(b))
   }
   implicit def &~[IoId1, IoId2](b:IoBits[IoId1])(implicit io:IoContext[IoId2], scope:IoScope) = {
-    scope.bind(io.bits.createAndNot(io.dir, this, b))
+    scope.bind(createAndNot(b))
   }
   implicit def ~[IoId1](implicit io:IoContext[IoId1], scope:IoScope) = {
-    scope.bind(io.bits.createNot(io.dir, this))
+    scope.bind(createNot)
   }
 
 
@@ -76,11 +85,11 @@ object IoBits {
     }
     rv
   }
-  def apply[IoId](trues:Iterable[Long], size:Long)(implicit io:IoContext[IoId]) = {
-    io.bits.create(trues, size)(io)
+  def apply[IoId](trues:Iterable[Long], size:Long)(implicit io:IoContext[IoId], scope:IoScope) = {
+    scope.bind(io.bits.create(trues, size)(io))
   }
-  def apply[IoId](bits:Seq[Boolean])(implicit io:IoContext[IoId]) = {
-    io.bits.create(bits)(io)
+  def apply[IoId](bits:Seq[Boolean])(implicit io:IoContext[IoId], scope:IoScope) = {
+    scope.bind(io.bits.create(bits)(io))
   }
 }
 
@@ -92,7 +101,7 @@ class IoBitsType[IoId](val sparse:SparseIoBitsType[IoId], val dense:DenseIoBitsT
   }
 
   def createDense(file:FileRef[IoId], bools:Seq[Boolean]): IoBits[IoId] = {
-    val typ = using( file.openOutput) { output =>
+    val typ = using( file.openOutput ) { output =>
       writeDense(new DataOutputStream(output), bools)
     }
     using(file.open) { typ.open(_) }
@@ -173,7 +182,7 @@ class IoBitsType[IoId](val sparse:SparseIoBitsType[IoId], val dense:DenseIoBitsT
       case (s1 : EmptyIoBits[IoId1], _) =>
         sparse.write(output, new SparseBits(Seq(), s1.n))
         sparse
-      case (_, s2 : EmptyIoBits[IoId1]) =>
+      case (_, s2 : EmptyIoBits[_]) =>
         sparse.write(output, new SparseBits(Seq(), s2.n))
         sparse
     }
