@@ -35,7 +35,7 @@ case class CoStats(n:Long, fA:Long, fB:Long, fAB:Long, priorW:Double = 2, priorA
 
 object CoStats {
   def apply(a: IoBits[_], b: IoBits[_], n:Long, priorW:Double, priorA:Double, priorB:Double) : CoStats = {
-    CoStats(n, a.f, b.f, a.fAnd(b))
+    CoStats(n, a.f, b.f, a.fAnd(b), priorW, priorA, priorB)
   }
   def apply(a: IoBits[_], b: IoBits[_], n:Long) : CoStats = {
     apply(a, b, n, 2.0, 0.5, 0.5)

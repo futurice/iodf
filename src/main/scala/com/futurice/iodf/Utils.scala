@@ -95,6 +95,10 @@ object Utils {
     val rt = Runtime.getRuntime();
     (rt.totalMemory() - rt.freeMemory())
   }
+
+  def fds = {
+    new File("/proc/self/fd").listFiles().length
+  }
 }
 
 case class SamplingStats(samples:Long, sum:Long, min:Long, max:Long) {
