@@ -16,8 +16,6 @@ object RefCounted {
 
 
   def opened(ref:RefCounted[_ <: java.io.Closeable]) = synchronized {
-//    new RuntimeException().printStackTrace()
- //   l.log(Level.INFO, "open objects " + open + " -> " + (open+i))
     traces match {
       case Some(tr) => tr += (ref -> new RuntimeException("leaked reference"))
       case None =>
@@ -34,7 +32,7 @@ object RefCounted {
     openRefs -= 1
   }
 
-  def trace[T](f : => T) : T = synchronized {
+  def trace[T](f : => T) : T = {
     // FIXME: not thread safe! Use threadlocal!
     val tracesBefore = traces
     traces = Some(new mutable.HashMap[RefCounted[_], Exception]())
@@ -60,13 +58,22 @@ case class RefCounted[V <: Closeable](val value:V, val initCount:Int = 0) extend
   def apply() = value
 
   def bind(implicit scope:IoScope) = {
+    count += 1
+    scope.bind(this)
+    this
+  }
+  def inc = synchronized  {
+    count += 1
+    this
+  }
+
+  def use(implicit scope:IoScope) = {
     var rv = open
     scope.bind(this)
     rv
   }
+  // needs to be closed
   def open = synchronized  {
-//    System.out.println("inc " + RefCounted.this.hashCode())
-//    new RuntimeException().printStackTrace()
     count += 1
     value
   }
