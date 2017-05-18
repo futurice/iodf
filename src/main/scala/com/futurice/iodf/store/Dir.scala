@@ -58,7 +58,7 @@ case class RefCounted[V <: Closeable](val value:V, val initCount:Int = 0) extend
   def apply() = value
 
   def bind(implicit scope:IoScope) = {
-    count += 1
+    inc
     scope.bind(this)
     this
   }

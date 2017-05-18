@@ -134,6 +134,11 @@ class JavaObjectIo[T] extends Serializer[T] {
     val size = o.getBeInt(pos)
     val buf = new Array[Byte](size)
     o.copyTo(pos+4, buf)
+
+/*    using (new ObjectInputStream(new ByteArrayInputStream(buf))) { in =>
+      in.readObject().asInstanceOf[T]
+    }*/
+
     val loader = Thread.currentThread().getContextClassLoader
     using (new ObjectInputStream(new ByteArrayInputStream(buf)) {
       @throws[IOException]

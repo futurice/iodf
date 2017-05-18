@@ -29,8 +29,6 @@ class Dfs[IoId : ClassTag](types:IoTypes[IoId])(implicit val seqSeqTag : TypeTag
       override def lsize = _lsize
 
       override def close(): Unit = {
-        /*        System.out.println("closed " + this.hashCode() + " with colIds " + colIds.take(3).mkString(","))
-                new RuntimeException().printStackTrace()*/
         _colIds.close;
         __cols.close
       }
