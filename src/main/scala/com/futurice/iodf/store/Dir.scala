@@ -81,6 +81,7 @@ case class RefCounted[V <: Closeable](val value:V, val initCount:Int = 0) extend
   def close = synchronized {
 //    System.out.println("dec " + RefCounted.this.hashCode())
 //    new RuntimeException().printStackTrace()
+    if (count <= 0) throw new RuntimeException("cannot decrease count as it is already " + count)
     count -= 1
     if (count == 0) {
 //      System.out.println("closed " + RefCounted.this.hashCode())
