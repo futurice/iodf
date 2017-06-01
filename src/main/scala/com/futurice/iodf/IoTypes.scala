@@ -140,9 +140,10 @@ object IoTypes {
         str,
         new IntIoArrayType[String],
         new LongIoArrayType[String],
-        new DenseIoBitsType[String](),  // converts Seq[Boolean]
-        new DenseIoBitsType2[String](), // converts BitSet
-        new SparseIoBitsType[String](),
+        new BooleanIoSeqType[String](),  // converts Seq[Boolean]
+        new IoBitsType[String](// converts Bits
+          new SparseIoBitsType[String](),
+          new DenseIoBitsType[String]()),
         //        new SparseToDenseIoBitsType[String](),
         new IntIoArrayType[String],
         new RefIoSeqType[String,

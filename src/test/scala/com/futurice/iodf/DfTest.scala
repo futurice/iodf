@@ -5,8 +5,9 @@ import java.util
 
 import com.futurice.testtoys.{TestSuite, TestTool}
 import com.futurice.iodf.store.{MMapDir, RamDir, RefCounted}
-import com.futurice.iodf.Utils.using
+import com.futurice.iodf.Utils._
 import com.futurice.iodf.ioseq._
+import com.futurice.iodf.utils.{DenseBits, SparseBits}
 
 import scala.reflect.runtime.universe._
 import scala.util.Random
@@ -61,116 +62,233 @@ class DfTest extends TestSuite("df") {
     }
   }
 
-  test("bits") { t =>
-    using(new MMapDir(t.fileDir)) { dir =>
-      val bits = new SparseIoBitsType[String]()
-      using(bits.create(dir.ref("bits"), new SparseBits(Seq(0L, 2L), 4))) { b =>
+  test("sparse-bits") { t =>
+    RefCounted.trace {
+      using(new MMapDir(t.fileDir)) { dir =>
+        val bits = new SparseIoBitsType[String]()
+        using(bits.create(dir.ref("bits"), new SparseBits(Seq(0L, 2L), 4))) { b =>
 
-        t.tln("bit(3):        " + b(2));
+          t.tln("bit(3):        " + b(2));
 
-        t.tln("bit count is   " + b.f + "/" + b.n)
-        t.tln("true bits are: " + b.trues.mkString(", ") + " (" + b.trues.lsize + ")")
-        t.tln("bits by index: " + (0L until b.n).map {
-          b(_)
-        }.mkString(", "))
-        t.tln("bits by iter:  " + b.map {
-          _.toString
-        }.mkString(", "))
+          t.tln("bit count is   " + b.f + "/" + b.n)
+          t.tln("true bits are: " + b.trues.mkString(", ") + " (" + b.trues.lsize + ")")
+          t.tln("bits by index: " + (0L until b.n).map {
+            b(_)
+          }.mkString(", "))
+          t.tln("bits by iter:  " + b.map { e: Boolean =>
+            e.toString
+          }.mkString(", "))
+        }
       }
     }
   }
 
   test("dense-bits") { t =>
-    using(IoScope.open) { implicit bind =>
-      val dir = bind(new MMapDir(t.fileDir))
-      val bits = new DenseIoBitsType[String]()
+    RefCounted.trace {
+      using(IoScope.open) { implicit bind =>
+        val dir = bind(new MMapDir(t.fileDir))
+        val bits = new BooleanIoSeqType[String]()
 
-      val b1 = bind(bits.create(dir.ref("bits"), Seq(false, false, true, false, true)))
-      val b2 = bind(bits.create(dir.ref("bits2"), Seq(false, true, true, false)))
-      val b3 = bind(bits.create(dir.ref("bits3"), (0 until 150).map(_ % 3 == 0)))
-      using(new DataOutputStream(dir.ref("bitsM2").openOutput)) { o =>
-        bits.writeAnyMerged(o, b3, b1)
+        val b1 = bind(bits.create(dir.ref("bits"), Seq(false, false, true, false, true)))
+        val b2 = bind(bits.create(dir.ref("bits2"), Seq(false, true, true, false)))
+        val b3 = bind(bits.create(dir.ref("bits3"), (0 until 150).map(_ % 3 == 0)))
+        using(new DataOutputStream(dir.ref("bitsM2").openOutput)) { o =>
+          bits.writeAnyMerged(o, b3, b1)
+        }
+        val bM2 = bind(bits.open(bind(dir.open("bitsM2"))))
+
+        using(new DataOutputStream(dir.ref("bitsM").openOutput)) { o =>
+          bits.writeAnyMerged(o, b1, b2)
+        }
+        val bM = bind(bits.open(bind(dir.open("bitsM"))))
+
+        using(new DataOutputStream(dir.ref("bitsM3").openOutput)) { o =>
+          bits.writeAnyMerged(o, b1, b3)
+        }
+        val bM3 = bind(bits.open(bind(dir.open("bitsM3"))))
+
+        using(new DataOutputStream(dir.ref("bitsM4").openOutput)) { o =>
+          bits.writeAnyMerged(o, b3, b3)
+        }
+        val bM4 = bind(bits.open(bind(dir.open("bitsM4"))))
+
+        def tBits(b: DenseIoBits[String]) {
+          t.tln("bit(2):        " + b(2));
+
+          t.tln("bit count is     " + b.f + "/" + b.n)
+          t.tln("true bits length " + b.trues.size)
+          t.tln("true bits are:   " + b.trues.mkString(", "))
+          t.tln("real true bits:  " + b.zipWithIndex.filter(_._1).map(_._2).mkString(", "))
+          t.tln("bits by index:   " + (0L until b.n).map {
+            b(_)
+          }.mkString(", "))
+          t.tln("bits by iter:    " + b.map { b: Boolean =>
+            b.toString
+          }.mkString(", "))
+          if (b.f != b.trues.size) throw new RuntimeException
+          t.tln
+        }
+
+        def findErrors[Id, T](col: IoSeq[Id, T], colA: IoSeq[Id, T], colB: IoSeq[Id, T]) = {
+          (if (col.lsize != colA.lsize + colB.lsize)
+            Seq(("SIZE", col.lsize, colA.lsize, colB.lsize))
+          else Seq()) ++
+            (0L until colA.lsize).filter { i =>
+              col(i) != colA(i)
+            }.map(i => ("A", i, col(i), colA(i))) ++
+            (0L until colB.lsize).filter { i =>
+              col(colA.lsize + i) != colB(i)
+            }.map(i => ("B", colA.lsize + i, col(colA.lsize + i), colB(i)))
+        }
+
+        t.tln("b1")
+        tBits(b1)
+        t.tln("b2")
+        tBits(b2)
+        t.tln("b3")
+        tBits(b3)
+        t.tln("bM")
+
+        tBits(bM)
+        t.tln("errors: " + findErrors(bM, b1, b2).mkString(","))
+        t.tln("bM2")
+
+        tBits(bM2)
+        t.tln("errors: " + findErrors(bM2, b3, b1).mkString(","))
+
+        t.tln("bM3")
+        tBits(bM3)
+        t.tln("errors: " + findErrors(bM3, b1, b3).mkString(","))
+
+        t.tln("bM4")
+        tBits(bM4)
+        t.tln("errors: " + findErrors(bM4, b3, b3).mkString(","))
       }
-      val bM2 = bind(bits.open(bind(dir.open("bitsM2"))))
-
-      using(new DataOutputStream(dir.ref("bitsM").openOutput)) { o =>
-        bits.writeAnyMerged(o, b1, b2)
-      }
-      val bM = bind(bits.open(bind(dir.open("bitsM"))))
-
-      using(new DataOutputStream(dir.ref("bitsM3").openOutput)) { o =>
-        bits.writeAnyMerged(o, b1, b3)
-      }
-      val bM3 = bind(bits.open(bind(dir.open("bitsM3"))))
-
-      using(new DataOutputStream(dir.ref("bitsM4").openOutput)) { o =>
-        bits.writeAnyMerged(o, b3, b3)
-      }
-      val bM4 = bind(bits.open(bind(dir.open("bitsM4"))))
-
-      def tBits(b:DenseIoBits[String]) {
-        t.tln("bit(2):        " + b(2));
-
-        t.tln("bit count is     " + b.f + "/" + b.n)
-        t.tln("true bits length " + b.trues.size)
-        t.tln("true bits are:   " + b.trues.mkString(", "))
-        t.tln("real true bits:  " + b.zipWithIndex.filter(_._1).map(_._2).mkString(", "))
-        t.tln("bits by index:   " + (0L until b.n).map {
-          b(_)
-        }.mkString(", "))
-        t.tln("bits by iter:    " + b.map {
-          _.toString
-        }.mkString(", "))
-        if (b.f != b.trues.size) throw new RuntimeException
-        t.tln
-      }
-      def findErrors[Id, T](col:IoSeq[Id, T], colA:IoSeq[Id,T], colB:IoSeq[Id, T]) = {
-        (if (col.lsize != colA.lsize + colB.lsize)
-          Seq(("SIZE", col.lsize, colA.lsize, colB.lsize))
-        else Seq())++
-          (0L until colA.lsize).filter { i =>
-            col(i) != colA(i)
-          }.map(i => ("A", i, col(i), colA(i))) ++
-          (0L until colB.lsize).filter{ i =>
-            col(colA.lsize + i) != colB(i)
-          }.map(i => ("B", colA.lsize + i, col(colA.lsize+i), colB(i)))
-      }
-
-      t.tln("b1")
-      tBits(b1)
-      t.tln("b2")
-      tBits(b2)
-      t.tln("b3")
-      tBits(b3)
-      t.tln("bM")
-
-      tBits(bM)
-      t.tln("errors: " + findErrors(bM, b1, b2).mkString(","))
-      t.tln("bM2")
-
-      tBits(bM2)
-      t.tln("errors: " + findErrors(bM2, b3, b1).mkString(","))
-
-      t.tln("bM3")
-      tBits(bM3)
-      t.tln("errors: " + findErrors(bM3, b1, b3).mkString(","))
-
-      t.tln("bM4")
-      tBits(bM4)
-      t.tln("errors: " + findErrors(bM4, b3, b3).mkString(","))
     }
   }
 
+  test("bits") { t =>
+    RefCounted.trace {
+      scoped { implicit scope =>
+        val dir = MMapDir(t.fileDir)
+        val bits =
+          new IoBitsType[String](
+            new SparseIoBitsType[String](),
+            new DenseIoBitsType[String]())
+        t.tln("creating short bit vector:")
+        val dense = bits(dir.ref("bits"), new SparseBits(Seq(0L, 2L), 4))
+
+        t.tln("  bit type:      " + dense.unwrap.getClass.getName)
+
+        t.tln("  bit(2):        " + dense(2));
+
+        t.tln("  bit count is   " + dense.f + "/" + dense.n)
+        t.tln("  true bits are: " + dense.trues.mkString(", ") + " (" + dense.trues.size + ")")
+        t.tln("  bits by index: " + (0L until dense.n).map {
+          dense(_)
+        }.mkString(", "))
+        t.tln("  bits by iter:  " + dense.map { e: Boolean =>
+          e.toString
+        }.mkString(", "))
+        t.tln
+        t.tln("creating dense vector:")
+        val dense2 = bits(dir.ref("bits2"), new SparseBits((0L until 1024L).filter(i => i % 3 == 1), 1024))
+
+        t.tln("  bit type:      " + dense2.unwrap.getClass.getName)
+
+        t.tln("  bit(2):        " + dense2(2));
+
+        t.tln("  bit count is   " + dense2.f + "/" + dense2.n)
+        t.tln("  first trues:   " + dense2.trues.take(10).mkString(", ") + " (" + dense2.trues.size + ")")
+        t.tln
+        t.tln("creating very sparse bit vector:")
+
+        val sparse = bits.create(dir.ref("bits3"), new SparseBits(Seq(2L, 445L), 1024))
+
+        t.tln("  bit type:      " + sparse.unwrap.getClass)
+
+        t.tln("  bit(2):        " + sparse(2));
+
+        t.tln("  bit count is   " + sparse.f + "/" + sparse.n)
+        t.tln("  true bits are: " + sparse.trues.mkString(", ") + " (" + sparse.trues.size + ")")
+        t.tln
+
+        implicit val io = IoContext()
+
+        def tBits(b: IoBits[_]) = {
+          t.tln("      bit type:      " + b.getClass)
+          b match {
+            case w: WrappedIoBits[String] =>
+              t.tln("      internal type: " + w.unwrap.getClass)
+            case _ =>
+          }
+
+          t.tln("      bit(2):        " + b(2));
+
+          t.tln("      bit count is   " + b.f + "/" + b.n)
+          t.tln("      first trues:   " + b.trues.take(10).mkString(", ") + " (" + b.trues.size + ")")
+        }
+
+        def tTest(bA: WrappedIoBits[String], bB: WrappedIoBits[String]) = {
+          t.tln("    merge:")
+          val bM = (bA merge bB).asInstanceOf[WrappedIoBits[String]]
+          tBits(bM)
+          if (bA.size == bB.size) {
+            t.tln("    and:")
+            val bAnd = (bA & bB)
+            tBits(bAnd)
+          }
+        }
+
+        val comb = Seq("short dense" -> dense,
+          "long dense" -> dense2,
+          "sparse" -> sparse,
+          "empty" -> bits.defaultSeq(1024))
+
+        for ((n1, b1) <- comb; (n2, b2) <- comb) {
+          t.tln(f"  for $n1 and $n2:")
+          tTest(b1, b2)
+          t.tln
+        }
+      }
+    }
+  }
+
+
   test("bits-perf") { t =>
-    val sizes = Array(16, 256, 4 * 1024, 1024 * 1024)
+    RefCounted.trace {
+      val sizes = Array(16, 256, 4 * 1024, 1024 * 1024)
 
-    sizes.foreach { sz =>
-      using(new MMapDir(t.fileDir)) { dir =>
-        val bits = new SparseIoBitsType[String]()
-        val data = (0 until sz).filter(_ % 4 == 0).map(_.toLong)
+      sizes.foreach { sz =>
+        using(new MMapDir(t.fileDir)) { dir =>
+          val bits = new SparseIoBitsType[String]()
+          val data = (0 until sz).filter(_ % 4 == 0).map(_.toLong)
 
-        t.t("creating sparse bits of size " + sz + "...")
-        t.tMsLn(bits.create(dir.ref("bits"), new SparseBits(data, sz))).close()
+          val n = 32
+          t.t(f"creating $n sparse bits of size $sz...")
+          val (ms, res) =
+            TestTool.ms(
+              (0 until n).foreach { i =>
+                bits.create(dir.ref("bits"), new SparseBits(data, sz)).close()
+              })
+
+          val old = t.peekDouble
+          val now = ms / n.toDouble
+          t.i(f"$now%.3f ms / op")
+          old match {
+            case Some(oldV) =>
+              t.iln(f", was $oldV%.3f ms")
+              if (Math.abs(Math.log(oldV / now)) > Math.log(2)) {
+                t.fail
+                t.tln("  performance has CHANGED!")
+              } else {
+                t.iln("  ok.")
+              }
+            case None =>
+              t.iln
+              t.iln("  first run.")
+          }
+        }
       }
     }
   }
@@ -180,7 +298,7 @@ class DfTest extends TestSuite("df") {
       val dir = bind(new MMapDir(t.fileDir))
 
       val sparse = new SparseIoBitsType[String]()
-      val dense = new DenseIoBitsType2[String]()
+      val dense = new DenseIoBitsType[String]()
 
       // 1 billion
       val density = 64
@@ -296,8 +414,8 @@ class DfTest extends TestSuite("df") {
           t.tln("field values are: ")
           df.fieldIndexes.map { i =>
             using(df.openCol[Any](i)) { col =>
-              t.tln("  " + col.map {
-                _.toString
+              t.tln("  " + col.map { b : Any =>
+                b.toString
               }.mkString(","))
             }
           }
@@ -317,8 +435,8 @@ class DfTest extends TestSuite("df") {
           t.tln("columns are: ")
           (0 until df.colCount).map { i =>
             using(df.openCol[Any](i)) { col =>
-              t.tln("  " + col.map {
-                _.toString
+              t.tln("  " + col.map { b : Any =>
+                b.toString
               }.mkString(","))
             }
           }
@@ -355,8 +473,8 @@ class DfTest extends TestSuite("df") {
         t.tln
         (0 until index.colCount).map { i =>
           using(index.openCol[Any](i)) { col =>
-            t.tln(f"  ${index.colIds(i)}%16s: " + col.map {
-              _.toString
+            t.tln(f"  ${index.colIds(i)}%16s: " + col.map { b : Any =>
+              b.toString
             }.mkString(","))
           }
         }

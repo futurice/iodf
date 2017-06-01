@@ -1,5 +1,198 @@
-bit(3):        true
-bit count is   2/4
-true bits are: 0, 2 (2)
-bits by index: true, false, true, false
-bits by iter:  true, false, true, false
+creating short bit vector:
+  bit type:      com.futurice.iodf.ioseq.DenseIoBits
+  bit(2):        true
+  bit count is   2/4
+  true bits are: 0, 2 (2)
+  bits by index: true, false, true, false
+  bits by iter:  true, false, true, false
+
+creating dense vector:
+  bit type:      com.futurice.iodf.ioseq.DenseIoBits
+  bit(2):        false
+  bit count is   341/1024
+  first trues:   1, 4, 7, 10, 13, 16, 19, 22, 25, 28 (341)
+
+creating very sparse bit vector:
+  bit type:      class com.futurice.iodf.ioseq.DenseIoBits
+  bit(2):        true
+  bit count is   2/1024
+  true bits are: 2, 445 (2)
+
+  for short dense and short dense:
+    merge:
+      bit type:      class com.futurice.iodf.ioseq.WrappedIoBits
+      internal type: class com.futurice.iodf.ioseq.DenseIoBits
+      bit(2):        true
+      bit count is   4/8
+      first trues:   0, 2, 4, 6 (4)
+    and:
+      bit type:      class com.futurice.iodf.ioseq.DenseIoBits
+      bit(2):        true
+      bit count is   2/4
+      first trues:   0, 2 (2)
+
+  for short dense and long dense:
+    merge:
+      bit type:      class com.futurice.iodf.ioseq.WrappedIoBits
+      internal type: class com.futurice.iodf.ioseq.DenseIoBits
+      bit(2):        true
+      bit count is   343/1028
+      first trues:   0, 2, 5, 8, 11, 14, 17, 20, 23, 26 (343)
+
+  for short dense and sparse:
+    merge:
+      bit type:      class com.futurice.iodf.ioseq.WrappedIoBits
+      internal type: class com.futurice.iodf.ioseq.DenseIoBits
+      bit(2):        true
+      bit count is   4/1028
+      first trues:   0, 2, 6, 449 (4)
+
+  for short dense and empty:
+    merge:
+      bit type:      class com.futurice.iodf.ioseq.WrappedIoBits
+      internal type: class com.futurice.iodf.ioseq.DenseIoBits
+      bit(2):        true
+      bit count is   2/1028
+      first trues:   0, 2 (2)
+
+  for long dense and short dense:
+    merge:
+      bit type:      class com.futurice.iodf.ioseq.WrappedIoBits
+      internal type: class com.futurice.iodf.ioseq.DenseIoBits
+      bit(2):        false
+      bit count is   343/1028
+      first trues:   1, 4, 7, 10, 13, 16, 19, 22, 25, 28 (343)
+
+  for long dense and long dense:
+    merge:
+      bit type:      class com.futurice.iodf.ioseq.WrappedIoBits
+      internal type: class com.futurice.iodf.ioseq.DenseIoBits
+      bit(2):        false
+      bit count is   682/2048
+      first trues:   1, 4, 7, 10, 13, 16, 19, 22, 25, 28 (682)
+    and:
+      bit type:      class com.futurice.iodf.ioseq.DenseIoBits
+      bit(2):        false
+      bit count is   341/1024
+      first trues:   1, 4, 7, 10, 13, 16, 19, 22, 25, 28 (341)
+
+  for long dense and sparse:
+    merge:
+      bit type:      class com.futurice.iodf.ioseq.WrappedIoBits
+      internal type: class com.futurice.iodf.ioseq.DenseIoBits
+      bit(2):        false
+      bit count is   343/2048
+      first trues:   1, 4, 7, 10, 13, 16, 19, 22, 25, 28 (343)
+    and:
+      bit type:      class com.futurice.iodf.ioseq.DenseIoBits
+      bit(2):        false
+      bit count is   1/1024
+      first trues:   445 (1)
+
+  for long dense and empty:
+    merge:
+      bit type:      class com.futurice.iodf.ioseq.WrappedIoBits
+      internal type: class com.futurice.iodf.ioseq.DenseIoBits
+      bit(2):        false
+      bit count is   341/2048
+      first trues:   1, 4, 7, 10, 13, 16, 19, 22, 25, 28 (341)
+    and:
+      bit type:      class com.futurice.iodf.ioseq.SparseIoBits
+      bit(2):        false
+      bit count is   0/1024
+      first trues:    (0)
+
+  for sparse and short dense:
+    merge:
+      bit type:      class com.futurice.iodf.ioseq.WrappedIoBits
+      internal type: class com.futurice.iodf.ioseq.DenseIoBits
+      bit(2):        true
+      bit count is   4/1028
+      first trues:   2, 445, 1024, 1026 (4)
+
+  for sparse and long dense:
+    merge:
+      bit type:      class com.futurice.iodf.ioseq.WrappedIoBits
+      internal type: class com.futurice.iodf.ioseq.DenseIoBits
+      bit(2):        true
+      bit count is   343/2048
+      first trues:   2, 445, 1025, 1028, 1031, 1034, 1037, 1040, 1043, 1046 (343)
+    and:
+      bit type:      class com.futurice.iodf.ioseq.DenseIoBits
+      bit(2):        false
+      bit count is   1/1024
+      first trues:   445 (1)
+
+  for sparse and sparse:
+    merge:
+      bit type:      class com.futurice.iodf.ioseq.WrappedIoBits
+      internal type: class com.futurice.iodf.ioseq.DenseIoBits
+      bit(2):        true
+      bit count is   4/2048
+      first trues:   2, 445, 1026, 1469 (4)
+    and:
+      bit type:      class com.futurice.iodf.ioseq.DenseIoBits
+      bit(2):        true
+      bit count is   2/1024
+      first trues:   2, 445 (2)
+
+  for sparse and empty:
+    merge:
+      bit type:      class com.futurice.iodf.ioseq.WrappedIoBits
+      internal type: class com.futurice.iodf.ioseq.SparseIoBits
+      bit(2):        true
+      bit count is   2/2048
+      first trues:   2, 445 (2)
+    and:
+      bit type:      class com.futurice.iodf.ioseq.SparseIoBits
+      bit(2):        false
+      bit count is   0/1024
+      first trues:    (0)
+
+  for empty and short dense:
+    merge:
+      bit type:      class com.futurice.iodf.ioseq.WrappedIoBits
+      internal type: class com.futurice.iodf.ioseq.DenseIoBits
+      bit(2):        false
+      bit count is   2/1028
+      first trues:   1024, 1026 (2)
+
+  for empty and long dense:
+    merge:
+      bit type:      class com.futurice.iodf.ioseq.WrappedIoBits
+      internal type: class com.futurice.iodf.ioseq.DenseIoBits
+      bit(2):        false
+      bit count is   341/2048
+      first trues:   1025, 1028, 1031, 1034, 1037, 1040, 1043, 1046, 1049, 1052 (341)
+    and:
+      bit type:      class com.futurice.iodf.ioseq.SparseIoBits
+      bit(2):        false
+      bit count is   0/1024
+      first trues:    (0)
+
+  for empty and sparse:
+    merge:
+      bit type:      class com.futurice.iodf.ioseq.WrappedIoBits
+      internal type: class com.futurice.iodf.ioseq.SparseIoBits
+      bit(2):        false
+      bit count is   2/2048
+      first trues:   1026, 1469 (2)
+    and:
+      bit type:      class com.futurice.iodf.ioseq.SparseIoBits
+      bit(2):        false
+      bit count is   0/1024
+      first trues:    (0)
+
+  for empty and empty:
+    merge:
+      bit type:      class com.futurice.iodf.ioseq.WrappedIoBits
+      internal type: class com.futurice.iodf.ioseq.SparseIoBits
+      bit(2):        false
+      bit count is   0/2048
+      first trues:    (0)
+    and:
+      bit type:      class com.futurice.iodf.ioseq.SparseIoBits
+      bit(2):        false
+      bit count is   0/1024
+      first trues:    (0)
+

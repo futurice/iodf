@@ -2,7 +2,7 @@ package com.futurice.iodf
 
 import java.io.{Closeable, File}
 
-import com.futurice.iodf.ioseq.{DenseIoBitsType, IoBits, IoBitsType, SparseIoBitsType}
+import com.futurice.iodf.ioseq._
 import com.futurice.iodf.store.{Dir, RamDir}
 
 import scala.annotation.tailrec

@@ -4,8 +4,10 @@ import java.io.{DataOutputStream, File, FileOutputStream}
 import java.util
 
 import com.futurice.iodf.Utils.using
-import com.futurice.iodf.ioseq.{DenseBits, IoBits, SparseBits}
+import com.futurice.iodf.ioseq.{IoBits}
+import com.futurice.iodf.utils._
 import com.futurice.iodf.store._
+import com.futurice.iodf.utils.SparseBits
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
@@ -118,7 +120,7 @@ class Dfs[IoId : ClassTag](types:IoTypes[IoId])(implicit val seqSeqTag : TypeTag
         newColIds: Seq[ColId],
         FileRef(dir, dir.id(0)))
       types.writeIoObject(
-        vd: Seq[IoObject[IoId]],
+          vd: Seq[IoObject[IoId]],
         FileRef(dir, dir.id(1)))
     } finally {
       vd.foreach {
@@ -275,17 +277,18 @@ class Dfs[IoId : ClassTag](types:IoTypes[IoId])(implicit val seqSeqTag : TypeTag
               val dense = IoBits.isDense(data.size, df.lsize)
 
               val ref =
-                if (dense) {
+                types.writeIoObject(
+                  new SparseBits(data, df.lsize) : Bits,
+                  dir.ref(dir.id(cols.size + 2)))
+
+/*              if (dense) {
                   val bitset = new util.BitSet(df.lsize.toInt)
                   data.foreach { i => bitset.set(i.toInt) }
                   types.writeIoObject(
                     new DenseBits(bitset, df.lsize),
                     dir.ref(dir.id(cols.size + 2)))
                 } else {
-                  types.writeIoObject(
-                    new SparseBits(data, df.lsize),
-                    dir.ref(dir.id(cols.size + 2)))
-                }
+                }*/
 
               //            System.out.println(f"writing ${id}->$value of dense=$dense with f/n ${data.size}/${df.lsize}  took ${(System.currentTimeMillis() - before)} ms")
               cols +=

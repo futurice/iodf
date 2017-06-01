@@ -6,26 +6,26 @@ import java.util
 import com.futurice.iodf.Utils._
 import com.futurice.iodf._
 import com.futurice.iodf.store.{FileRef, IoData}
+import com.futurice.iodf.utils.{Bits, SparseBits}
 
 import scala.reflect.runtime.universe._
 
-case class SparseBits(trues:Iterable[Long], size:Long) {}
 
-class SparseIoBitsType[Id](implicit val t:TypeTag[SparseBits])
-  extends IoTypeOf[Id, SparseIoBits[Id], SparseBits]()(t)
+class SparseIoBitsType[Id](implicit val t:TypeTag[Bits])
+  extends IoTypeOf[Id, SparseIoBits[Id], Bits]()(t)
     with SeqIoType[Id, SparseIoBits[Id], Boolean] {
   val longs = new LongIoArrayType[Id]()
 
   override def defaultSeq(lsize:Long) = {
     new EmptyIoBits[Id](lsize)
   }
-  override def write(output: DataOutputStream, v: SparseBits): Unit = {
-    output.writeLong(v.size)
+  override def write(output: DataOutputStream, v: Bits): Unit = {
+    output.writeLong(v.lsize)
     longs.write(output, v.trues.size, v.trues.iterator)
   }
   def writeMerged(out: DataOutputStream, seqA: SparseIoBits[Id], seqB: SparseIoBits[Id]): Unit = {
     out.writeLong(seqA.lsize+seqB.lsize)
-    longs.writeMerged2(out, seqA.trues, seqB.trues.lsize, seqB.trues.iterator.map(_+seqA.lsize))
+    longs.writeMerged(out, seqA.trues, seqB.trues.lsize, seqB.trues.iterator.map(_+seqA.lsize))
   }
   override def writeAnyMerged(out:DataOutputStream, seqA:Any, seqB:Any) = {
     (seqA, seqB) match {
@@ -36,13 +36,13 @@ class SparseIoBitsType[Id](implicit val t:TypeTag[SparseBits])
         a.trues.buf.writeTo(0, out, a.trues.buf.size) // write copy
       case (a:EmptyIoBits[Id], b:SparseIoBits[Id]) =>
         out.writeLong(a.lsize+b.lsize)
-        longs.write(out, b.trues.lsize, b.trues.iterator.map(_+a.lsize))
+        longs.write(out, b.f, b.trues.iterator.map(_+a.lsize))
       case (a:SparseIoBits[Id], b:DenseIoBits[Id]) =>
         out.writeLong(a.lsize+b.lsize)
-        if (b.trues.size != b.f) {
-          throw new RuntimeException(f"FAILURE: ${b.trues.size} vs ${b.f}") // 18 vs 19
-        }
-        longs.writeMerged2(out, a.trues, b.f, b.trues.iterator.map(_+a.lsize))
+        longs.writeMerged(out, a.trues, b.f, b.trues.iterator.map(_+a.lsize))
+      case (a:IoBits[Id], b:IoBits[Id]) =>
+        out.writeLong(a.lsize+b.lsize)
+        longs.writeMerged(out, a.f, a.trues.iterator, b.f, b.trues.iterator.map(_+a.lsize))
     }
   }
   override def open(buf: IoData[Id]) = {
@@ -91,23 +91,24 @@ class SparseIoBits[IoId](val ref:IoRef[IoId, SparseIoBits[IoId]],
       }
     }
   }
-  def leLongs = {
+  def leLongs = new Iterable[Long] {
     val longs = DenseIoBits.bitsToLongCount(lsize)
-    new Iterator[Long] {
-      var at = 0L
-      var i = 0L
-      override def hasNext = i < longs
-      override def next = {
-        var rv = 0L
-        val sz = trues.size
-        while (at < sz && trues(at) < (i+1)*64) {
-          rv |= (1L << (trues(at)-i*64))
-          at += 1
+    def iterator =
+      new Iterator[Long] {
+        var at = 0L
+        var i = 0L
+        override def hasNext = i < longs
+        override def next = {
+          var rv = 0L
+          val sz = trues.size
+          while (at < sz && trues(at) < (i+1)*64) {
+            rv |= (1L << (trues(at)-i*64))
+            at += 1
+          }
+          i += 1
+          rv
         }
-        i += 1
-        rv
       }
-    }
   }
   override def apply(l: Long): Boolean = {
 /*    var i = 0L
@@ -125,6 +126,7 @@ class SparseIoBits[IoId](val ref:IoRef[IoId, SparseIoBits[IoId]],
   }
   override def fAnd(bits : IoBits[_]): Long = {
     bits match {
+      case b : WrappedIoBits[_] => fAnd(b.unwrap)
       case b : SparseIoBits[_] => fAnd(b)
       case b : DenseIoBits[_] => IoBits.fAnd(b, this)
       case b : EmptyIoBits[_] => 0

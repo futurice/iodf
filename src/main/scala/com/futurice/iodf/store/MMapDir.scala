@@ -2,8 +2,13 @@ package com.futurice.iodf.store
 
 import java.io.{Closeable, File, FileOutputStream, OutputStream}
 
+import com.futurice.iodf.IoScope
 import xerial.larray.buffer.LBufferAPI
 import xerial.larray.mmap.{MMapBuffer, MMapMode}
+
+object MMapDir {
+  def apply(dir:File)(implicit scope:IoScope) = scope.bind(new MMapDir(dir))
+}
 
 /**
   * TODO: These should be unique, and mmaps should be unique to avoid
@@ -18,7 +23,6 @@ class MMapDir(dir:File) extends Dir[String] {
 /*  override def create(name: String, length: Long): LBufferAPI = {
     new MMapBuffer(file(name), 0, length, MMapMode.READ_WRITE)
   }*/
-
   override def openOutput(name: String): OutputStream = {
     new FileOutputStream(file(name))
   }

@@ -9,7 +9,7 @@ import scala.reflect.runtime.universe._
 
 trait IoType[Id, T <: IoObject[Id]] {
   def open(buf:IoData[Id]) : T
-  def asTypeOf[E](implicit t:Type) : Option[IoTypeOf[Id, T, E]]
+  def asTypeOf[E](implicit t:Type) : Option[IoTypeOf[Id, _ <: T, E]]
 
   def writeAny(out:DataOutputStream, data:Any)
   def createAny(file:FileRef[Id], v:Any) = {
@@ -101,5 +101,8 @@ abstract class IoTypeOf[Id, T <: IoObject[Id], In](implicit typ:TypeTag[In]) ext
   def create(file:FileRef[Id], v:In) = {
     using (new DataOutputStream(new BufferedOutputStream(file.openOutput))) { write(_, v) }
     using(file.open) { open(_) }
+  }
+  def apply(file:FileRef[Id], v:In)(implicit scope:IoScope) = {
+    scope.bind(create(file, v))
   }
 }

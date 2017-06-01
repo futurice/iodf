@@ -35,7 +35,12 @@ abstract class IoArrayType[Id, T](implicit t:TypeTag[Seq[T]], vTag:TypeTag[T])
   def write(output:DataOutputStream, data:Seq[T]) = {
     write(output, data.size, data.iterator)
   }
-  def writeMerged2(output:DataOutputStream, a:IoArray[Id, T], bSize:Long, b:Iterator[T]) = {
+  def writeMerged(output:DataOutputStream, aSize:Long, a:Iterator[T], bSize:Long, b:Iterator[T]) = {
+    output.writeLong(aSize + bSize)
+    a.foreach { writeUnit(output, _) }
+    b.foreach { writeUnit(output, _) }
+  }
+  def writeMerged(output:DataOutputStream, a:IoArray[Id, T], bSize:Long, b:Iterator[T]) = {
     output.writeLong(a.lsize + bSize)
     a.buf.writeTo(a.offset, output, unitByteSize*a.lsize)
     b.foreach { writeUnit(output, _) }

@@ -4,10 +4,12 @@ import java.io.DataOutputStream
 import java.util
 
 import com.futurice.iodf.Utils._
-import com.futurice.iodf.store.{Dir, FileRef, IoData}
+import com.futurice.iodf.store._
 import com.futurice.iodf._
+import com.futurice.iodf.utils._
 
 import scala.collection.mutable.ArrayBuffer
+import scala.reflect.runtime.universe._
 
 /**
   * Created by arau on 15.12.2016.
@@ -17,6 +19,7 @@ abstract class IoBits[IoId] extends IoSeq[IoId, Boolean] {
   def n = lsize
   def f : Long
   def fAnd(bits:IoBits[_]) : Long
+  def leLongs : Iterable[Long]
 
   def trues : Iterable[Long]
 
@@ -29,14 +32,21 @@ abstract class IoBits[IoId] extends IoSeq[IoId, Boolean] {
   def createNot[IoId1, IoId2](implicit io:IoContext[IoId2]) = {
     io.bits.createNot(io.dir, this)
   }
-  implicit def &[IoId1, IoId2](b:IoBits[IoId1])(implicit io:IoContext[IoId2], scope:IoScope) = {
+  def createMerged[IoId1, IoId2](b:IoBits[IoId1])(implicit io:IoContext[IoId2]) = {
+    io.bits.createMerged(io.dir, this, b)
+  }
+  def &[IoId1, IoId2](b:IoBits[IoId1])(implicit io:IoContext[IoId2], scope:IoScope) = {
     scope.bind(createAnd(b))
   }
-  implicit def &~[IoId1, IoId2](b:IoBits[IoId1])(implicit io:IoContext[IoId2], scope:IoScope) = {
+  def &~[IoId1, IoId2](b:IoBits[IoId1])(implicit io:IoContext[IoId2], scope:IoScope) = {
     scope.bind(createAndNot(b))
   }
-  implicit def ~[IoId1](implicit io:IoContext[IoId1], scope:IoScope) = {
+  def ~[IoId1](implicit io:IoContext[IoId1], scope:IoScope) = {
     scope.bind(createNot)
+  }
+
+  def merge [IoId1, IoId2](b:IoBits[IoId1])(implicit io:IoContext[IoId2], scope:IoScope) : IoBits[IoId2] = {
+    scope.bind(createMerged(b))
   }
 
 
@@ -46,6 +56,17 @@ class EmptyIoBits[IoId](val lsize : Long) extends IoBits[IoId] {
   override def f: Long = 0
   override def fAnd(bits: IoBits[_]): Long = 0
   override def trues: Iterable[Long] = Seq[Long]()
+  override def leLongs = new Iterable[Long] {
+    def iterator = new Iterator[Long] {
+      var l = 0
+      val max = DenseIoBits.bitsToLongCount(lsize)
+      def hasNext = l < max
+      def next = {
+        l += 1
+        0L
+      }
+    }
+  }
   override def apply(l: Long): Boolean = false
   override def ref: IoRef[IoId, _ <: IoObject[IoId]] =
     throw new RuntimeException("not referable")
@@ -93,11 +114,107 @@ object IoBits {
   }
 }
 
-class IoBitsType[IoId](val sparse:SparseIoBitsType[IoId], val dense:DenseIoBitsType[IoId], sparsityThreshold:Long = 4*1024) {
+object IoBitsType {
+  val SparseId = 0
+  val DenseId = 1
+}
+class WrappedIoBits[IoId](val someRef:Option[IoRef[IoId, IoBits[IoId]]],
+                          val bits:IoBits[IoId]) extends IoBits[IoId] {
+  def ref = someRef.get
+
+  def unwrap = bits
+  def close = bits.close
+  def apply(l:Long) = bits.apply(l)
+  def lsize = bits.size
+  def f = bits.f
+  def fAnd(bits:IoBits[_]) = this.bits.fAnd(bits)
+  def leLongs = bits.leLongs
+  def trues = bits.trues
+
+}
+
+
+class IoBitsType[IoId](val sparse:SparseIoBitsType[IoId],
+                       val dense:DenseIoBitsType[IoId],
+                       sparsityThreshold:Long = 4*1024)(implicit val t:TypeTag[Bits])
+  extends IoTypeOf[IoId, WrappedIoBits[IoId], Bits]
+   with SeqIoType[IoId, WrappedIoBits[IoId], Boolean] {
+
+  import IoBitsType._
+
+/*  override def asTypeOf[E](implicit t:Type) = {
+    sparse.asTypeOf[E](t) match {
+      case Some(v) => Some(this.asInstanceOf[IoTypeOf[IoId, IoBits[IoId], E]])
+      case None => dense.asTypeOf[E](t) match {
+        case Some(v) =>
+        case None => Some(this.asInstanceOf[IoTypeOf[IoId, IoBits[IoId], E]])
+      }
+    }
+  }*/
+
+  override def valueTypeTag =
+    _root_.scala.reflect.runtime.universe.typeTag[Boolean]
+
+  def wrap(data:Option[DataRef[IoId]], ioBits:IoBits[IoId]) = {
+    new WrappedIoBits(
+      data.map( ref => IoRef[IoId, IoBits[IoId]](this, ref)),
+      ioBits)
+  }
+
+  def open(buf:IoData[IoId]) = {
+    wrap(Some(buf.ref),
+      using (buf.openRandomAccess) { ra =>
+        ra.getByte(0) match {
+          case SparseId =>
+            using (buf.openView(1)) {
+              sparse.open
+            }
+          case DenseId =>
+            using (buf.openView(1)) {
+              dense.open
+           }
+        }
+      })
+  }
+
+  def write(out:DataOutputStream, data:Bits) = {
+    if (IoBits.isSparse(data.f, data.n)) {
+      out.writeByte(SparseId)
+      sparse.writeAny(out, data)
+    } else {
+      out.writeByte(DenseId)
+      dense.writeAny(out, data)
+    }
+  }
 
   def writeDense(output: DataOutputStream, bools:Seq[Boolean]) = {
     dense.write(output, bools)
     dense
+  }
+
+  override def defaultSeq(lsize:Long) = {
+    wrap(None, new EmptyIoBits[IoId](lsize))
+  }
+
+  def unwrap[Id](b:IoBits[Id]) = {
+    b match {
+      case w : WrappedIoBits[Id] => w.unwrap
+      case _ => b
+    }
+  }
+
+  def writeMerged(out:DataOutputStream, seqA:WrappedIoBits[IoId], seqB:WrappedIoBits[IoId]) = {
+    writeMerged2(out, seqA, seqB)
+  }
+
+  def writeMerged2(out:DataOutputStream, seqA:IoBits[_], seqB:IoBits[_]) = {
+    if (IoBits.isSparse(seqA.f + seqB.f, seqA.n + seqB.n)) {
+      out.writeByte(SparseId)
+      sparse.writeAnyMerged(out, unwrap(seqA), unwrap(seqB))
+    } else {
+      out.writeByte(DenseId)
+      dense.writeAnyMerged(out, unwrap(seqA), unwrap(seqB))
+    }
   }
 
   def createDense(file:FileRef[IoId], bools:Seq[Boolean]): IoBits[IoId] = {
@@ -110,6 +227,7 @@ class IoBitsType[IoId](val sparse:SparseIoBitsType[IoId], val dense:DenseIoBitsT
   def createDense(dir: Dir[IoId], bools:Seq[Boolean]) : IoBits[IoId] = {
     createDense(FileRef(dir, dir.freeId), bools)
   }
+
   def createDense(io: IoContext[IoId], bools:Seq[Boolean]) : IoBits[IoId] = {
     createDense(io.dir, bools)
   }
@@ -130,6 +248,7 @@ class IoBitsType[IoId](val sparse:SparseIoBitsType[IoId], val dense:DenseIoBitsT
     createSparse(FileRef(dir, dir.freeId), trues, size)
   }
 
+
   def create(trues:Iterable[Long], size:Long)(implicit io: IoContext[IoId]) : IoBits[IoId] = {
     if (IoBits.isSparse(trues.size, size)) {
       createSparse(io.dir, trues, size)
@@ -138,6 +257,7 @@ class IoBitsType[IoId](val sparse:SparseIoBitsType[IoId], val dense:DenseIoBitsT
       createDense(io.dir, (0L until size).map(lookup))
     }
   }
+
   def create(bits:Seq[Boolean])(implicit io: IoContext[IoId]) : IoBits[IoId] = {
     if (IoBits.isSparse(bits.count(e => e), bits.size)) {
       createSparse(io.dir, bits.zipWithIndex.filter(_._1).map(_._2.toLong), bits.size)
@@ -148,7 +268,7 @@ class IoBitsType[IoId](val sparse:SparseIoBitsType[IoId], val dense:DenseIoBitsT
 
   def writeAnd[IoId1, IoId2](output: DataOutputStream, b1:IoBits[IoId1], b2:IoBits[IoId2]) : SeqIoType[IoId, _ <: IoBits[IoId], Boolean] = {
     if (b1.n != b2.n) throw new IllegalArgumentException()
-    (b1, b2) match {
+    (unwrap(b1), unwrap(b2)) match {
       case (d1 : DenseIoBits[IoId1], d2 : DenseIoBits[IoId2]) =>
         dense.write(output, d1.size, (0L until d1.longCount).map { i =>
           d1.leLong(i) & d2.leLong(i)
@@ -199,7 +319,7 @@ class IoBitsType[IoId](val sparse:SparseIoBitsType[IoId], val dense:DenseIoBitsT
 
   def writeAndNot[IoId1, IoId2](output: DataOutputStream, b1:IoBits[IoId1], b2:IoBits[IoId2]) : SeqIoType[IoId, _ <: IoBits[IoId], Boolean] = {
     if (b1.n != b2.n) throw new IllegalArgumentException()
-    (b1, b2) match {
+    (unwrap(b1), unwrap(b2)) match {
       case (d1 : DenseIoBits[IoId1], d2 : DenseIoBits[IoId2]) =>
         dense.write(output, d1.size, (0L until d1.longCount).map { i =>
           d1.leLong(i) & ~d2.leLong(i)
@@ -259,7 +379,7 @@ TODO
   }
 
   def writeNot[IoId1, IoId2](output: DataOutputStream, b:IoBits[IoId1]) : SeqIoType[IoId, _ <: IoBits[IoId], Boolean] = {
-    b match {
+    unwrap(b) match {
       case d : DenseIoBits[IoId1] =>
         // TODO: decide between dense & sparse based on frequences
         dense.write(output, d.size, (0L until d.longCount).map { i =>
@@ -297,6 +417,15 @@ TODO
     createNot(FileRef(dir, dir.freeId), b)
   }
 
+  def createMerged[IoId1, IoId2](file: FileRef[IoId], b1:IoBits[IoId1], b2:IoBits[IoId2]) : IoBits[IoId] = {
+    using( file.openOutput) { output =>
+      writeMerged2(new DataOutputStream(output), b1, b2)
+    }
+    using(file.open) { open(_) }
+  }
+  def createMerged[IoId1, IoId2](dir: Dir[IoId], b1:IoBits[IoId1], b2:IoBits[IoId2]) : IoBits[IoId] = {
+    createMerged(FileRef(dir, dir.freeId), b1, b2)
+  }
 
 }
 

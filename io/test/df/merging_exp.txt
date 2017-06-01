@@ -1,7 +1,7 @@
-creating dbA..148 ms (was 693 ms)
-creating dbB..130 ms (was 311 ms)
-merging dbs..67 ms (was 1005 ms)
-opening merged db..4 ms (was 7 ms)
+creating dbA..208 ms (was 148 ms)
+creating dbB..128 ms (was 130 ms)
+merging dbs..71 ms (was 67 ms)
+opening merged db..4 ms (was 4 ms)
 
 merged db size: 2000
 merged db columns: bigNumber, name, property, quantity, text
@@ -39,129 +39,129 @@ merged db indexes:
      M:false,false,false,false..false,false,false,false
      A:false,false,false,false..false,false,false,false
      B:false,false,false,false..false,false,false,false
-     typeM:   class com.futurice.iodf.ioseq.DenseIoBits
-     typeA:   class com.futurice.iodf.ioseq.DenseIoBits
-     typeB:   class com.futurice.iodf.ioseq.DenseIoBits
+     typeM:   class com.futurice.iodf.ioseq.WrappedIoBits
+     typeA:   class com.futurice.iodf.ioseq.WrappedIoBits
+     typeB:   class com.futurice.iodf.ioseq.WrappedIoBits
      errors: 
   (name,b) values: 
      M:false,false,false,false..false,false,false,false
      A:false,false,false,false..false,false,false,false
      B:false,false,false,false..false,false,false,false
-     typeM:   class com.futurice.iodf.ioseq.DenseIoBits
-     typeA:   class com.futurice.iodf.ioseq.DenseIoBits
-     typeB:   class com.futurice.iodf.ioseq.DenseIoBits
+     typeM:   class com.futurice.iodf.ioseq.WrappedIoBits
+     typeA:   class com.futurice.iodf.ioseq.WrappedIoBits
+     typeB:   class com.futurice.iodf.ioseq.WrappedIoBits
      errors: 
   (quantity,-9) values: 
      M:false,false,false,false..false,false,false,false
      A:false,false,false,false..false,false,false,false
      B:false,false,false,false..false,false,false,false
-     typeM:   class com.futurice.iodf.ioseq.DenseIoBits
-     typeA:   class com.futurice.iodf.ioseq.DenseIoBits
-     typeB:   class com.futurice.iodf.ioseq.DenseIoBits
+     typeM:   class com.futurice.iodf.ioseq.WrappedIoBits
+     typeA:   class com.futurice.iodf.ioseq.WrappedIoBits
+     typeB:   class com.futurice.iodf.ioseq.WrappedIoBits
      errors: 
   (text,a ed uf) values: 
      M:false,false,false,false..false,false,false,false
      A:false,false,false,false..false,false,false,false
      B:false,false,false,false..false,false,false,false
-     typeM:   class com.futurice.iodf.ioseq.DenseIoBits
+     typeM:   class com.futurice.iodf.ioseq.WrappedIoBits
      typeA:   class com.futurice.iodf.ioseq.EmptyIoBits
-     typeB:   class com.futurice.iodf.ioseq.DenseIoBits
+     typeB:   class com.futurice.iodf.ioseq.WrappedIoBits
      errors: 
   (text,ap d hv) values: 
      M:false,false,false,false..false,false,false,false
      A:false,false,false,false..false,false,false,false
      B:false,false,false,false..false,false,false,false
-     typeM:   class com.futurice.iodf.ioseq.DenseIoBits
-     typeA:   class com.futurice.iodf.ioseq.DenseIoBits
+     typeM:   class com.futurice.iodf.ioseq.WrappedIoBits
+     typeA:   class com.futurice.iodf.ioseq.WrappedIoBits
      typeB:   class com.futurice.iodf.ioseq.EmptyIoBits
      errors: 
   (text,bb i) values: 
      M:false,false,false,false..false,false,false,false
      A:false,false,false,false..false,false,false,false
      B:false,false,false,false..false,false,false,false
-     typeM:   class com.futurice.iodf.ioseq.DenseIoBits
-     typeA:   class com.futurice.iodf.ioseq.DenseIoBits
+     typeM:   class com.futurice.iodf.ioseq.WrappedIoBits
+     typeA:   class com.futurice.iodf.ioseq.WrappedIoBits
      typeB:   class com.futurice.iodf.ioseq.EmptyIoBits
      errors: 
   (text,c fg rv) values: 
      M:false,false,false,false..false,false,false,false
      A:false,false,false,false..false,false,false,false
      B:false,false,false,false..false,false,false,false
-     typeM:   class com.futurice.iodf.ioseq.DenseIoBits
+     typeM:   class com.futurice.iodf.ioseq.WrappedIoBits
      typeA:   class com.futurice.iodf.ioseq.EmptyIoBits
-     typeB:   class com.futurice.iodf.ioseq.DenseIoBits
+     typeB:   class com.futurice.iodf.ioseq.WrappedIoBits
      errors: 
   (text,cs fv f) values: 
      M:false,false,false,false..false,false,false,false
      A:false,false,false,false..false,false,false,false
      B:false,false,false,false..false,false,false,false
-     typeM:   class com.futurice.iodf.ioseq.DenseIoBits
-     typeA:   class com.futurice.iodf.ioseq.DenseIoBits
+     typeM:   class com.futurice.iodf.ioseq.WrappedIoBits
+     typeA:   class com.futurice.iodf.ioseq.WrappedIoBits
      typeB:   class com.futurice.iodf.ioseq.EmptyIoBits
      errors: 
   (text,d xk o) values: 
      M:false,false,false,false..false,false,false,false
      A:false,false,false,false..false,false,false,false
      B:false,false,false,false..false,false,false,false
-     typeM:   class com.futurice.iodf.ioseq.DenseIoBits
-     typeA:   class com.futurice.iodf.ioseq.DenseIoBits
+     typeM:   class com.futurice.iodf.ioseq.WrappedIoBits
+     typeA:   class com.futurice.iodf.ioseq.WrappedIoBits
      typeB:   class com.futurice.iodf.ioseq.EmptyIoBits
      errors: 
   (text,dy) values: 
      M:false,false,false,false..false,false,false,false
      A:false,false,false,false..false,false,false,false
      B:true,false,false,false..false,false,false,false
-     typeM:   class com.futurice.iodf.ioseq.DenseIoBits
-     typeA:   class com.futurice.iodf.ioseq.DenseIoBits
-     typeB:   class com.futurice.iodf.ioseq.DenseIoBits
+     typeM:   class com.futurice.iodf.ioseq.WrappedIoBits
+     typeA:   class com.futurice.iodf.ioseq.WrappedIoBits
+     typeB:   class com.futurice.iodf.ioseq.WrappedIoBits
      errors: 
   (text,em ta) values: 
      M:false,false,false,false..false,false,false,false
      A:false,false,false,false..false,false,false,false
      B:false,false,false,false..false,false,false,false
-     typeM:   class com.futurice.iodf.ioseq.DenseIoBits
-     typeA:   class com.futurice.iodf.ioseq.DenseIoBits
+     typeM:   class com.futurice.iodf.ioseq.WrappedIoBits
+     typeA:   class com.futurice.iodf.ioseq.WrappedIoBits
      typeB:   class com.futurice.iodf.ioseq.EmptyIoBits
      errors: 
   (text,fe r) values: 
      M:false,false,false,false..false,false,false,false
      A:false,false,false,false..false,false,false,false
      B:false,false,false,false..false,false,false,false
-     typeM:   class com.futurice.iodf.ioseq.DenseIoBits
-     typeA:   class com.futurice.iodf.ioseq.DenseIoBits
+     typeM:   class com.futurice.iodf.ioseq.WrappedIoBits
+     typeA:   class com.futurice.iodf.ioseq.WrappedIoBits
      typeB:   class com.futurice.iodf.ioseq.EmptyIoBits
      errors: 
   (text,g fl gs) values: 
      M:false,false,false,false..false,false,false,false
      A:false,false,false,false..false,false,false,false
      B:false,false,false,false..false,false,false,false
-     typeM:   class com.futurice.iodf.ioseq.DenseIoBits
+     typeM:   class com.futurice.iodf.ioseq.WrappedIoBits
      typeA:   class com.futurice.iodf.ioseq.EmptyIoBits
-     typeB:   class com.futurice.iodf.ioseq.DenseIoBits
+     typeB:   class com.futurice.iodf.ioseq.WrappedIoBits
      errors: 
   (text,gm) values: 
      M:false,false,false,false..false,false,false,false
      A:false,false,false,false..false,false,false,false
      B:false,false,false,false..false,false,false,false
-     typeM:   class com.futurice.iodf.ioseq.DenseIoBits
+     typeM:   class com.futurice.iodf.ioseq.WrappedIoBits
      typeA:   class com.futurice.iodf.ioseq.EmptyIoBits
-     typeB:   class com.futurice.iodf.ioseq.DenseIoBits
+     typeB:   class com.futurice.iodf.ioseq.WrappedIoBits
      errors: 
   (text,h x ds) values: 
      M:false,false,false,false..false,false,false,false
      A:false,false,false,false..false,false,false,false
      B:false,false,false,false..false,false,false,false
-     typeM:   class com.futurice.iodf.ioseq.DenseIoBits
+     typeM:   class com.futurice.iodf.ioseq.WrappedIoBits
      typeA:   class com.futurice.iodf.ioseq.EmptyIoBits
-     typeB:   class com.futurice.iodf.ioseq.DenseIoBits
+     typeB:   class com.futurice.iodf.ioseq.WrappedIoBits
      errors: 
   (text,i er) values: 
      M:false,false,false,false..false,false,false,false
      A:false,false,false,false..false,false,false,false
      B:false,false,false,false..false,false,false,false
-     typeM:   class com.futurice.iodf.ioseq.DenseIoBits
+     typeM:   class com.futurice.iodf.ioseq.WrappedIoBits
      typeA:   class com.futurice.iodf.ioseq.EmptyIoBits
-     typeB:   class com.futurice.iodf.ioseq.DenseIoBits
+     typeB:   class com.futurice.iodf.ioseq.WrappedIoBits
      errors: 
 
 check index rows:

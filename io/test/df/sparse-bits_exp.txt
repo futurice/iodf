@@ -1,0 +1,5 @@
+bit(3):        true
+bit count is   2/4
+true bits are: 0, 2 (2)
+bits by index: true, false, true, false
+bits by iter:  true, false, true, false
