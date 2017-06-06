@@ -56,40 +56,6 @@ trait Df[IoId, ColId] extends java.io.Closeable {
     using (openCol[T](id)) { _(i) }
   }
 }
-/*
-class MultiDf[IoId, ColId](dfs:Array[Df[IoId, ColId]])(implicit val colIdOrdering:Ordering[ColId]) extends Df[IoId, ColId] {
-
-  override val colIds: IoSeq[IoId, ColId] = {
-    new IoSeq[IoId, ColId]{
-      // Potentially slow, because O(N) complexity
-      override def apply(l: Long): ColId = ???
-
-      override def lsize: Long = ???
-
-      override def ref: IoRef[IoId, _ <: IoObject[IoId]] = ???
-
-      override def close(): Unit = ???
-    }
-  }
-
-  override val _cols: IoSeq[IoId, IoSeq[IoId, Any]] =
-    new IoSeq[IoId, IoSeq[IoId, Any]]{
-      // Potentially slow, because O(N) complexity
-      override def apply(l: Long): IoSeq[IoId, Any] = ???
-
-      override def lsize: Long = ???
-
-      override def ref: IoRef[IoId, _ <: IoObject[IoId]] = ???
-
-      override def close(): Unit = ???
-    }
-
-  // size in Long
-  override lazy val lsize: Long = dfs.map(_.lsize).sum
-
-  override def close(): Unit = ???
-}
-*/
 
 case class TypeIoSchema[IoId, T](t:Class[_],
                                  thisIoType:IoType[IoId, _ <: IoObject[IoId]],
