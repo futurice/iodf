@@ -35,7 +35,7 @@ object DenseIoBits {
     out.writeByte((long >>> (8*7)).toInt & 0xFF)
   }
 
-  def write(output: DataOutputStream, bitN:Int, leLongs:Iterable[Long]): Unit = {
+  def write(output: DataOutputStream, bitN:Long, leLongs:Iterable[Long]): Unit = {
     output.writeLong(bitN)
     for (l <- leLongs) {
       writeLeLong( output,  l )
@@ -112,8 +112,8 @@ class DenseIoBitsType[Id](implicit val t:TypeTag[Bits])
   extends IoTypeOf[Id, DenseIoBits[Id], Bits]()(t)
     with SeqIoType[Id, DenseIoBits[Id], Boolean] {
 
-  def write(output: DataOutputStream, bitN:Int, v:Iterable[Long]) =
-    DenseIoBits.write(output, bitN, v)
+  def write(output: DataOutputStream, bitN:Long, leLongs:Iterable[Long]) =
+    DenseIoBits.write(output, bitN, leLongs)
 
   def write(output: DataOutputStream, v:Seq[Boolean]): Unit = {
     DenseIoBits.write(output, v)
@@ -196,7 +196,7 @@ class DenseIoBits[IoId](val ref:IoRef[IoId, DenseIoBits[IoId]], val origBuf:Rand
 
   def close = { origBuf.close; buf.close } //close both handles
 
-  val longCount = DenseIoBits.bitsToLongCount(bitSize)
+  override val longCount = DenseIoBits.bitsToLongCount(bitSize)
 
   def byteSize = buf.size
 
@@ -227,7 +227,7 @@ class DenseIoBits[IoId](val ref:IoRef[IoId, DenseIoBits[IoId]], val origBuf:Rand
     rv
   }
 
-  def :=(bits:DenseIoBits[IoId]) = {
+/*  def :=(bits:DenseIoBits[IoId]) = {
     if (bitSize != bits.bitSize) {
       throw new IllegalArgumentException("given bitset is of different length")
     }
@@ -243,13 +243,15 @@ class DenseIoBits[IoId](val ref:IoRef[IoId, DenseIoBits[IoId]], val origBuf:Rand
     (0L until longCount).foreach { i =>
       putLong(i, long(i) & bits.long(i))
     }
-  }
+  }*/
   def fAnd(bits:IoBits[_]) = {
     bits match {
       case wrap : WrappedIoBits[_] => fAnd(wrap.unwrap)
       case dense : DenseIoBits[_] => fAnd(dense)
-      case sparse : SparseIoBits[_] => IoBits.fAnd(this, sparse)
+      case sparse : SparseIoBits[_] => IoBits.fAndDenseSparse(this, sparse)
       case b : EmptyIoBits[_] => 0
+      case _ =>
+        IoBits.fAnd(this, bits)
     }
   }
 

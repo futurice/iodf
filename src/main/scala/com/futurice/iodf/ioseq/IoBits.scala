@@ -11,6 +11,7 @@ import com.futurice.iodf.utils._
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.runtime.universe._
 
+
 /**
   * Created by arau on 15.12.2016.
   */
@@ -20,6 +21,8 @@ trait IoBits[IoId] extends IoSeq[IoId, Boolean] {
   def f : Long
   def fAnd(bits:IoBits[_]) : Long
   def leLongs : Iterable[Long]
+
+  def longCount = DenseIoBits.bitsToLongCount(n)
 
   def trues : Iterable[Long]
 
@@ -44,12 +47,9 @@ trait IoBits[IoId] extends IoSeq[IoId, Boolean] {
   def ~[IoId1](implicit io:IoContext[IoId1], scope:IoScope) = {
     scope.bind(createNot)
   }
-
   def merge [IoId1, IoId2](b:IoBits[IoId1])(implicit io:IoContext[IoId2], scope:IoScope) : IoBits[IoId2] = {
     scope.bind(createMerged(b))
   }
-
-
 }
 
 class EmptyIoBits[IoId](val lsize : Long) extends IoBits[IoId] {
@@ -75,27 +75,65 @@ class EmptyIoBits[IoId](val lsize : Long) extends IoBits[IoId] {
 
 object IoBits {
 
-  def denseSparseSplit = 1024L
+  def denseSparseSplit = 128L
 
   def isDense(f:Long, n:Long) = {
     f * denseSparseSplit > n
   }
-  def isSparse(f:Long, n:Long) = !isDense(f, n)
+  def isDense(bits:IoBits[_]) : Boolean = isDense(bits.f, bits.n)
 
-  def fAnd(dense:DenseIoBits[_], sparse: SparseIoBits[_]) = {
+  def isSparse(f:Long, n:Long) : Boolean = !isDense(f, n)
+  def isSparse(bits:IoBits[_]) : Boolean = isSparse(bits.f, bits.n)
+
+  def fAnd(a:IoBits[_], b:IoBits[_]): Long = {
+    (isSparse(a), isSparse(b)) match {
+      case (false, false) => fAndDenseDense(a, b)
+      case (false, true) => fAndSparseDense(b, a)
+      case (true, false) => fAndSparseDense(a, b)
+      case (true, true) => fAndSparseSparse(a, b)
+    }
+  }
+  def fAndDenseDense(a:IoBits[_], b : IoBits[_]): Long = {
+    val at = a.leLongs.iterator
+    val bt = a.leLongs.iterator
+    var rv = 0
+    while (at.hasNext) {
+      rv += java.lang.Long.bitCount(at.next() & bt.next())
+    }
+    rv
+  }
+  def fAndSparseDense(sparse : IoBits[_], dense : IoBits[_]): Long = {
+    var rv = 0L
+    // assume dense to be random accessible
+    for (t <- sparse.trues) {
+      if (dense(t)) rv += 1L
+    }
+    rv
+  }
+  def fAndSparseSparse(a:IoBits[_], b : IoBits[_]): Long = {
+    var rv = 0L
+    val i1 = PeekIterator(a.trues.iterator)
+    val i2 = PeekIterator(b.trues.iterator)
+    while (i1.hasNext && i2.hasNext) {
+      val t1 = i1.head
+      val t2 = i2.head
+      if (t1 < t2) i1.next
+      else if (t1 > t2) i2.next
+      else {
+        rv += 1
+        i1.next
+        i2.next
+      }
+    }
+    rv
+  }
+
+
+  def fAndDenseSparse(dense:DenseIoBits[_], sparse: SparseIoBits[_]) = {
     if (dense.lsize != sparse.lsize) throw new RuntimeException("fAnd operation on bitsets of different sizes")
     var rv = 0L
-
-/*    var i = 0
-    var e = sparse.trues.lsize
-    while (i < e) {
-      if (dense.unsafeApply(sparse.trues(i))) rv += 1
-      i += 1
-    }*/
-
     val ts = sparse.trues
     val sz = ts.lsize*8
-//    dense.buf.checkRange(0, dense.longCount*8)
     ts.buf.checkRange(ts.offset, sz)
     var i = ts.buf.address + ts.offset
     val end = i + sz
@@ -106,10 +144,15 @@ object IoBits {
     }
     rv
   }
+
   def apply[IoId](trues:Iterable[Long], size:Long)(implicit io:IoContext[IoId], scope:IoScope) = {
     scope.bind(io.bits.create(trues, size)(io))
   }
+
   def apply[IoId](bits:Seq[Boolean])(implicit io:IoContext[IoId], scope:IoScope) = {
+    scope.bind(io.bits.create(bits)(io))
+  }
+  def apply[IoId](bits:Bits)(implicit io:IoContext[IoId], scope:IoScope) = {
     scope.bind(io.bits.create(bits)(io))
   }
 }
@@ -129,16 +172,21 @@ class MultiIoBits[IoId](val bits:Array[IoBits[_]]) extends MultiSeq[IoId, Boolea
     bits.map(_.f).sum
   }
 
-  def mapOperation[T, E](bs: IoBits[_], map:(IoBits[_], IoBits[_])=>T, reduce:Seq[T]=>E) = {
+  def mapOperation[T, E](bs: IoBits[_],
+                         map:(IoBits[_], IoBits[_])=>T,
+                         reduce:Seq[T]=>E,
+                         fallback:(IoBits[_], IoBits[_])=>E) = {
     bs match {
       case b : MultiIoBits[_] =>
         reduce((bits zip b.bits).map { case (a, b) => map(a, b) })
+      case _ =>
+        fallback(this, bs)
     }
   }
 
 
   override def fAnd(bs: IoBits[_]): Long = {
-    mapOperation(bs, _ fAnd _, (vs : Seq[Long]) => vs.sum)
+    mapOperation(bs, _ fAnd _, (vs : Seq[Long]) => vs.sum, IoBits.fAnd(_, _))
   }
   override def leLongs: Iterable[Long] = {
     new MultiIterable[Long](bits.map(_.leLongs))
@@ -148,10 +196,13 @@ class MultiIoBits[IoId](val bits:Array[IoBits[_]]) extends MultiSeq[IoId, Boolea
   }
 
   override def createAnd[IoId1, IoId2](b:IoBits[IoId1])(implicit io:IoContext[IoId2]) = {
-    mapOperation(b, _ createAnd _, MultiIoBits.apply _)
+    mapOperation(
+      b, _ createAnd _, MultiIoBits.apply _,
+      (a, b) => io.bits.createAnd(io.dir.ref(io.dir.freeId), a, b))
   }
   override def createAndNot[IoId1, IoId2](b:IoBits[IoId1])(implicit io:IoContext[IoId2]) = {
-    mapOperation(b, _ createAndNot _, MultiIoBits.apply _)
+    mapOperation(b, _ createAndNot _, MultiIoBits.apply _,
+      (a, b) => io.bits.createAndNot(io.dir.ref(io.dir.freeId), a, b))
   }
   override def createNot[IoId1, IoId2](implicit io:IoContext[IoId2]) = {
     MultiIoBits[IoId2](bits.map(_.createNot))
@@ -278,7 +329,7 @@ class IoBitsType[IoId](val sparse:SparseIoBitsType[IoId],
   }
 
   def createDense(io: IoContext[IoId], bools:Seq[Boolean]) : IoBits[IoId] = {
-    createDense(io.dir, bools)
+    createDense(io.dir, bools.toSeq)
   }
 
   def writeSparse(output: DataOutputStream, trues:Iterable[Long], size:Long) = {
@@ -315,9 +366,57 @@ class IoBitsType[IoId](val sparse:SparseIoBitsType[IoId],
     }
   }
 
+  def create(bits:Bits)(implicit io: IoContext[IoId]) : IoBits[IoId] = {
+    if (IoBits.isSparse(bits.f, bits.size)) {
+      createSparse(io.dir, bits.trues, bits.size)
+    } else {
+      createDense(io.dir, bits.toSeq)
+    }
+  }
+
   def writeAnd[IoId1, IoId2](output: DataOutputStream, b1:IoBits[IoId1], b2:IoBits[IoId2]) : SeqIoType[IoId, _ <: IoBits[IoId], Boolean] = {
     if (b1.n != b2.n) throw new IllegalArgumentException()
-    (unwrap(b1), unwrap(b2)) match {
+    (IoBits.isDense(b1), IoBits.isDense(b2)) match {
+      case (true, true) =>
+        dense.write(output, b1.lsize,
+          new Iterable[Long] {
+            def iterator = new Iterator[Long] {
+              val i = b1.leLongs.iterator
+              val j = b2.leLongs.iterator
+
+              def hasNext = i.hasNext
+
+              def next = i.next & j.next
+            }
+          })
+//          (b1.leLongs zip b2.leLongs).map { case (a, b) => a & b } )
+        dense
+      case (true, false) =>
+        sparse.write(output, new SparseBits(b2.trues.filter(b1(_)), b1.n))
+        sparse
+      case (false, true) =>
+        sparse.write(output, new SparseBits(b1.trues.filter(b2(_)), b1.n))
+        sparse
+      case (false, false) =>
+        val trues = ArrayBuffer[Long]()
+        var i = PeekIterator[Long](b1.trues.iterator)
+        var j = PeekIterator[Long](b2.trues.iterator)
+        while (i.hasNext && j.hasNext) {
+          val t1 = i.head
+          val t2 = j.head
+          if (t1 < t2) i.next
+          else if (t1 > t2) j.next
+          else {
+            trues += t1
+            i.next
+            j.next
+          }
+        }
+        sparse.write(output, new SparseBits(trues, b1.n))
+        sparse
+    }
+
+    /*    (unwrap(b1), unwrap(b2)) match {
       case (d1 : DenseIoBits[IoId1], d2 : DenseIoBits[IoId2]) =>
         dense.write(output, d1.size, (0L until d1.longCount).map { i =>
           d1.leLong(i) & d2.leLong(i)
@@ -354,7 +453,7 @@ class IoBitsType[IoId](val sparse:SparseIoBitsType[IoId],
       case (_, s2 : EmptyIoBits[_]) =>
         sparse.write(output, new SparseBits(Seq(), s2.n))
         sparse
-    }
+    }*/
   }
   def createAnd[IoId1, IoId2](file: FileRef[IoId], b1:IoBits[IoId1], b2:IoBits[IoId2]) : IoBits[IoId] = {
     val typ = using( file.openOutput) { output =>
@@ -368,53 +467,56 @@ class IoBitsType[IoId](val sparse:SparseIoBitsType[IoId],
 
   def writeAndNot[IoId1, IoId2](output: DataOutputStream, b1:IoBits[IoId1], b2:IoBits[IoId2]) : SeqIoType[IoId, _ <: IoBits[IoId], Boolean] = {
     if (b1.n != b2.n) throw new IllegalArgumentException()
-    (unwrap(b1), unwrap(b2)) match {
-      case (d1 : DenseIoBits[IoId1], d2 : DenseIoBits[IoId2]) =>
-        dense.write(output, d1.size, (0L until d1.longCount).map { i =>
-          d1.leLong(i) & ~d2.leLong(i)
-        })
+    (IoBits.isDense(b1), IoBits.isDense(b2)) match {
+      case (true, true) =>
+        dense.write(output, b1.size,
+          new Iterable[Long] {
+            def iterator = new Iterator[Long] {
+              val i = b1.leLongs.iterator
+              val j = b2.leLongs.iterator
+
+              def hasNext = i.hasNext
+
+              def next = i.next & ~j.next
+            }
+          })
+
         dense
-      case (d : DenseIoBits[IoId1], s : SparseIoBits[IoId2]) =>
-        var at = 0
-        dense.write(output, d.size, (0L until d.longCount).map { i =>
-          var l = d.leLong(i)
+      case (true, false) =>
+        var trues = PeekIterator(b2.trues.iterator)
+        dense.write(output, b1.size, (b1.leLongs zipWithIndex).map { case (l, i) =>
+          var rv = l
           val begin = i*64
           val end = begin+64
-          while (at < s.trues.size && s.trues(at) < end) {
-            l &= ~(1<<(s.trues(at)-begin))
-            at+=1
+          while (trues.hasNext && trues.head < end) {
+            rv &= ~(1<<(trues.head-begin))
+            trues.next
           }
-          l
+          rv
         })
         dense
-      case (s : SparseIoBits[IoId1], d : DenseIoBits[IoId2]) =>
-        sparse.write(output, new SparseBits(s.trues.filter(!d(_)).toSeq, s.n))
+      case (false, true) =>
+        sparse.write(output, new SparseBits(b1.trues.filter(!b2(_)).toSeq, b1.n))
         sparse
-      case (s1 : SparseIoBits[IoId1], s2 : SparseIoBits[IoId2]) =>
+      case (false, false) =>
         val trues = ArrayBuffer[Long]()
-        var i = 0L
-        var j = 0L
-        while (i < s1.trues.size && j < s2.trues.size) {
-          val v1 = s1.trues(i)
-          val v2 = s2.trues(j)
+        var i = PeekIterator[Long](b1.trues.iterator)
+        var j = PeekIterator[Long](b2.trues.iterator)
+        while (i.hasNext && j.hasNext) {
+          val v1 = i.head
+          val v2 = j.head
           if (v1 == v2) {
-            i += 1
-            j += 1
+            i.next
+            j.next
           } else if (v1 < v2) {
             trues += v1
-            i += 1
+            i.next
           } else {
-            j+= 1
+            j.next
           }
         }
-        sparse.write(output, new SparseBits(trues, s1.n))
+        sparse.write(output, new SparseBits(trues, b1.n))
         sparse
-      case (s1 : EmptyIoBits[IoId1], _) =>
-        sparse.write(output, new SparseBits(Seq(), s1.n))
-        sparse
-/*      case (_, s2 : EmptyIoBits[IoId1]) =>
-TODO
- */
     }
   }
   def createAndNot[IoId1, IoId2](file: FileRef[IoId], b1:IoBits[IoId1], b2:IoBits[IoId2]) : IoBits[IoId] = {

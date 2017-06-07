@@ -594,6 +594,9 @@ class FsDfs(types:IoTypes[String])(implicit seqSeqTag : TypeTag[Seq[IoObject[Str
       }
     }
   }
+  def openMultiIndexedDfFiles[T : ClassTag](srcFiles:Seq[File])(implicit tag:TypeTag[T]) = {
+    multiIndexedDf( srcFiles.map { openIndexedDfFile[T] }.toArray )
+  }
 
   def writeMergedIndexedDfsFile[T : ClassTag](srcFiles:Seq[File], mergeDir:File, targetFile:File)(implicit tag:TypeTag[T]) = {
     var segments = srcFiles

@@ -23,6 +23,10 @@ class SparseIoBitsType[Id](implicit val t:TypeTag[Bits])
     output.writeLong(v.lsize)
     longs.write(output, v.trues.size, v.trues.iterator)
   }
+  def write(output: DataOutputStream, f:Long, n:Long, trues: Iterator[Long]): Unit = {
+    output.writeLong(n)
+    longs.write(output, f, trues)
+  }
   def writeMerged(out: DataOutputStream, seqA: SparseIoBits[Id], seqB: SparseIoBits[Id]): Unit = {
     out.writeLong(seqA.lsize+seqB.lsize)
     longs.writeMerged(out, seqA.trues, seqB.trues.lsize, seqB.trues.iterator.map(_+seqA.lsize))
@@ -111,11 +115,6 @@ class SparseIoBits[IoId](val ref:IoRef[IoId, SparseIoBits[IoId]],
       }
   }
   override def apply(l: Long): Boolean = {
-/*    var i = 0L
-    while (i < trues.lsize && trues(i) < l) {
-      i += 1
-    }
-    trues(i) == l */
     Utils.binarySearch(trues, l) != -1
   }
   override def close(): Unit = {
@@ -128,8 +127,10 @@ class SparseIoBits[IoId](val ref:IoRef[IoId, SparseIoBits[IoId]],
     bits match {
       case b : WrappedIoBits[_] => fAnd(b.unwrap)
       case b : SparseIoBits[_] => fAnd(b)
-      case b : DenseIoBits[_] => IoBits.fAnd(b, this)
+      case b : DenseIoBits[_] => IoBits.fAndDenseSparse(b, this)
       case b : EmptyIoBits[_] => 0
+      case _ =>
+        IoBits.fAnd(this, bits)
     }
   }
   def fAnd(b : SparseIoBits[_]): Long = fAndSparse(b)

@@ -1,32 +1,51 @@
 package com.futurice.iodf.utils
 
-class PeekIterator[T](i:Iterator[T]) extends Iterator[T] {
+trait SeekIterator[T, S] extends Iterator[T] {
+  /* seeks the position after the given position */
+  def seek(t:S) : Boolean
+}
 
-  private def peekNext = {
-    i.hasNext match {
-      case true => Some(i.next)
-      case false => None
+trait PeekIterator[T] extends Iterator[T] {
+  def headOption : Option[T]
+  def head : T
+}
+
+trait SeekPeekIterator[T, S] extends SeekIterator[T, S] with PeekIterator[T]
+
+trait SeekPeekIterable[T,S] extends Iterable[T] {
+  def iterator : SeekPeekIterator[T, S]
+}
+
+object PeekIterator {
+  def apply[T](i:Iterator[T]) = new PeekIterator[T] {
+    private def peekNext = {
+      i.hasNext match {
+        case true => Some(i.next)
+        case false => None
+      }
+    }
+    private var peek : Option[T] = peekNext
+
+    def headOption = peek
+    def head = peek.get
+
+    def hasNext = {
+      peek.isDefined
+    }
+
+    def next = {
+      val rv = peek.get
+      peek = peekNext
+      rv
     }
   }
-  private var peek : Option[T] = peekNext
 
-  def headOption = peek
-  def head = peek.get
 
-  def hasNext = {
-    peek.isDefined
-  }
-
-  def next = {
-    val rv = peek.get
-    peek = peekNext
-    rv
-  }
 }
 
 class MultiIterator[T](i:Array[Iterator[T]]) extends Iterator[T] {
 
-  val is = new PeekIterator[Iterator[T]](i.iterator)
+  val is = PeekIterator(i.iterator)
 
   def prepareNext: Unit = {
     while (is.hasNext && !is.head.hasNext) is.next
@@ -61,7 +80,7 @@ class MergeSortIterator[T](is:Seq[Iterator[T]])(implicit ord:Ordering[T]) extend
 
   type Entry = MergeSortEntry[T]
 
-  private val peeked = is.map(i => new PeekIterator[T](i)).toArray
+  private val peeked = is.map(i => PeekIterator(i)).toArray
   private val indexes = Array.fill(peeked.size)(0L)
   private var index = 0L
 
