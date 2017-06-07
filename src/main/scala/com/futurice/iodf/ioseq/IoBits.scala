@@ -14,7 +14,7 @@ import scala.reflect.runtime.universe._
 /**
   * Created by arau on 15.12.2016.
   */
-abstract class IoBits[IoId] extends IoSeq[IoId, Boolean] {
+trait IoBits[IoId] extends IoSeq[IoId, Boolean] {
 
   def n = lsize
   def f : Long
@@ -118,6 +118,50 @@ object IoBitsType {
   val SparseId = 0
   val DenseId = 1
 }
+
+object MultiIoBits {
+//  def apply[IoId](bits:Array[IoBits[_]]) = new MultiIoBits[IoId](bits)
+  def apply[IoId](bits:Seq[IoBits[_]]) = new MultiIoBits[IoId](bits.toArray)
+}
+
+class MultiIoBits[IoId](val bits:Array[IoBits[_]]) extends MultiSeq[IoId, Boolean, IoBits[_]](bits) with IoBits[IoId] {
+  override def f: Long = {
+    bits.map(_.f).sum
+  }
+
+  def mapOperation[T, E](bs: IoBits[_], map:(IoBits[_], IoBits[_])=>T, reduce:Seq[T]=>E) = {
+    bs match {
+      case b : MultiIoBits[_] =>
+        reduce((bits zip b.bits).map { case (a, b) => map(a, b) })
+    }
+  }
+
+
+  override def fAnd(bs: IoBits[_]): Long = {
+    mapOperation(bs, _ fAnd _, (vs : Seq[Long]) => vs.sum)
+  }
+  override def leLongs: Iterable[Long] = {
+    new MultiIterable[Long](bits.map(_.leLongs))
+  }
+  override def trues: Iterable[Long] = {
+    new MultiIterable[Long](bits.map(_.trues))
+  }
+
+  override def createAnd[IoId1, IoId2](b:IoBits[IoId1])(implicit io:IoContext[IoId2]) = {
+    mapOperation(b, _ createAnd _, MultiIoBits.apply _)
+  }
+  override def createAndNot[IoId1, IoId2](b:IoBits[IoId1])(implicit io:IoContext[IoId2]) = {
+    mapOperation(b, _ createAndNot _, MultiIoBits.apply _)
+  }
+  override def createNot[IoId1, IoId2](implicit io:IoContext[IoId2]) = {
+    MultiIoBits[IoId2](bits.map(_.createNot))
+  }
+  override def createMerged[IoId1, IoId2](b:IoBits[IoId1])(implicit io:IoContext[IoId2]) = {
+    io.bits.createMerged(io.dir, this, b)
+  }
+
+}
+
 class WrappedIoBits[IoId](val someRef:Option[IoRef[IoId, IoBits[IoId]]],
                           val bits:IoBits[IoId]) extends IoBits[IoId] {
   def ref = someRef.get
@@ -202,6 +246,11 @@ class IoBitsType[IoId](val sparse:SparseIoBitsType[IoId],
       case _ => b
     }
   }
+
+  override def viewMerged(seqs:Array[IoSeq[IoId, Boolean]]) = {
+    new MultiIoBits[IoId](seqs.map(_.asInstanceOf[IoBits[IoId]]))
+  }
+
 
   def writeMerged(out:DataOutputStream, seqA:WrappedIoBits[IoId], seqB:WrappedIoBits[IoId]) = {
     writeMerged2(out, seqA, seqB)

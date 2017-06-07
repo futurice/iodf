@@ -5,8 +5,6 @@ import java.util
 
 import com.futurice.iodf.store._
 import com.futurice.iodf.ioseq._
-import xerial.larray.buffer.{LBuffer, LBufferAPI}
-import xerial.larray.mmap.{MMapBuffer, MMapMemory, MMapMode}
 
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
@@ -39,6 +37,12 @@ trait Df[IoId, ColId] extends java.io.Closeable {
   }
   def col[T <: Any](i: Long)(implicit scope:IoScope) = {
     scope.bind(openCol[T](i))
+  }
+  def colType[T](i:Long) : SeqIoType[IoId, _ <: IoSeq[IoId, T], T] = {
+    using (openCol(i)) { _.ref.typ.asInstanceOf[SeqIoType[IoId,_ <: IoSeq[IoId, T],T]] }
+  }
+  def colType[T](id:ColId) : SeqIoType[IoId, _ <: IoSeq[IoId, T], T] = {
+    colType(indexOf(id))
   }
   def openCol[T <: Any](i:Long) : IoSeq[IoId, T] = {
     _cols(i).asInstanceOf[IoSeq[IoId, T]]

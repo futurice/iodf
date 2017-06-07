@@ -5,6 +5,7 @@ import java.io.{BufferedOutputStream, DataOutputStream}
 import com.futurice.iodf.Utils.using
 import com.futurice.iodf.ioseq._
 import com.futurice.iodf.store.{DataRef, FileRef, RandomAccess}
+import com.futurice.iodf.utils.Bits
 
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.runtime.universe._
@@ -35,6 +36,7 @@ trait IoTypes[IoId] {
   def anyOrdering : Ordering[Any]
   def idSeqType : SeqIoType[IoId, _ <: IoSeq[IoId, IoId], IoId]
   def longSeqType: SeqIoType[IoId, _ <: IoSeq[IoId, Long], Long]
+  def bitsSeqType : SeqIoType[IoId, _ <: IoSeq[IoId, Boolean], Boolean]
 
 }
 
@@ -107,6 +109,9 @@ object IoTypes {
       }
       def longSeqType : SeqIoType[Id, _ <: IoSeq[Id, Long], Long] = {
         ioTypeOf[Seq[Long]].asInstanceOf[SeqIoType[Id, _ <: IoSeq[Id, Long], Long]]
+      }
+      def bitsSeqType : SeqIoType[Id, _ <: IoSeq[Id, Boolean], Boolean] = {
+        ioTypeOf[Bits].asInstanceOf[SeqIoType[Id, _ <: IoSeq[Id, Boolean], Boolean]]
       }
 
       override def intToId(i: Int): Id = _intToId(i)

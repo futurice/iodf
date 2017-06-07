@@ -1,0 +1,34 @@
+creating dbA..100 ms 
+creating dbB..25 ms 
+opening multi df..13 ms 
+
+merged db size: 2000
+merged db columns: bigNumber, name, property, quantity, text
+
+merged db content:
+  bigNumber values: 
+     M:3000000000,0,0,-1000000000..-1000000000,-7000000000,-9000000000,3000000000
+     A:3000000000,0,0,-1000000000..5000000000,3000000000,-4000000000,1000000000
+     B:-6000000000,-8000000000,11000000000,-4000000000..-1000000000,-7000000000,-9000000000,3000000000
+     errors: List()
+  name values: 
+     M:k,y,x,d..x,q,d,d
+     A:k,y,x,d..q,p,o,r
+     B:k,t,d,n..x,q,d,d
+     errors: List()
+  property values: 
+     M:true,true,false,true..false,true,false,false
+     A:true,true,false,true..false,true,true,true
+     B:false,false,false,true..false,true,false,false
+     errors: List()
+  quantity values: 
+     M:-6,0,-1,0..5,4,-2,1
+     A:-6,0,-1,0..-11,2,5,-5
+     B:-2,-5,5,-1..5,4,-2,1
+     errors: List()
+  text values: 
+     M:t cc,,ma,vh..rm,y,,ml
+     A:t cc,,ma,vh..i l cg,fn m oy,,
+     B:dy,y,,c c..rm,y,,ml
+     errors: List()
+

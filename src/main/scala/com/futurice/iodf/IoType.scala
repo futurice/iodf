@@ -32,16 +32,6 @@ trait WithValueTypeTag[M] {
   def valueTypeTag : TypeTag[M]
 }
 
-trait SeqIoType[Id, T <: IoObject[Id], M] extends IoType[Id, T] with WithValueTypeTag[M] {
-  def defaultSeq(lsize:Long) : Any = {
-    throw new RuntimeException("not implemented")
-  }
-  def writeMerged(out:DataOutputStream, seqA:T, seqB:T) : Unit
-  def writeAnyMerged(out:DataOutputStream, seqA:Any, seqB:Any) = {
-    writeMerged(out, seqA.asInstanceOf[T], seqB.asInstanceOf[T])
-  }
-}
-
 abstract class IoTypeOf[Id, T <: IoObject[Id], In](implicit typ:TypeTag[In]) extends IoType[Id, T] {
 
   /* Scala creates separate Int types for typeOf[Int] and for case class A {i:Int} members

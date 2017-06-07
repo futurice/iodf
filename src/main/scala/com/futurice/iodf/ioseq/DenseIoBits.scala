@@ -151,7 +151,7 @@ class DenseIoBitsType[Id](implicit val t:TypeTag[Bits])
     DenseIoBits.writeMerged(output, a, b)
   override def writeAnyMerged(output: DataOutputStream, a:Any, b:Any) =
     DenseIoBits.writeAnyMerged(output, a, b)
-  override def defaultSeq(lsize: Long): Any = DenseIoBits.defaultSeq(lsize)
+  override def defaultSeq(lsize: Long): IoSeq[Id, Boolean] = DenseIoBits.defaultSeq(lsize)
 
   override def open(buf: IoData[Id]): DenseIoBits[Id] = {
     new DenseIoBits[Id](IoRef(this, buf.ref), buf.openRandomAccess)
@@ -174,7 +174,7 @@ class BooleanIoSeqType[Id](implicit val t:TypeTag[Seq[Boolean]])
     DenseIoBits.writeMerged(output, a, b)
   override def writeAnyMerged(output: DataOutputStream, a:Any, b:Any) =
     DenseIoBits.writeAnyMerged(output, a, b)
-  override def defaultSeq(lsize: Long): Any = DenseIoBits.defaultSeq(lsize)
+  override def defaultSeq(lsize: Long) = DenseIoBits.defaultSeq(lsize)
 
   override def open(buf: IoData[Id]): DenseIoBits[Id] = {
     new DenseIoBits[Id](IoRef(this, buf.ref), buf.openRandomAccess)

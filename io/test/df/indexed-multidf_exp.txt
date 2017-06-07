@@ -1,7 +1,9 @@
-creating dbA..341 ms (was 208 ms)
-creating dbB..157 ms (was 128 ms)
-merging dbs..349 ms (was 71 ms)
-opening merged db..5 ms (was 4 ms)
+creating dbA..218 ms (was 251 ms)
+creating dbB..146 ms (was 101 ms)
+opening multi df..13 ms (was 15 ms)
+
+warming the data frame...1 ms 
+warming the index ...14 ms 
 
 merged db size: 2000
 merged db columns: bigNumber, name, property, quantity, text
@@ -39,7 +41,7 @@ merged db indexes:
      M:false,false,false,false..false,false,false,false
      A:false,false,false,false..false,false,false,false
      B:false,false,false,false..false,false,false,false
-     typeM:   class com.futurice.iodf.ioseq.WrappedIoBits
+     typeM:   class com.futurice.iodf.ioseq.MultiIoBits
      typeA:   class com.futurice.iodf.ioseq.WrappedIoBits
      typeB:   class com.futurice.iodf.ioseq.WrappedIoBits
      errors: 
@@ -47,7 +49,7 @@ merged db indexes:
      M:false,false,false,false..false,false,false,false
      A:false,false,false,false..false,false,false,false
      B:false,false,false,false..false,false,false,false
-     typeM:   class com.futurice.iodf.ioseq.WrappedIoBits
+     typeM:   class com.futurice.iodf.ioseq.MultiIoBits
      typeA:   class com.futurice.iodf.ioseq.WrappedIoBits
      typeB:   class com.futurice.iodf.ioseq.WrappedIoBits
      errors: 
@@ -55,7 +57,7 @@ merged db indexes:
      M:false,false,false,false..false,false,false,false
      A:false,false,false,false..false,false,false,false
      B:false,false,false,false..false,false,false,false
-     typeM:   class com.futurice.iodf.ioseq.WrappedIoBits
+     typeM:   class com.futurice.iodf.ioseq.MultiIoBits
      typeA:   class com.futurice.iodf.ioseq.WrappedIoBits
      typeB:   class com.futurice.iodf.ioseq.WrappedIoBits
      errors: 
@@ -63,7 +65,7 @@ merged db indexes:
      M:false,false,false,false..false,false,false,false
      A:false,false,false,false..false,false,false,false
      B:false,false,false,false..false,false,false,false
-     typeM:   class com.futurice.iodf.ioseq.WrappedIoBits
+     typeM:   class com.futurice.iodf.ioseq.MultiIoBits
      typeA:   class com.futurice.iodf.ioseq.EmptyIoBits
      typeB:   class com.futurice.iodf.ioseq.WrappedIoBits
      errors: 
@@ -71,7 +73,7 @@ merged db indexes:
      M:false,false,false,false..false,false,false,false
      A:false,false,false,false..false,false,false,false
      B:false,false,false,false..false,false,false,false
-     typeM:   class com.futurice.iodf.ioseq.WrappedIoBits
+     typeM:   class com.futurice.iodf.ioseq.MultiIoBits
      typeA:   class com.futurice.iodf.ioseq.WrappedIoBits
      typeB:   class com.futurice.iodf.ioseq.EmptyIoBits
      errors: 
@@ -79,7 +81,7 @@ merged db indexes:
      M:false,false,false,false..false,false,false,false
      A:false,false,false,false..false,false,false,false
      B:false,false,false,false..false,false,false,false
-     typeM:   class com.futurice.iodf.ioseq.WrappedIoBits
+     typeM:   class com.futurice.iodf.ioseq.MultiIoBits
      typeA:   class com.futurice.iodf.ioseq.WrappedIoBits
      typeB:   class com.futurice.iodf.ioseq.EmptyIoBits
      errors: 
@@ -87,7 +89,7 @@ merged db indexes:
      M:false,false,false,false..false,false,false,false
      A:false,false,false,false..false,false,false,false
      B:false,false,false,false..false,false,false,false
-     typeM:   class com.futurice.iodf.ioseq.WrappedIoBits
+     typeM:   class com.futurice.iodf.ioseq.MultiIoBits
      typeA:   class com.futurice.iodf.ioseq.EmptyIoBits
      typeB:   class com.futurice.iodf.ioseq.WrappedIoBits
      errors: 
@@ -95,7 +97,7 @@ merged db indexes:
      M:false,false,false,false..false,false,false,false
      A:false,false,false,false..false,false,false,false
      B:false,false,false,false..false,false,false,false
-     typeM:   class com.futurice.iodf.ioseq.WrappedIoBits
+     typeM:   class com.futurice.iodf.ioseq.MultiIoBits
      typeA:   class com.futurice.iodf.ioseq.WrappedIoBits
      typeB:   class com.futurice.iodf.ioseq.EmptyIoBits
      errors: 
@@ -103,7 +105,7 @@ merged db indexes:
      M:false,false,false,false..false,false,false,false
      A:false,false,false,false..false,false,false,false
      B:false,false,false,false..false,false,false,false
-     typeM:   class com.futurice.iodf.ioseq.WrappedIoBits
+     typeM:   class com.futurice.iodf.ioseq.MultiIoBits
      typeA:   class com.futurice.iodf.ioseq.WrappedIoBits
      typeB:   class com.futurice.iodf.ioseq.EmptyIoBits
      errors: 
@@ -111,7 +113,7 @@ merged db indexes:
      M:false,false,false,false..false,false,false,false
      A:false,false,false,false..false,false,false,false
      B:true,false,false,false..false,false,false,false
-     typeM:   class com.futurice.iodf.ioseq.WrappedIoBits
+     typeM:   class com.futurice.iodf.ioseq.MultiIoBits
      typeA:   class com.futurice.iodf.ioseq.WrappedIoBits
      typeB:   class com.futurice.iodf.ioseq.WrappedIoBits
      errors: 
@@ -119,7 +121,7 @@ merged db indexes:
      M:false,false,false,false..false,false,false,false
      A:false,false,false,false..false,false,false,false
      B:false,false,false,false..false,false,false,false
-     typeM:   class com.futurice.iodf.ioseq.WrappedIoBits
+     typeM:   class com.futurice.iodf.ioseq.MultiIoBits
      typeA:   class com.futurice.iodf.ioseq.WrappedIoBits
      typeB:   class com.futurice.iodf.ioseq.EmptyIoBits
      errors: 
@@ -127,7 +129,7 @@ merged db indexes:
      M:false,false,false,false..false,false,false,false
      A:false,false,false,false..false,false,false,false
      B:false,false,false,false..false,false,false,false
-     typeM:   class com.futurice.iodf.ioseq.WrappedIoBits
+     typeM:   class com.futurice.iodf.ioseq.MultiIoBits
      typeA:   class com.futurice.iodf.ioseq.WrappedIoBits
      typeB:   class com.futurice.iodf.ioseq.EmptyIoBits
      errors: 
@@ -135,7 +137,7 @@ merged db indexes:
      M:false,false,false,false..false,false,false,false
      A:false,false,false,false..false,false,false,false
      B:false,false,false,false..false,false,false,false
-     typeM:   class com.futurice.iodf.ioseq.WrappedIoBits
+     typeM:   class com.futurice.iodf.ioseq.MultiIoBits
      typeA:   class com.futurice.iodf.ioseq.EmptyIoBits
      typeB:   class com.futurice.iodf.ioseq.WrappedIoBits
      errors: 
@@ -143,7 +145,7 @@ merged db indexes:
      M:false,false,false,false..false,false,false,false
      A:false,false,false,false..false,false,false,false
      B:false,false,false,false..false,false,false,false
-     typeM:   class com.futurice.iodf.ioseq.WrappedIoBits
+     typeM:   class com.futurice.iodf.ioseq.MultiIoBits
      typeA:   class com.futurice.iodf.ioseq.EmptyIoBits
      typeB:   class com.futurice.iodf.ioseq.WrappedIoBits
      errors: 
@@ -151,7 +153,7 @@ merged db indexes:
      M:false,false,false,false..false,false,false,false
      A:false,false,false,false..false,false,false,false
      B:false,false,false,false..false,false,false,false
-     typeM:   class com.futurice.iodf.ioseq.WrappedIoBits
+     typeM:   class com.futurice.iodf.ioseq.MultiIoBits
      typeA:   class com.futurice.iodf.ioseq.EmptyIoBits
      typeB:   class com.futurice.iodf.ioseq.WrappedIoBits
      errors: 
@@ -159,7 +161,7 @@ merged db indexes:
      M:false,false,false,false..false,false,false,false
      A:false,false,false,false..false,false,false,false
      B:false,false,false,false..false,false,false,false
-     typeM:   class com.futurice.iodf.ioseq.WrappedIoBits
+     typeM:   class com.futurice.iodf.ioseq.MultiIoBits
      typeA:   class com.futurice.iodf.ioseq.EmptyIoBits
      typeB:   class com.futurice.iodf.ioseq.WrappedIoBits
      errors: 
@@ -171,30 +173,30 @@ check index rows:
 property frequencies: original 2 vs index 983
 name=h frequencies: original 0 vs index 75
 
-searching 1024 ids...11 ms.
+searching 1024 ids...2 ms.
 
   checksum:    691626
-  time/lookup: 10 us
+  time/lookup: 1 us
 
-making 1024 cofreq calculations...114 ms.
+making 1024 cofreq calculations...282 ms.
 
   checksums:    9898/9898/28
-  time/freq:    111 us
+  time/freq:    275 us
 
-opening bitsets (no id lookup)...19 ms 
+opening bitsets (no id lookup)...122 ms 
 
-counting freqs...2 ms.
+counting freqs...1 ms.
 
   checksum:     9514
-  time/freq:    1 us
+  time/freq:    0 us
 
-comparing bits...5 ms.
+comparing bits...4 ms.
 
   checksums:    9514/6987/24
-  time/freq:    4 us
+  time/freq:    3 us
 
-making three way bit and comparisons...99 ms.
+making three way bit and comparisons...131 ms.
 
   checksums:    79/0
-  time/freq:    96 us
+  time/freq:    127 us
 

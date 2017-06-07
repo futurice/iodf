@@ -1,10 +1,57 @@
 package com.futurice.iodf
 
+import java.io.DataOutputStream
+
 import scala.collection.generic.CanBuildFrom
 
+class MultiSeq[IoId, T, S <: IoSeq[_, T]](seqs:Array[S]) extends IoSeq[IoId, T] {
+
+  val scope = new IoScope()
+  seqs.foreach(scope.bind)
+  override def close(): Unit = {
+    scope.close()
+  }
+
+  val (ranges, lsize) = {
+    var offset = 0L
+    (seqs.map { seq =>
+      val begin = offset
+      offset += seq.lsize
+      (begin, offset)
+    }, offset)
+  }
+  def toSeqIndex(index:Long) = {
+    ranges.zipWithIndex.find( index < _._1._2 ).map { case ((begin, end), seqIndex) =>
+      (seqs(seqIndex), index - begin)
+    }
+  }
+
+  // Potentially slow, because O(N) complexity
+  override def apply(l: Long): T = {
+    val Some((s, sIndex)) = toSeqIndex(l)
+    s(sIndex)
+  }
+
+  override def ref: IoRef[IoId, _ <: IoObject[IoId]] = {
+    throw new RuntimeException("multidf colId is not referable")
+  }
+}
 
 trait IoIterable[Id, T] extends IoObject[Id] with Iterable[T] {
   def iterator : Iterator[T]
+}
+
+trait SeqIoType[Id, T <: IoObject[Id], M] extends IoType[Id, T] with WithValueTypeTag[M] {
+  def defaultSeq(lsize:Long) : IoSeq[Id, M] = {
+    throw new RuntimeException("not implemented")
+  }
+  def viewMerged(seqs:Array[IoSeq[Id, M]]) : IoSeq[Id, M] = new MultiSeq[Id, M, IoSeq[Id, M]] (seqs)
+  def viewAnyMerged(seqs:Array[IoSeq[Id, _]]) : IoSeq[Id, M] =
+    viewMerged(seqs.map(_.asInstanceOf[IoSeq[Id, M]]))
+  def writeMerged(out:DataOutputStream, seqA:T, seqB:T) : Unit
+  def writeAnyMerged(out:DataOutputStream, seqA:Any, seqB:Any) = {
+    writeMerged(out, seqA.asInstanceOf[T], seqB.asInstanceOf[T])
+  }
 }
 
 trait IoSeq[Id, T] extends IoIterable[Id, T] with PartialFunction[Long, T] {

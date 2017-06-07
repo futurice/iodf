@@ -503,106 +503,58 @@ class DfTest extends TestSuite("df") {
     tRefCount(t)
   }
 
-  test("1024-entry-index") { t =>
-    RefCounted.trace {
-      val file = new File(t.fileDir, "df")
-      val dfs = Dfs.fs
+  def tIndexedDfPerf[IoId, T](t:TestTool, view:IndexedDf[IoId, T]) = {
+    val df = view.df
+    val index = view.indexDf
 
-      val items = ExampleItem.makeItems(0, 1024)
+    t.tln
+    val b = items.map(i => if (i.property) 1 else 0).sum
+    val b2 = view.f("property" -> true)
+    t.tln(f"property frequencies: original $b vs index $b2")
 
-      val (creationMs, _) =
-        TestTool.ms(
-          using(dfs.createIndexedDfFile[ExampleItem](items, file)) { df =>
-            t.tln
-            t.tln("index column id count: " + df.indexDf.colCount)
-            t.tln
-            t.tln("first column ids are: ")
-            t.tln
-            df.indexDf.colIds.take(8).foreach {
-              id => t.tln("  " + id)
-            }
-            t.tln
-            t.tln("first columns are: ")
-            t.tln
-            (0 until 8).map { i =>
-              using(df.indexDf.openCol[Any](i)) { col =>
-                t.tln("  " + col.take(8).map {
-                  _.toString
-                }.mkString(","))
-              }
-            }
-          })
+    val n = items.map(i => if (i.name == "h") 1 else 0).sum
+    val n2 = view.f("name" -> "h")
+    t.tln(f"name=h frequencies: original $n vs index $n2")
 
-      t.tln
-      t.iln("db and index created and closed in " + creationMs + " ms")
-      val before = System.currentTimeMillis()
-
-      t.tln
-      tDir(t, t.fileDir)
-      t.tln
-
-      using(dfs.openIndexedDfFile[ExampleItem](file)) { view =>
-        val df = view.df
-        val index = view.indexDf
-        t.iln("db and index reopened in " + (System.currentTimeMillis() - before) + " ms")
-
-        t.tln
-        t.t("sanity checking...")
-        t.tMsLn(
-          (0 until df.lsize.toInt).foreach { i =>
-            if (items(i) != df(i)) {
-              t.tln(f" at $i original item ${items(i)} != original ${df(i)}")
-            }
-          })
-
-        t.tln
-        val b = items.map(i => if (i.property) 1 else 0).sum
-        val b2 = view.f("property" -> true)
-        t.tln(f"property frequencies: original $b vs index $b2")
-
-        val n = items.map(i => if (i.name == "h") 1 else 0).sum
-        val n2 = view.f("name" -> "h")
-        t.tln(f"name=h frequencies: original $n vs index $n2")
-
-        val ids = index.colIds.toArray
-        val rnd = new Random(0)
-        t.tln;
-      {
-        t.t("searching 1024 ids...")
-        var sum = 0
-        val n = 1024
-        val (ms, _) = TestTool.ms {
-          (0 until n).foreach { i =>
-            sum += index.indexOf(ids(rnd.nextInt(ids.size)))
-          }
+    val ids = index.colIds.toArray
+    val rnd = new Random(0)
+    t.tln;
+    {
+      t.t("searching 1024 ids...")
+      var sum = 0
+      val n = 1024
+      val (ms, _) = TestTool.ms {
+        (0 until n).foreach { i =>
+          sum += index.indexOf(ids(rnd.nextInt(ids.size)))
         }
-        t.iln(ms + " ms.")
-        t.tln
-        t.tln("  checksum:    " + sum)
-        t.iln("  time/lookup: " + ((ms * 1000) / n) + " us")
-        t.tln
-      };
-      {
-        t.t("making 1024 cofreq calculations...")
-        var fA, fB, fAB = 0L
-        val n = 1024
-        val (ms, _) = TestTool.ms {
-          (0 until n).foreach { i =>
-            val co =
-              view.coStats(ids(rnd.nextInt(ids.size)),
-                ids(rnd.nextInt(ids.size)))
-            fA += co.fA
-            fB += co.fB
-            fAB += co.fAB
-          }
+      }
+      t.iln(ms + " ms.")
+      t.tln
+      t.tln("  checksum:    " + sum)
+      t.iln("  time/lookup: " + ((ms * 1000) / n) + " us")
+      t.tln
+    };
+    {
+      t.t("making 1024 cofreq calculations...")
+      var fA, fB, fAB = 0L
+      val n = 1024
+      val (ms, _) = TestTool.ms {
+        (0 until n).foreach { i =>
+          val co =
+            view.coStats(ids(rnd.nextInt(ids.size)),
+              ids(rnd.nextInt(ids.size)))
+          fA += co.fA
+          fB += co.fB
+          fAB += co.fAB
         }
-        t.iln(ms + " ms.")
-        t.tln
-        t.tln("  checksums:    " + fA + "/" + fA + "/" + fAB)
-        t.iln("  time/freq:    " + ((ms * 1000) / n) + " us")
-        t.tln
-      };
-      using (IoScope.open) { implicit scope =>
+      }
+      t.iln(ms + " ms.")
+      t.tln
+      t.tln("  checksums:    " + fA + "/" + fA + "/" + fAB)
+      t.iln("  time/freq:    " + ((ms * 1000) / n) + " us")
+      t.tln
+
+      using(IoScope.open) { implicit scope =>
         implicit val io = IoContext()
         var fs, fA, fB, fAB = 0L
         val n = 1024
@@ -612,7 +564,7 @@ class DfTest extends TestSuite("df") {
           (0 until n).map { i =>
             view.openIndex(rnd.nextInt(index.colCount))
           }
-        }: Seq[IoBits[String]]
+        }: Seq[IoBits[IoId]]
         try {
           t.tln
           t.i("counting freqs...")
@@ -668,7 +620,64 @@ class DfTest extends TestSuite("df") {
           }
         }
       }
+    }
+  }
+
+  test("1024-entry-index") { t =>
+    RefCounted.trace {
+      val file = new File(t.fileDir, "df")
+      val dfs = Dfs.fs
+
+      val items = ExampleItem.makeItems(0, 1024)
+
+      val (creationMs, _) =
+        TestTool.ms(
+          using(dfs.createIndexedDfFile[ExampleItem](items, file)) { df =>
+            t.tln
+            t.tln("index column id count: " + df.indexDf.colCount)
+            t.tln
+            t.tln("first column ids are: ")
+            t.tln
+            df.indexDf.colIds.take(8).foreach {
+              id => t.tln("  " + id)
+            }
+            t.tln
+            t.tln("first columns are: ")
+            t.tln
+            (0 until 8).map { i =>
+              using(df.indexDf.openCol[Any](i)) { col =>
+                t.tln("  " + col.take(8).map {
+                  _.toString
+                }.mkString(","))
+              }
+            }
+          })
+
+      t.tln
+      t.iln("db and index created and closed in " + creationMs + " ms")
+
+      t.tln
+      tDir(t, t.fileDir)
+      t.tln
+
+      val before = System.currentTimeMillis()
+      using(dfs.openIndexedDfFile[ExampleItem](file)) { view =>
+        t.iln("db and index reopened in " + (System.currentTimeMillis() - before) + " ms")
+        val df = view.df
+        val index = view.indexDf
+
+        t.tln
+        t.t("sanity checking...")
+        t.tMsLn(
+          (0 until df.lsize.toInt).foreach { i =>
+            if (items(i) != df(i)) {
+              t.tln(f" at $i original item ${items(i)} != original ${df(i)}")
+            }
+          })
+
+        tIndexedDfPerf(t, view)
       }
+
       tRefCount(t)
     }
   }
@@ -816,14 +825,167 @@ class DfTest extends TestSuite("df") {
         }
         t.tln
         t.tln("check index rows:")
-        (0L until dbM.indexDf.colIds.lsize).foreach { index =>
+        val errs =
+          (0L until dbM.indexDf.colIds.lsize).map { index =>
+            val id = dbM.indexDf.colIds(index)
+            val col = dbM.index(id)
+            val colA = dbA.index(id)
+            val colB = dbB.index(id)
+            val err = findErrors(col, colA, colB)
+            if (err.size != 0) {
+              t.tln(f"  bad row: $index/$id")
+              t.tln(f"  $id values: ")
+              t.tln(f"     M:${col.take(4).mkString(",")}..${col.takeRight(4).mkString(",")}")
+              t.tln(f"     A:${colA.take(4).mkString(",")}..${colA.takeRight(4).mkString(",")}")
+              t.tln(f"     B:${colB.take(4).mkString(",")}..${colB.takeRight(4).mkString(",")}")
+              val errors =
+                (0L until colA.lsize).filter { i =>
+                  col(i) != colA(i)
+                }.map(i => ("A", i, col(i), colA(i))) ++
+                  (0L until colB.lsize).filter{ i =>
+                    col(colA.lsize + i) != colB(i)
+                  }.map(i => ("B", colA.lsize + i, col(colA.lsize+i), colB(i)))
+              t.tln(f"     typeM:   " + col.getClass)
+              t.tln(f"     typeA:   " + colA.getClass)
+              t.tln(f"     typeB:   " + colB.getClass)
+              t.tln(f"     errors:  " + err.mkString(","))
+              errors.size
+            }
+            err.size
+          }.sum
+        t.tln(f"$errs errors found.")
+        t.tln
+        tIndexedDfPerf(t, dbM)
+      }
+    }
+  }
+
+  test("multidf") { t =>
+    RefCounted.trace {
+      using(IoScope.open) { implicit bind =>
+        val io = IoContext()
+        val dfs = Dfs.fs
+        val dirA = bind(new MMapDir(new File(t.fileDir, "dbA")))
+        val dirB = bind(new MMapDir(new File(t.fileDir, "dbB")))
+        val dirM = bind(new MMapDir(new File(t.fileDir, "dbM")))
+
+        val itemsA = ExampleItem.makeItems(0, 1000)
+        val itemsB = ExampleItem.makeItems(1, 1000)
+
+        t.t("creating dbA..")
+        val dbA =
+          t.iMsLn(
+            bind(dfs.createTypedDf(itemsA, dirA)))
+        t.t("creating dbB..")
+        val dbB =
+          t.iMsLn(bind(dfs.createTypedDf(itemsB, dirB)))
+        t.t("opening multi df..")
+        val dbM =
+          t.iMsLn(
+            bind(dfs.multiTypedDf(Array(dbA, dbB))))
+
+        t.tln
+        t.tln("merged db size: " + dbM.lsize)
+        t.tln("merged db columns: " + dbM.colIds.mkString(", "))
+        t.tln
+        t.tln("merged db content:")
+        def findErrors[Id, T](col:IoSeq[Id, T], colA:IoSeq[Id,T], colB:IoSeq[Id, T]) = {
+          (if (col.lsize != colA.lsize + colB.lsize)
+            Seq(("SIZE", col.lsize, colA.lsize, colB.lsize))
+          else Seq())++
+            (0L until colA.lsize).filter { i =>
+              col(i) != colA(i)
+            }.map(i => ("A", i, col(i), colA(i))) ++
+            (0L until colB.lsize).filter{ i =>
+              col(colA.lsize + i) != colB(i)
+            }.map(i => ("B", colA.lsize + i, col(colA.lsize+i), colB(i)))
+        }
+        dbM.colIds.foreach { id =>
+          using (IoScope.open) { implicit bind =>
+            val col = dbM.col[Any](id)
+            val colA = dbA.col[Any](id)
+            val colB = dbB.col[Any](id)
+            t.tln(f"  $id values: ")
+            t.tln(f"     M:${col.take(4).mkString(",")}..${col.takeRight(4).mkString(",")}")
+            t.tln(f"     A:${colA.take(4).mkString(",")}..${colA.takeRight(4).mkString(",")}")
+            t.tln(f"     B:${colB.take(4).mkString(",")}..${colB.takeRight(4).mkString(",")}")
+            t.tln(f"     errors: " + findErrors(col, colA, colB))
+          }
+        }
+
+        t.tln
+      }
+    }
+  }
+
+  test("indexed-multidf") { t =>
+    RefCounted.trace {
+      using(IoScope.open) { implicit bind =>
+        val io = IoContext()
+        val dfs = Dfs.fs
+        val dirA = bind(new MMapDir(new File(t.fileDir, "dbA")))
+        val dirB = bind(new MMapDir(new File(t.fileDir, "dbB")))
+        val dirM = bind(new MMapDir(new File(t.fileDir, "dbM")))
+
+        val itemsA = ExampleItem.makeItems(0, 1000)
+        val itemsB = ExampleItem.makeItems(1, 1000)
+
+        t.t("creating dbA..")
+        val dbA =
+          t.iMsLn(
+            bind(dfs.createIndexedDf(itemsA, dirA)))
+        t.t("creating dbB..")
+        val dbB =
+          t.iMsLn(bind(dfs.createIndexedDf(itemsB, dirB)))
+        t.t("opening multi df..")
+        val dbM =
+          t.iMsLn(
+            bind(dfs.multiIndexedDf(Array(dbA, dbB))))
+
+        t.tln
+        t.t("warming the data frame...")
+        t.iMsLn(dbM.df.colIds.lsize)
+        t.t("warming the index ...")
+        t.iMsLn(dbM.indexDf.colIds.lsize)
+        t.tln
+        t.tln("merged db size: " + dbM.lsize)
+        t.tln("merged db columns: " + dbM.colIds.mkString(", "))
+        t.tln("merged db index entry count: " + dbM.indexDf.colIds.lsize)
+        t.tln
+        t.tln("merged db content:")
+        def findErrors[Id, T](col:IoSeq[Id, T], colA:IoSeq[Id,T], colB:IoSeq[Id, T]) = {
+          (if (col.lsize != colA.lsize + colB.lsize)
+            Seq(("SIZE", col.lsize, colA.lsize, colB.lsize))
+          else Seq())++
+            (0L until colA.lsize).filter { i =>
+              col(i) != colA(i)
+            }.map(i => ("A", i, col(i), colA(i))) ++
+            (0L until colB.lsize).filter{ i =>
+              col(colA.lsize + i) != colB(i)
+            }.map(i => ("B", colA.lsize + i, col(colA.lsize+i), colB(i)))
+        }
+        dbM.colIds.foreach { id =>
+          using (IoScope.open) { implicit bind =>
+            val col = dbM.col[Any](id)
+            val colA = dbA.col[Any](id)
+            val colB = dbB.col[Any](id)
+            t.tln(f"  $id values: ")
+            t.tln(f"     M:${col.take(4).mkString(",")}..${col.takeRight(4).mkString(",")}")
+            t.tln(f"     A:${colA.take(4).mkString(",")}..${colA.takeRight(4).mkString(",")}")
+            t.tln(f"     B:${colB.take(4).mkString(",")}..${colB.takeRight(4).mkString(",")}")
+            t.tln(f"     errors: " + findErrors(col, colA, colB))
+          }
+        }
+
+        t.tln
+        t.tln("merged db indexes:")
+
+        (0L until dbM.indexDf.colIds.lsize).filter(_ % 32 == 0).take(16).foreach { index =>
           val id = dbM.indexDf.colIds(index)
-          val col = dbM.index(id)
-          val colA = dbA.index(id)
-          val colB = dbB.index(id)
-          val err = findErrors(col, colA, colB)
-          if (err.size != 0) {
-            t.tln(f"  bad row: $index/$id")
+          using (IoScope.open) { implicit bind =>
+            val col = dbM.index(id)
+            val colA = dbA.index(id)
+            val colB = dbB.index(id)
             t.tln(f"  $id values: ")
             t.tln(f"     M:${col.take(4).mkString(",")}..${col.takeRight(4).mkString(",")}")
             t.tln(f"     A:${colA.take(4).mkString(",")}..${colA.takeRight(4).mkString(",")}")
@@ -838,12 +1000,42 @@ class DfTest extends TestSuite("df") {
             t.tln(f"     typeM:   " + col.getClass)
             t.tln(f"     typeA:   " + colA.getClass)
             t.tln(f"     typeB:   " + colB.getClass)
-            t.tln(f"     errors:  " + err.mkString(","))
+            t.tln(f"     errors: " + findErrors(col, colA, colB).mkString(","))
           }
-
         }
-
         t.tln
+        t.tln("check index rows:")
+        val errs =
+          (0L until dbM.indexDf.colIds.lsize).map { index =>
+            val id = dbM.indexDf.colIds(index)
+            val col = dbM.index(id)
+            val colA = dbA.index(id)
+            val colB = dbB.index(id)
+            val err = findErrors(col, colA, colB)
+            if (err.size != 0) {
+              t.tln(f"  bad row: $index/$id")
+              t.tln(f"  $id values: ")
+              t.tln(f"     M:${col.take(4).mkString(",")}..${col.takeRight(4).mkString(",")}")
+              t.tln(f"     A:${colA.take(4).mkString(",")}..${colA.takeRight(4).mkString(",")}")
+              t.tln(f"     B:${colB.take(4).mkString(",")}..${colB.takeRight(4).mkString(",")}")
+              val errors =
+                (0L until colA.lsize).filter { i =>
+                  col(i) != colA(i)
+                }.map(i => ("A", i, col(i), colA(i))) ++
+                  (0L until colB.lsize).filter{ i =>
+                    col(colA.lsize + i) != colB(i)
+                  }.map(i => ("B", colA.lsize + i, col(colA.lsize+i), colB(i)))
+              t.tln(f"     typeM:   " + col.getClass)
+              t.tln(f"     typeA:   " + colA.getClass)
+              t.tln(f"     typeB:   " + colB.getClass)
+              t.tln(f"     errors:  " + err.mkString(","))
+              errors.size
+            }
+            err.size
+          }.sum
+        t.tln(f"$errs errors found.")
+        t.tln
+        tIndexedDfPerf(t, dbM)
       }
     }
   }
