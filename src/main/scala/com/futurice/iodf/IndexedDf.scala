@@ -3,7 +3,8 @@ package com.futurice.iodf
 import java.io.Closeable
 
 import com.futurice.iodf.Utils.using
-import com.futurice.iodf.ioseq.{EmptyIoBits, IoBits}
+import com.futurice.iodf.ioseq.{IoBits}
+import com.futurice.iodf.utils.LBits
 
 
 object IndexConf {
@@ -34,19 +35,19 @@ class IndexedDf[IoId, T](val df:TypedDf[IoId, T],
   def colIds = df.colIds
   def col[T <: Any](id:String)(implicit scope:IoScope) = df.col[T](id)
   def col[T <: Any](i:Long)(implicit scope:IoScope) = df.col[T](i)
-  def index(idValue:(String, Any))(implicit scope:IoScope) : IoBits[IoId] = {
+  def index(idValue:(String, Any))(implicit scope:IoScope) : LBits = {
     scope.bind(openIndex(idValue))
   }
-  def index(i:Int)(implicit scope:IoScope) : IoBits[IoId] = {
+  def index(i:Long)(implicit scope:IoScope) : LBits = {
     scope.bind(openIndex(i))
   }
-  def openIndex(idValue:(String, Any)) : IoBits[IoId] = {
+  def openIndex(idValue:(String, Any)) : LBits = {
     indexDf.indexOf(idValue) match {
-      case -1 => new EmptyIoBits[IoId](indexDf.lsize)
-      case i => openIndex(i)
+      case -1 => LBits.empty(indexDf.lsize)
+      case i  => openIndex(i)
     }
   }
-  def openIndex(i:Int) : IoBits[IoId] = {
+  def openIndex(i:Long) : IoBits[IoId] = {
     indexDf.openCol(i).asInstanceOf[IoBits[IoId]]
   }
 

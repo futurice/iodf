@@ -1,0 +1,42 @@
+first is boolean
+
+  second is boolean
+
+    ok.
+
+  second is dense
+
+    ok.
+
+  second is sparse
+
+    ok.
+
+first is dense
+
+  second is boolean
+
+    ok.
+
+  second is dense
+
+    ok.
+
+  second is sparse
+
+    ok.
+
+first is sparse
+
+  second is boolean
+
+    ok.
+
+  second is dense
+
+    ok.
+
+  second is sparse
+
+    ok.
+

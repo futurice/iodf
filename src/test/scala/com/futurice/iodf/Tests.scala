@@ -10,8 +10,12 @@ object Tests {
     TestRunner(
       "io/test",
       Seq(
+        new UtilsTest,
+        new SeqTest,
         new BitsTest,
+        new BitsPerf,
         new DfTest,
+        new DfPerf,
         new MlTest))
       .exec(args)
   }

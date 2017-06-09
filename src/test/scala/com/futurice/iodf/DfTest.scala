@@ -7,7 +7,7 @@ import com.futurice.testtoys.{TestSuite, TestTool}
 import com.futurice.iodf.store.{MMapDir, RamDir, RefCounted}
 import com.futurice.iodf.Utils._
 import com.futurice.iodf.ioseq._
-import com.futurice.iodf.utils.{DenseBits, SparseBits}
+import com.futurice.iodf.utils.LBits
 
 import scala.reflect.runtime.universe._
 import scala.util.Random
@@ -190,7 +190,7 @@ class DfTest extends TestSuite("df") {
     t.tln;
     {
       t.t("searching 1024 ids...")
-      var sum = 0
+      var sum = 0L
       val n = 1024
       val (ms, _) = TestTool.ms {
         (0 until n).foreach { i =>
@@ -351,64 +351,6 @@ class DfTest extends TestSuite("df") {
     }
   }
 
-
-  def testWritingPerf(testName:String, writer:(Seq[ExampleItem], File, IndexConf[String])=>Unit) =
-    test(testName) { t =>
-    RefCounted.trace {
-      using(IoScope.open) { implicit bind =>
-        implicit val io = IoContext()
-
-        t.tln("testing, how writing index behaves time & memory wise")
-        t.tln
-
-        def M = 1024*1024.0
-
-        val res =
-          Seq(15, 16, 17, 18).map { exp =>
-            val scale = 1 << exp
-            val file = new File(t.fileDir, "df")
-
-            t.tln(f"indexing $scale random items:")
-            val baseMem = Utils.memory
-
-            t.t(f"  creating items..")
-            val items = t.iMsLn(ExampleItem.makeItems(0, scale))
-
-
-            t.t(f"  indexing items..")
-            using (new MemoryMonitor(100)) { mem : MemoryMonitor=>
-              val (ms, _) =
-                TestTool.ms(
-                  writer(items, file, IndexConf()))
-              t.iln(f"$ms ms")
-
-              val stats =
-                Await.result(mem.finish, Duration.Inf)
-
-              val diskKb = file.length / 1024
-
-              t.iln(f"  mem base: ${baseMem/M}%.1f MB")
-              t.iln(f"  mem MB:   ${(stats.min-baseMem)/M}%.1f<${(stats.mean-baseMem)/M}%.1f<${(stats.max-baseMem)/M}%.1f (n:${stats.samples})")
-              t.iln(f"  disk:     $diskKb KB")
-              t.tln
-
-              (ms, baseMem, stats, diskKb)
-            }
-          }
-        t.tln("scaling:")
-        t.tln
-        t.iln("  time ms:     " + res.map(_._1).mkString(","))
-        t.iln("  mem MB mean: " + res.map(e => f"${(e._3.mean-e._2)/M}%.1f").mkString(","))
-        t.iln("  mem MB max:  " + res.map(e => f"${(e._3.max-e._2)/M}%.1f").mkString(","))
-        t.tln("  disk KB:     " + res.map(_._4).mkString(","))
-        t.tln
-      }
-    }
-  }
-
-  testWritingPerf("writing-indexed-perf", Dfs.fs.writeIndexedDfFile)
-  testWritingPerf("writing-typed-perf", (items, dir, index) => Dfs.fs.writeTypedDfFile(items, dir))
-
   test("merging") { t =>
     RefCounted.trace {
       using(IoScope.open) { implicit bind =>
@@ -431,7 +373,7 @@ class DfTest extends TestSuite("df") {
             bind(dfs.createIndexedDf(itemsB, dirB)))
         t.t("merging dbs..")
         t.iMsLn(
-          dfs.writeMergedIndexedDf(dbA, dbB, dirM))
+          dfs.writeMergedIndexedDf(Seq(dbA, dbB), dirM))
         t.t("opening merged db..")
         val dbM =
           t.iMsLn(
@@ -443,7 +385,7 @@ class DfTest extends TestSuite("df") {
         t.tln("merged db index entry count: " + dbM.indexDf.colIds.lsize)
         t.tln
         t.tln("merged db content:")
-        def findErrors[Id, T](col:IoSeq[Id, T], colA:IoSeq[Id,T], colB:IoSeq[Id, T]) = {
+        def findErrors[Id, T](col:LSeq[T], colA:LSeq[T], colB:LSeq[T]) = {
           (if (col.lsize != colA.lsize + colB.lsize)
             Seq(("SIZE", col.lsize, colA.lsize, colB.lsize))
           else Seq())++
@@ -489,7 +431,7 @@ class DfTest extends TestSuite("df") {
             t.tln(f"     typeM:   " + col.getClass)
             t.tln(f"     typeA:   " + colA.getClass)
             t.tln(f"     typeB:   " + colB.getClass)
-            t.tln(f"     errors: " + findErrors(col, colA, colB).mkString(","))
+            t.tln(f"     errors:  " + findErrors(col, colA, colB).mkString(","))
           }
         }
         t.tln
@@ -622,7 +564,7 @@ class DfTest extends TestSuite("df") {
         t.tln("merged db index entry count: " + dbM.indexDf.colIds.lsize)
         t.tln
         t.tln("merged db content:")
-        def findErrors[Id, T](col:IoSeq[Id, T], colA:IoSeq[Id,T], colB:IoSeq[Id, T]) = {
+        def findErrors[Id, T](col:LSeq[T], colA:LSeq[T], colB:LSeq[T]) = {
           (if (col.lsize != colA.lsize + colB.lsize)
             Seq(("SIZE", col.lsize, colA.lsize, colB.lsize))
           else Seq())++
@@ -669,7 +611,7 @@ class DfTest extends TestSuite("df") {
             t.tln(f"     typeM:   " + col.getClass)
             t.tln(f"     typeA:   " + colA.getClass)
             t.tln(f"     typeB:   " + colB.getClass)
-            t.tln(f"     errors: " + findErrors(col, colA, colB).mkString(","))
+            t.tln(f"     errors:  " + findErrors(col, colA, colB).mkString(","))
           }
         }
         t.tln

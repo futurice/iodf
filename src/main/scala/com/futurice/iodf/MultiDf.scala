@@ -5,6 +5,13 @@ import com.futurice.iodf.utils.{MergeSortEntry, MergeSortIterator}
 
 import scala.collection.mutable.ArrayBuffer
 
+object MultiDf {
+  def apply[IoId, ColId](dfs:Seq[_ <: Df[IoId, ColId]], types:DfColTypes[IoId, ColId])(
+    implicit colIdOrdering:Ordering[ColId]) = {
+    new MultiDf[IoId, ColId](dfs.toArray, types)
+  }
+}
+
 
 /**
   * Created by arau on 6.6.2017.
@@ -65,7 +72,7 @@ class MultiDf[IoId, ColId](dfs:Array[_ <: Df[IoId, ColId]], types:DfColTypes[IoI
         t.viewAnyMerged(
           (0 until dfs.size).map {
             i => colMap.getOrElse(i, t.defaultSeq(dfs(i).lsize)).asInstanceOf[IoSeq[IoId, Any]]
-          }.toArray).asInstanceOf[IoSeq[IoId, Any]]
+          }).asInstanceOf[IoSeq[IoId, Any]]
       }
       override def lsize: Long = {
         MultiDf.this.lsize

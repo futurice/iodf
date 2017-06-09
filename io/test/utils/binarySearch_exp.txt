@@ -1,0 +1,70 @@
+seq is: 5,10,33,43,44,47,63,64,86,107,127
+
+boundaries:
+  binarySearch(sortedSeq, 0, 0, None)=(-1,-1,0) -> (-,-,5)
+  binarySearch(sortedSeq, 128, 0, None)=(-1,10,11) -> (-,127,eos)
+
+outside boundaries:
+  binarySearch(sortedSeq, -1, 0, None)=(-1,-1,0) -> (-,-,5)
+  binarySearch(sortedSeq, 129, 0, None)=(-1,10,11) -> (-,127,eos)
+
+random lookups:
+  binarySearch(sortedSeq, 26, 0, None)=(-1,1,2) -> (-,10,33)
+  binarySearch(sortedSeq, 45, 0, None)=(-1,4,5) -> (-,44,47)
+  binarySearch(sortedSeq, 22, 0, None)=(-1,1,2) -> (-,10,33)
+
+matches:
+  binarySearch(sortedSeq, 64, 0, None)=(7,7,7) -> (64,64,64)
+  binarySearch(sortedSeq, 44, 0, None)=(4,4,4) -> (44,44,44)
+  binarySearch(sortedSeq, 64, 0, None)=(7,7,7) -> (64,64,64)
+
+bounded lookup area:
+
+  from 1 to 7: 10, 33, 43, 44, 47, 63
+
+    random lookups:
+      binarySearch(sortedSeq, 76, 1, Some(7))=(-1,6,7) -> (-,63,64)
+      binarySearch(sortedSeq, 67, 1, Some(7))=(-1,6,7) -> (-,63,64)
+      binarySearch(sortedSeq, 102, 1, Some(7))=(-1,6,7) -> (-,63,64)
+
+    matches:
+      binarySearch(sortedSeq, 33, 1, Some(7))=(2,2,2) -> (33,33,33)
+      binarySearch(sortedSeq, 10, 1, Some(7))=(1,1,1) -> (10,10,10)
+      binarySearch(sortedSeq, 63, 1, Some(7))=(6,6,6) -> (63,63,63)
+
+  from 4 to 4: 
+
+    random lookups:
+      binarySearch(sortedSeq, 36, 4, Some(4))=(-1,3,4) -> (-,43,44)
+      binarySearch(sortedSeq, 93, 4, Some(4))=(-1,3,4) -> (-,43,44)
+      binarySearch(sortedSeq, 103, 4, Some(4))=(-1,3,4) -> (-,43,44)
+
+    matches:
+      binarySearch(sortedSeq, 127, 4, Some(4))=(-1,3,4) -> (-,43,44)
+      binarySearch(sortedSeq, 5, 4, Some(4))=(-1,3,4) -> (-,43,44)
+      binarySearch(sortedSeq, 107, 4, Some(4))=(-1,3,4) -> (-,43,44)
+
+  from 4 to 6: 44, 47
+
+    random lookups:
+      binarySearch(sortedSeq, 106, 4, Some(6))=(-1,5,6) -> (-,47,63)
+      binarySearch(sortedSeq, 98, 4, Some(6))=(-1,5,6) -> (-,47,63)
+      binarySearch(sortedSeq, 111, 4, Some(6))=(-1,5,6) -> (-,47,63)
+
+    matches:
+      binarySearch(sortedSeq, 10, 4, Some(6))=(-1,3,4) -> (-,43,44)
+      binarySearch(sortedSeq, 43, 4, Some(6))=(-1,3,4) -> (-,43,44)
+      binarySearch(sortedSeq, 64, 4, Some(6))=(-1,5,6) -> (-,47,63)
+
+  from 0 to 1: 5
+
+    random lookups:
+      binarySearch(sortedSeq, 1, 0, Some(1))=(-1,-1,0) -> (-,-,5)
+      binarySearch(sortedSeq, 83, 0, Some(1))=(-1,0,1) -> (-,5,10)
+      binarySearch(sortedSeq, 80, 0, Some(1))=(-1,0,1) -> (-,5,10)
+
+    matches:
+      binarySearch(sortedSeq, 43, 0, Some(1))=(-1,0,1) -> (-,5,10)
+      binarySearch(sortedSeq, 10, 0, Some(1))=(-1,0,1) -> (-,5,10)
+      binarySearch(sortedSeq, 33, 0, Some(1))=(-1,0,1) -> (-,5,10)
+

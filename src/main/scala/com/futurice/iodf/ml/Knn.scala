@@ -7,13 +7,14 @@ import scala.reflect.runtime.universe._
 import com.futurice.iodf._
 import com.futurice.iodf.ioseq.{DenseIoBits, IoBits}
 import com.futurice.iodf.Utils._
+import com.futurice.iodf.utils.LBits
 
 
 /**
   * Created by arau on 22.3.2017.
   */
 class Knn[IoId, T](df:IndexedDf[IoId, T],
-                   select:IoBits[_],
+                   select:LBits,
                    indexConf:IndexConf[String],
                    keyValueW:Map[(String, Any), (Double, Double)])(implicit tag:ClassTag[T],tt:TypeTag[T]) {
 
@@ -75,8 +76,8 @@ object Knn {
 
   def keyValueWeights[IoId, T]( df:IndexedDf[IoId, T],
                                 in:Set[String],
-                                outTrues:IoBits[_],
-                                outDefined:IoBits[_],
+                                outTrues:LBits,
+                                outDefined:LBits,
                                 varDFilter:Double) : Map[(String, Any), (Double, Double)] =
     df.indexDf.colIds.zipWithIndex.filter(e => in.contains(e._1._1)).map { case (keyValue, index) =>
       using (df.openIndex(index)) { case bits =>
@@ -100,9 +101,8 @@ object Knn {
       df,
       in,
       df.index(predicted),
-      scope.bind(io.bits.createDense(
-        io.dir,
-        (0 until df.size).map(i => true))), // true vector
+      scope.bind(io.bits.create(
+        LBits((0 until df.size).map(i => true)))), // true vector
       varDFilter)
 
   def apply[IoId, T](df:IndexedDf[IoId, T],
@@ -111,7 +111,7 @@ object Knn {
                   predicted:(String, Any),
                   varDFilter:Double)(implicit tag:ClassTag[T], tt:TypeTag[T], scope:IoScope, io:IoContext[Int]) = {
     new Knn(df,
-            DenseIoBits((0L until df.lsize).map(e => true)),
+            LBits((0L until df.lsize).map(e => true)),
             indexConf,
             keyValueWeights(
               df,

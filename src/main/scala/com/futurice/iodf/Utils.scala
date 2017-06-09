@@ -58,16 +58,28 @@ object IoContext {
   */
 object Utils {
 
-  def binarySearch[T](sortedSeq:IoSeq[_, T], target:T)(implicit ord:Ordering[T]) = {
+  def binarySearch[T](sortedSeq:LSeq[T], target:T, from:Long = 0, until:Long = Long.MaxValue)(implicit ord:Ordering[T]) : (Long, Long, Long)= {
     @tailrec
-    def recursion(low:Int, high:Int):Int = (low+high)/2 match{
-      case _ if high < low => -1
+    def recursion(low:Long, high:Long):(Long, Long, Long) = (low+high)/2 match{
+      case _ if high < low => (-1, high, low)
       case mid if ord.gt(sortedSeq(mid), target) => recursion(low, mid-1)
       case mid if ord.lt(sortedSeq(mid), target) => recursion(mid+1, high)
-      case mid => mid
+      case mid => (mid, mid, mid)
     }
-    recursion(0, sortedSeq.size - 1)
+    recursion(from, Math.min(until, sortedSeq.lsize) - 1)
   }
+
+  /*
+  def weightedBinarySearch[T](sortedSeq:IoSeq[_, T], target:T, from:Long = 0, until:Long = Long.MaxValue, p:Double = 0.5)(implicit ord:Ordering[T]) : (Long, Long, Long)= {
+    @tailrec
+    def recursion(low:Long, high:Long):(Long, Long, Long) = (low+(high-low)*p).toLong match {
+      case _ if high < low => (-1, low, high)
+      case mid if ord.gt(sortedSeq(mid), target) => recursion(low, mid-1)
+      case mid if ord.lt(sortedSeq(mid), target) => recursion(mid+1, high)
+      case mid => (mid, mid, mid)
+    }
+    recursion(from, Math.min(until, sortedSeq.lsize) - 1)
+  }*/
 
   def atomicWrite(file:File)(writer:File => Unit): Unit = {
     val tmpFile = new File(file.getParentFile, file.getName + ".tmp")

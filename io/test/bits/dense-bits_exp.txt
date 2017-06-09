@@ -26,6 +26,7 @@ bits by index:   true, false, false, true, false, false, true, false, false, tru
 bits by iter:    true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false
 
 bM
+bM=b1+b1
 bit(2):        true
 bit count is     4/9
 true bits length 4
@@ -35,7 +36,7 @@ bits by index:   false, false, true, false, true, false, true, true, false
 bits by iter:    false, false, true, false, true, false, true, true, false
 
 errors: 
-bM2
+bM2=b3+b1
 bit(2):        false
 bit count is     52/155
 true bits length 52
@@ -45,7 +46,7 @@ bits by index:   true, false, false, true, false, false, true, false, false, tru
 bits by iter:    true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, false, false, true, false, true
 
 errors: 
-bM3
+bM3=b1+b3
 bit(2):        true
 bit count is     52/155
 true bits length 52
@@ -55,7 +56,7 @@ bits by index:   false, false, true, false, true, true, false, false, true, fals
 bits by iter:    false, false, true, false, true, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false, true, false, false
 
 errors: 
-bM4
+bM4=b3+b3
 bit(2):        false
 bit count is     100/300
 true bits length 100

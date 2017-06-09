@@ -3,17 +3,30 @@ package com.futurice.iodf.utils
 trait SeekIterator[T, S] extends Iterator[T] {
   /* seeks the position after the given position */
   def seek(t:S) : Boolean
+  def seeked(t:S) = {
+    seek(t)
+    this
+  }
 }
 
 trait PeekIterator[T] extends Iterator[T] {
-  def headOption : Option[T]
   def head : T
+  def headOption : Option[T] =
+    hasNext match {
+      case true => Some(head)
+      case false => None
+    }
 }
 
-trait SeekPeekIterator[T, S] extends SeekIterator[T, S] with PeekIterator[T]
+trait PeekIterable[T] extends Iterable[T] {
+  def iterator : PeekIterator[T]
+}
+trait Scanner[T, S] extends SeekIterator[T, S] with PeekIterator[T] {
+  def copy : Scanner[T, S]
+}
 
-trait SeekPeekIterable[T,S] extends Iterable[T] {
-  def iterator : SeekPeekIterator[T, S]
+trait Scannable[T,S] extends PeekIterable[T] {
+  def iterator : Scanner[T, S]
 }
 
 object PeekIterator {
@@ -26,9 +39,8 @@ object PeekIterator {
     }
     private var peek : Option[T] = peekNext
 
-    def headOption = peek
+    override def headOption = peek
     def head = peek.get
-
     def hasNext = {
       peek.isDefined
     }

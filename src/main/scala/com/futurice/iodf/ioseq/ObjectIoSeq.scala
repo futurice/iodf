@@ -30,15 +30,20 @@ trait TypedSerializer[T] extends Serializer[T] {
 class ObjectIoSeqType[Id, T](i:RandomAccessReading[T], o:OutputWriting[T])(
   implicit val t: TypeTag[Seq[T]], vTag:TypeTag[T])
   extends IoTypeOf[Id, ObjectIoSeq[Id, T], Seq[T]]()(t)
-  with SeqIoType[Id, ObjectIoSeq[Id, T], T] {
+  with IoSeqType[Id, T, LSeq[T], ObjectIoSeq[Id, T]] {
 
-  override def write(output: DataOutputStream, v: Seq[T]): Unit = {
+  override def writeSeq(output: DataOutputStream, v: LSeq[T]): Unit = {
     val w = new ObjectIoSeqWriter[T](output, o)
     v.foreach { w.write(_) }
     w.writeIndex
   }
-  override def writeMerged(out: DataOutputStream, seqA: ObjectIoSeq[Id, T], seqB: ObjectIoSeq[Id, T]): Unit = {
-    ObjectIoSeqWriter.writeMerged(out, seqA, seqB)
+  override def writeMerged(out: DataOutputStream, seqs: Seq[LSeq[T]]): Unit = {
+    seqs.exists(!_.isInstanceOf[ObjectIoSeq[Id, T]]) match {
+      case true => // there is at least one sequence, which cannot be white box merged
+        super.writeMerged(out, seqs) // go generic
+      case false => // go whitebox merge: awe can skip serialization & deserialization
+        ObjectIoSeqWriter.writeMerged(out, seqs.map(_.asInstanceOf[ObjectIoSeq[Id, T]]))
+    }
   }
 
   override def open(buf: IoData[Id])= {
@@ -47,22 +52,30 @@ class ObjectIoSeqType[Id, T](i:RandomAccessReading[T], o:OutputWriting[T])(
 
   override def valueTypeTag = vTag
 
+  override def viewMerged(seqs: Seq[LSeq[T]]): LSeq[T] = new MultiSeq[T, LSeq[T]](seqs.toArray)
+
+  override def write(out: DataOutputStream, v: Seq[T]): Unit =
+    writeSeq(out, LSeq(v))
+
 }
 
 
 class ObjectIoSeqWriter[T](out:OutputStream, io:OutputWriting[T]) extends Closeable {
   val pos = new ArrayBuffer[Long]()
-  val o = new DataOutputStream(out)
+  var at = 0L
   def close = {
-    o.flush
-    o.close()
+    out.flush
+    out.close()
   }
   def write(v:T) : Unit = {
-    pos += o.size
+    pos += at
+    val o = new DataOutputStream(out)
     io.write(o, v)
+    at += o.size()
   }
   def writeIndex : Unit = {
-    val indexPos = o.size
+    val indexPos = at
+    val o = new DataOutputStream(out)
     pos.foreach { p =>
       o.writeLong(p)
     }
@@ -71,21 +84,25 @@ class ObjectIoSeqWriter[T](out:OutputStream, io:OutputWriting[T]) extends Closea
 }
 
 object ObjectIoSeqWriter {
-  def writeMerged(out: DataOutputStream, seqA: ObjectIoSeq[_, _], seqB: ObjectIoSeq[_, _]): Unit = {
+  def writeMerged(out: DataOutputStream, seqs: Seq[ObjectIoSeq[_, _]]): Unit = {
     val o = new DataOutputStream(out)
-    // 1. write first data areas
-    seqA.buf.writeTo(0, o, seqA.indexPos)
-    val bOffset = seqA.indexPos
-    seqB.buf.writeTo(0, o, seqB.indexPos)
-    // 2. then, the A index can be written as it is
-    val indexPos : Long = seqA.indexPos + seqB.indexPos
-/*    (0L until seqA.lsize).foreach { i =>
-      seqA.objectPos(i)
-    }*/
-    seqA.buf.writeTo(seqA.indexPos, o, seqA.buf.size - seqA.indexPos - 8)
-    //    b index needs to be parsed
-    (0L until seqB.lsize).foreach { i =>
-      o.writeLong(bOffset + seqB.objectPos(i))
+
+    // 1. write copy data areas, avoiding deserialization & serialization
+    var at = 0L
+    val offsets =
+      seqs.map { seq =>
+        var begin = at
+        seq.buf.writeTo(0, o, seq.indexPos)
+        at += seq.indexPos
+        begin
+      }
+    val indexPos = at
+
+    // 2. then, write indexes
+    (offsets zip seqs).foreach { case (offset, seq) =>
+      (0L until seq.lsize).foreach { i =>
+        o.writeLong(offset + seq.objectPos(i))
+      }
     }
     // 3. last, write the index position
     o.writeLong(indexPos)

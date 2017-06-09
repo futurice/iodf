@@ -1,0 +1,156 @@
+first is boolean
+
+  second is boolean
+
+    ok.
+
+  second is dense
+
+    ok.
+
+  second is sparse
+
+    ok.
+
+  second is denseIo
+
+    ok.
+
+  second is sparseIo
+
+    ok.
+
+  second is io
+
+    ok.
+
+first is dense
+
+  second is boolean
+
+    ok.
+
+  second is dense
+
+    ok.
+
+  second is sparse
+
+    ok.
+
+  second is denseIo
+
+    ok.
+
+  second is sparseIo
+
+    ok.
+
+  second is io
+
+    ok.
+
+first is sparse
+
+  second is boolean
+
+    ok.
+
+  second is dense
+
+    ok.
+
+  second is sparse
+
+    ok.
+
+  second is denseIo
+
+    ok.
+
+  second is sparseIo
+
+    ok.
+
+  second is io
+
+    ok.
+
+first is denseIo
+
+  second is boolean
+
+    ok.
+
+  second is dense
+
+    ok.
+
+  second is sparse
+
+    ok.
+
+  second is denseIo
+
+    ok.
+
+  second is sparseIo
+
+    ok.
+
+  second is io
+
+    ok.
+
+first is sparseIo
+
+  second is boolean
+
+    ok.
+
+  second is dense
+
+    ok.
+
+  second is sparse
+
+    ok.
+
+  second is denseIo
+
+    ok.
+
+  second is sparseIo
+
+    ok.
+
+  second is io
+
+    ok.
+
+first is io
+
+  second is boolean
+
+    ok.
+
+  second is dense
+
+    ok.
+
+  second is sparse
+
+    ok.
+
+  second is denseIo
+
+    ok.
+
+  second is sparseIo
+
+    ok.
+
+  second is io
+
+    ok.
+

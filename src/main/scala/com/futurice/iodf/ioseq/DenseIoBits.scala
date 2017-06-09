@@ -4,7 +4,7 @@ import java.io.DataOutputStream
 import java.util
 
 import com.futurice.iodf.store.{Dir, FileRef, IoData, RandomAccess}
-import com.futurice.iodf.utils.{Bits, DenseBits, SparseBits}
+import com.futurice.iodf.utils._
 import xerial.larray.buffer.LBufferAPI
 import com.futurice.iodf.{IoRef, _}
 
@@ -15,15 +15,24 @@ object DenseIoBits {
   def bitsToLongCount(bitSize:Long) = ((bitSize+63L) / 64L)
   def bitsToByteSize(bitSize:Long) = bitsToLongCount(bitSize) * 8
 
-  def create[IoId](bits:Seq[Boolean])(implicit io:IoContext[IoId]) = {
-    io.bits.createDense(io.dir, bits)
+  def booleanSeqIoType[IoId](denseBits:DenseIoBitsType[IoId])(implicit t:TypeTag[Seq[Boolean]]) =
+    new ConvertedIoTypeOf[IoId, DenseIoBits[IoId], Seq[Boolean], LBits](
+      denseBits,
+      bools => LBits(bools))(t)
+
+}
+
+// TODO: there are three different mappings from different data structures
+//       to dense bits. These should be merged !!!
+
+
+class DenseIoBitsType[Id](implicit val t:TypeTag[LBits])
+  extends IoTypeOf[Id, DenseIoBits[Id], LBits]()(t)
+    with IoSeqType[Id, Boolean, LBits, DenseIoBits[Id]] {
+
+  def defaultSeq[Id](lsize:Long) = {
+    LBits.empty(lsize)
   }
-  def apply[IoId](bits:Seq[Boolean])(implicit io:IoContext[IoId], scope:IoScope) = {
-    scope.bind(create(bits))
-  }
-/*  def apply[IoId](bits:Seq[Boolean])(implicit io:IoContext[IoId], scope:IoScope) = {
-    scope.bind(open(bits))
-  }*/
   def writeLeLong(out:DataOutputStream, long:Long) = {
     out.writeByte((long & 0xFF).toInt)
     out.writeByte((long >>> (8*1)).toInt & 0xFF)
@@ -34,14 +43,46 @@ object DenseIoBits {
     out.writeByte((long >>> (8*6)).toInt & 0xFF)
     out.writeByte((long >>> (8*7)).toInt & 0xFF)
   }
+  def writeMerged2(out: DataOutputStream,
+                  sizeLeLongs:Seq[(Long, Iterator[Long])]) = {
+    out.writeLong(sizeLeLongs.map(_._1).sum)
 
-  def write(output: DataOutputStream, bitN:Long, leLongs:Iterable[Long]): Unit = {
-    output.writeLong(bitN)
-    for (l <- leLongs) {
-      writeLeLong( output,  l )
+    var overbits = 0
+    var overflow = 0L
+
+    def writeLong(v:Long) = {
+      writeLeLong(out, (v << overbits) | overflow)
+      overflow = (v >>> (64 - overbits)).toInt
+    }
+
+    sizeLeLongs.foreach { case (lsize, les) =>
+      val readLongs = (lsize / 64)
+      if (overbits > 0) {
+        (0L until readLongs).foreach { l =>
+          writeLong(les.next)
+        }
+      } else {
+        (0L until readLongs).foreach { l =>
+          writeLeLong(out, les.next)
+        }
+      }
+      var extra = lsize % 64
+      val left = overbits + extra
+      if (left >= 64) { // there is one word full of content
+        writeLeLong(out, les.next)
+      } else if (les.hasNext) { // pad the extra bits to overflow
+        overflow = ((les.next() << overbits) | overflow)
+      }
+      overbits = (left % 64).toInt
+    }
+    if (overbits > 0) {
+      writeLeLong(out, overflow)
     }
   }
-  def write(output: DataOutputStream, v:Seq[Boolean]): Unit = {
+  override def writeMerged(out: DataOutputStream, bs:Seq[LBits]): Unit = {
+    writeMerged2(out, bs.map(e => (e.n, e.leLongs.iterator)))
+  }
+  def writeLSeq(output: DataOutputStream, v:LSeq[Boolean]): Unit = {
     output.writeLong(v.size)
     var i = 0
     var written = 0
@@ -63,125 +104,47 @@ object DenseIoBits {
     val byteSize = DenseIoBits.bitsToByteSize(sz)
     (written until byteSize.toInt).foreach { i => output.writeByte(0) }
   }
-
-  def writeMerged(out: DataOutputStream,
-                  aSize:Long,
-                  as:Iterator[Long],
-                  bSize:Long,
-                  bs:Iterator[Long]): Unit = {
-    out.writeLong(aSize + bSize)
-    val alongs = (aSize / 64)
-    (0L until alongs).foreach { i => writeLeLong(out, as.next) }
-    val overbits = (aSize % 64).toInt
-    var bLongCount = bitsToLongCount(bSize)
-    if (overbits > 0) {
-      var overflow = as.next
-      var i = 0
-      while (i < bLongCount) {
-        val v = bs.next
-        val w = (v << overbits) | overflow
-        writeLeLong(out, w)
-        overflow = v >>> (64 - overbits)
-        i += 1
-      }
-      if (bitsToLongCount(aSize + bSize) > alongs + bLongCount) {
-        writeLeLong(out, overflow)
-      }
-    } else {
-      (0L until bLongCount).foreach { i => writeLeLong(out, bs.next) }
-    }
-  }
-  def writeMerged(out: DataOutputStream, a:DenseIoBits[_], b:DenseIoBits[_]): Unit = {
-    writeMerged(out, a.lsize, a.leLongs.iterator, b.lsize, b.leLongs.iterator)
-  }
-  def defaultSeq[Id](lsize:Long) = {
-    new EmptyIoBits[Id](lsize)
-  }
-  def writeAnyMerged[Id](out: DataOutputStream, seqA:Any, seqB:Any): Unit = {
-    (seqA, seqB) match {
-      case (a:IoBits[_], b:IoBits[_]) =>
-        writeMerged(out, a.lsize, a.leLongs.iterator, b.lsize, b.leLongs.iterator)
-    }
-  }
-}
-
-// TODO: there are three different mappings from different data structures
-//       to dense bits. These should be merged !!!
-
-class DenseIoBitsType[Id](implicit val t:TypeTag[Bits])
-  extends IoTypeOf[Id, DenseIoBits[Id], Bits]()(t)
-    with SeqIoType[Id, DenseIoBits[Id], Boolean] {
-
-  def write(output: DataOutputStream, bitN:Long, leLongs:Iterable[Long]) =
-    DenseIoBits.write(output, bitN, leLongs)
-
   def write(output: DataOutputStream, v:Seq[Boolean]): Unit = {
-    DenseIoBits.write(output, v)
+    writeLSeq(output, LSeq(v))
   }
-
-  override def write(output: DataOutputStream, bits:Bits): Unit = {
-    bits match {
-      case v: DenseBits =>
-        output.writeLong(v.lsize)
-        val bs = v.bits.toByteArray
-        bs.foreach { b =>
-          output.writeByte(b)
-        }
-        val byteSize = DenseIoBits.bitsToByteSize(v.lsize)
-        for (i <- bs.size until byteSize.toInt) {
-          output.writeByte(0)
-        }
-      case v =>
-        output.writeLong(v.lsize)
-        var i = 0
-        val bits = new util.BitSet(v.lsize.toInt)
-        v.trues.foreach { l => bits.set(l.toInt) }
-        val bytes = bits.toByteArray
-        for (b <- bytes) {
-          output.writeByte(b)
-        }
-        // write trailing bytes
-        val byteSize = DenseIoBits.bitsToByteSize(v.lsize)
-        for (i <- bytes.size until byteSize.toInt) {
-          output.writeByte(0)
-        }
-    }
+  def write(output: DataOutputStream, bitN:Long, leLongs:Iterator[Long]): Unit = {
+    output.writeLong(bitN)
+    for (l <- leLongs) writeLeLong( output,  l )
   }
-  override def writeMerged(output: DataOutputStream, a:DenseIoBits[Id], b:DenseIoBits[Id]) =
-    DenseIoBits.writeMerged(output, a, b)
-  override def writeAnyMerged(output: DataOutputStream, a:Any, b:Any) =
-    DenseIoBits.writeAnyMerged(output, a, b)
-  override def defaultSeq(lsize: Long): IoSeq[Id, Boolean] = DenseIoBits.defaultSeq(lsize)
+  def writeSeq(output:DataOutputStream, v:LBits) : Unit = {
+    write(output, v.lsize, v.leLongs.iterator)
+  }
+  override def write(output: DataOutputStream, v:LBits): Unit = {
+    writeSeq(output, v)
+  }
 
   override def open(buf: IoData[Id]): DenseIoBits[Id] = {
     new DenseIoBits[Id](IoRef(this, buf.ref), buf.openRandomAccess)
   }
   override def valueTypeTag =
     _root_.scala.reflect.runtime.universe.typeTag[Boolean]
+
+  override def viewMerged(seqs: Seq[LBits]): LBits = MultiBits(seqs)
 }
 
+/*
 class BooleanIoSeqType[Id](implicit val t:TypeTag[Seq[Boolean]])
   extends IoTypeOf[Id, DenseIoBits[Id], Seq[Boolean]]()(t)
-    with SeqIoType[Id, DenseIoBits[Id], Boolean] {
-
-  def write(output: DataOutputStream, bitN:Int, v:Iterable[Long]) =
-    DenseIoBits.write(output, bitN, v)
+    with IoSeqType[Id, LBits, DenseIoBits[Id], Boolean] {
 
   override def write(output: DataOutputStream, v:Seq[Boolean]): Unit = {
     DenseIoBits.write(output, v)
   }
   override def writeMerged(output: DataOutputStream, a:DenseIoBits[Id], b:DenseIoBits[Id]) =
     DenseIoBits.writeMerged(output, a, b)
-  override def writeAnyMerged(output: DataOutputStream, a:Any, b:Any) =
-    DenseIoBits.writeAnyMerged(output, a, b)
   override def defaultSeq(lsize: Long) = DenseIoBits.defaultSeq(lsize)
-
-  override def open(buf: IoData[Id]): DenseIoBits[Id] = {
+ override def open(buf: IoData[Id]): DenseIoBits[Id] = {
     new DenseIoBits[Id](IoRef(this, buf.ref), buf.openRandomAccess)
   }
   override def valueTypeTag =
     _root_.scala.reflect.runtime.universe.typeTag[Boolean]
-}
+  override def viewMerged(seqs: Array[LBits]): LBits = new MultiBits(seqs)
+}*/
 
 
 /**
@@ -194,7 +157,7 @@ class DenseIoBits[IoId](val ref:IoRef[IoId, DenseIoBits[IoId]], val origBuf:Rand
 
   val buf = origBuf.openSlice(8)
 
-  def close = { origBuf.close; buf.close } //close both handles
+  override def close = { origBuf.close; buf.close } //close both handles
 
   override val longCount = DenseIoBits.bitsToLongCount(bitSize)
 
@@ -204,16 +167,35 @@ class DenseIoBits[IoId](val ref:IoRef[IoId, DenseIoBits[IoId]], val origBuf:Rand
   def offset = 8
 
   def long(l:Long) : Long = buf.getNativeLong(l*8)
-//  def beLong(l:Long) : Long = buf.getBeLong(l*8)
   def leLong(l:Long) : Long = buf.getLeLong(l*8)
 
-  def putLong(index:Long, l:Long) = buf.putNativeLong(index*8, l)
+  def longs =
+    new Iterable[Long] {
+      def iterator = new Iterator[Long] {
+        var at = 0L
+        def hasNext = at < longCount
+        def next = {
+          val rv = long(at)
+          at += 1
+          rv
+        }
+      }
+    }
 
-  def longs = for (pos <- (0L until longCount)) yield long(pos)
-//  def beLongs = for (pos <- (0L until longCount)) yield beLong(pos)
-  def leLongs = for (pos <- (0L until longCount)) yield leLong(pos)
+  override def leLongs =
+    new Iterable[Long] {
+      def iterator = new Iterator[Long] {
+        var at = 0L
+        def hasNext = at < longCount
+        def next = {
+          val rv = leLong(at)
+          at += 1
+          rv
+        }
+      }
+    }
 
-  def f = {
+  override lazy val f = {
     var rv = 0L
     val us = buf.unsafe
     var i = buf.address
@@ -227,31 +209,13 @@ class DenseIoBits[IoId](val ref:IoRef[IoId, DenseIoBits[IoId]], val origBuf:Rand
     rv
   }
 
-/*  def :=(bits:DenseIoBits[IoId]) = {
-    if (bitSize != bits.bitSize) {
-      throw new IllegalArgumentException("given bitset is of different length")
-    }
-    (0L until longCount).foreach { i =>
-      putLong(i, bits.long(i))
-    }
-  }
-
-  def &=(bits:DenseIoBits[IoId]) = {
-    if (bitSize != bits.bitSize) {
-      throw new IllegalArgumentException("given bitset is of different length")
-    }
-    (0L until longCount).foreach { i =>
-      putLong(i, long(i) & bits.long(i))
-    }
-  }*/
-  def fAnd(bits:IoBits[_]) = {
+  override def fAnd(bits:LBits) : Long = {
     bits match {
       case wrap : WrappedIoBits[_] => fAnd(wrap.unwrap)
       case dense : DenseIoBits[_] => fAnd(dense)
       case sparse : SparseIoBits[_] => IoBits.fAndDenseSparse(this, sparse)
-      case b : EmptyIoBits[_] => 0
       case _ =>
-        IoBits.fAnd(this, bits)
+        LBits.fAnd(this, bits)
     }
   }
 
@@ -276,7 +240,7 @@ class DenseIoBits[IoId](val ref:IoRef[IoId, DenseIoBits[IoId]], val origBuf:Rand
     rv
   }
 
-  def apply(i:Long) : Boolean = {
+  override def apply(i:Long) : Boolean = {
     if (i >= bitSize) throw new IllegalArgumentException(f"index $i out of [0, $bitSize]")
     val addr = i / 8L
     val offset = i % 8
@@ -289,79 +253,54 @@ class DenseIoBits[IoId](val ref:IoRef[IoId, DenseIoBits[IoId]], val origBuf:Rand
     ((buf.unsafe.getByte(buf.address + addr) >> offset) & 1) == 1
   }
 
-/*  def nextTrueBit(i:Long) : Boolean = {
-    var l = i / 64
-    var offset = i % 64
-    var v = apply(l)
-    while (v != 0) {
-      l += 1
-      v = apply(i)
-      offset = 0
-    }
+  private def truesFromBit(bitPos:Long) : Scanner[Long,Long] = new Scanner[Long,Long] {
+    // TODO: this moves forward byte at a time. Shouldn't this operate on (le)longs?
+    var l : Long = bitPos / 8
+    var v = buf.getByte(l)
+    var n : Long = bitPos
 
-  }*/
+    prepareNext()
 
-  val trues = new Iterable[Long]{
-    override def iterator: Iterator[Long] = {
-      new Iterator[Long] {
-        var l = 0
-        var v = buf.getByte(l)
-        var n = 0L
+    def copy = truesFromBit(n)
 
-        prepareNext()
-
-        def prepareNext() {
-          while (v == 0 && l + 1 < (lsize+7)/ 8) {
-            l += 1
-            v = buf.getByte(l)
-          }
-          val zeros = java.lang.Long.numberOfTrailingZeros(v)
-          v = ((v & (~(1 << zeros))) & 0xff).toByte
-          n = l*8 + zeros
-          if (n >= lsize) {
-            n = -1
-          }
-        }
-        override def hasNext: Boolean = {
-          n != -1
-        }
-
-        override def next(): Long = {
-          val rv = n
-          prepareNext
-          rv
-        }
+    def prepareNext() {
+      while (v == 0 && l + 1 < (lsize+7)/ 8) {
+        l += 1
+        v = buf.getByte(l)
       }
-/*      new Iterator[Long] {
-        var l = 0L
-        var v = buf.getLeLong(l)
-        var n = 0L
-
-        prepareNext()
-
-        def prepareNext() {
-          while (v == 0L && l + 1 < longCount) {
-            l += 1
-            v = buf.getLeLong(l)
-          }
-          val zeros = java.lang.Long.numberOfTrailingZeros(v)
-          v = (v & (~(1L << zeros)))
-          n = l*64 + zeros
-          if (n >= lsize) {
-            n = -1L
-          }
-        }
-        override def hasNext: Boolean = {
-          n != -1L
-        }
-
-        override def next(): Long = {
-          val rv = n
-          prepareNext
-          rv
-        }
-      }*/
+      val zeros = java.lang.Long.numberOfTrailingZeros(v)
+      v = ((v & (0xff << (zeros+1))) & 0xff).toByte
+      n = l*8 + zeros
+      if (n >= lsize) {
+        n = -1
+      }
     }
+    override def hasNext: Boolean = {
+      n != -1
+    }
+    override def seek(target:Long) = {
+      n = target
+      l = target / 8
+      val clear = target % 8
+      v = (buf.getByte(l) & (0xff << clear)).toByte
+      prepareNext
+      n == target
+    }
+    override def headOption = n match {
+      case -1 => None
+      case v  => Some(v)
+    }
+    override def head = n
+
+    override def next(): Long = {
+      val rv = n
+      prepareNext
+      rv
+    }
+  }
+
+  val trues = new Scannable[Long, Long]{
+    override def iterator = truesFromBit(0)
   }
 
   def update(i:Long, v:Boolean) = {

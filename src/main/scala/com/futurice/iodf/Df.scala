@@ -30,7 +30,7 @@ trait Df[IoId, ColId] extends java.io.Closeable {
   def lsize : Long
 
   def indexOf(id:ColId) =
-    Utils.binarySearch(colIds, id)(colIdOrdering)
+    Utils.binarySearch(colIds, id)(colIdOrdering)._1
 
   def col[T <: Any](id: ColId)(implicit scope:IoScope) = {
     scope.bind(openCol[T](id))
@@ -38,10 +38,10 @@ trait Df[IoId, ColId] extends java.io.Closeable {
   def col[T <: Any](i: Long)(implicit scope:IoScope) = {
     scope.bind(openCol[T](i))
   }
-  def colType[T](i:Long) : SeqIoType[IoId, _ <: IoSeq[IoId, T], T] = {
-    using (openCol(i)) { _.ref.typ.asInstanceOf[SeqIoType[IoId,_ <: IoSeq[IoId, T],T]] }
+  def colType[T](i:Long) : IoSeqType[IoId, T, _ <: LSeq[T], _ <: IoSeq[IoId, T]] = {
+    using (openCol(i)) { _.ref.typ.asInstanceOf[IoSeqType[IoId, T, _ <: LSeq[T], _ <: IoSeq[IoId, T]]] }
   }
-  def colType[T](id:ColId) : SeqIoType[IoId, _ <: IoSeq[IoId, T], T] = {
+  def colType[T](id:ColId) : IoSeqType[IoId, T, _ <: LSeq[T], _ <: IoSeq[IoId, T]] = {
     colType(indexOf(id))
   }
   def openCol[T <: Any](i:Long) : IoSeq[IoId, T] = {

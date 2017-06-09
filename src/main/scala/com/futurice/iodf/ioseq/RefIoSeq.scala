@@ -5,6 +5,7 @@ import java.io.DataOutputStream
 import com.futurice.iodf.store.{Dir, IoData}
 import com.futurice.iodf._
 import com.futurice.iodf.Utils._
+import com.futurice.iodf.utils.LBits
 import xerial.larray.buffer.LBufferAPI
 
 import scala.reflect.runtime.universe._
@@ -30,20 +31,22 @@ class RefIoSeq[Id, T <: IoObject[Id]](
 class RefIoSeqType[Id, T <: IoObject[Id]](
    types:IoTypes[Id],
    entryType:ObjectIoSeqType[Id, (Int, Id, Long)])(
-   implicit val t : TypeTag[Seq[IoObject[Id]]],
-   implicit val vTag : TypeTag[IoObject[Id]])
-  extends IoTypeOf[Id, RefIoSeq[Id, T], Seq[IoObject[Id]]]()(t)
-  with    SeqIoType[Id, RefIoSeq[Id, T], IoObject[Id]]{
+   implicit val t : TypeTag[Seq[T]],
+   implicit val vTag : TypeTag[T])
+  extends IoTypeOf[Id, RefIoSeq[Id, T], Seq[T]]()(t)
+  with    IoSeqType[Id, T, LSeq[T], RefIoSeq[Id, T]] {
 
-  override def write(output: DataOutputStream, data: Seq[IoObject[Id]]) = {
-    entryType.write(
+  override def writeSeq(output: DataOutputStream, data: LSeq[T]) = {
+    entryType.writeSeq(
       output,
-      data.map { e =>
+      data.map[(Int, Id, Long)] { e =>
         (types.ioTypeId(e.ref.typ), e.ref.dataRef.id, e.ref.dataRef.pos) })
   }
-  override def writeMerged(out: DataOutputStream, seqA: RefIoSeq[Id, T], seqB: RefIoSeq[Id, T]): Unit = {
-    entryType.writeMerged(out, seqA.buf, seqB.buf)
+
+  override def write(output: DataOutputStream, data: Seq[T]) = {
+    writeSeq(output, LSeq(data))
   }
+  def viewMerged(seq:Seq[LSeq[T]]) = new MultiSeq[T, LSeq[T]](seq.toArray)
 
   override def open(buf: IoData[Id]): RefIoSeq[Id, T] = {
     new RefIoSeq[Id, T](

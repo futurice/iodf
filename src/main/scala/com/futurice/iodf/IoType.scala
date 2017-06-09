@@ -32,7 +32,7 @@ trait WithValueTypeTag[M] {
   def valueTypeTag : TypeTag[M]
 }
 
-abstract class IoTypeOf[Id, T <: IoObject[Id], In](implicit typ:TypeTag[In]) extends IoType[Id, T] {
+object IoTypeOf {
 
   /* Scala creates separate Int types for typeOf[Int] and for case class A {i:Int} members
    * These separate types appear as 'Int' and 'scala.Int' in console outpu
@@ -48,40 +48,23 @@ abstract class IoTypeOf[Id, T <: IoObject[Id], In](implicit typ:TypeTag[In]) ext
   }
   def matches(a:Type, b:Type) : Boolean = {
     val (t1, t2) = (normalize(a), normalize(b))
-    //System.out.println("comparing " + t1 + "/" + t1.hashCode()+ " vs " + t2 + "/" + t2.hashCode())
     val rv = (t1 == t2) || {
       val TypeRef(a, b, c) = t1
       val TypeRef(a2, b2, c2) = t2
-      /*      System.out.println("  " + a + "/" + a.hashCode()+ " vs " + a2 + "/" + a2.hashCode())
-            System.out.println("  " + b + "/" + b.hashCode()+ " vs " + b2 + "/" + b2.hashCode())
-            (0 until Math.min(c.size, c2.size)).foreach { i =>
-              System.out.println("  " + c(i) + "/" + c(i).hashCode() + " vs " + c2(i) + "/" + c2(i).hashCode())
-            }*/
       ((a == a2) || (a.toString == a2.toString)) &&
         b == b2 && !c.zip(c2).exists { case (c, c2) => !matches(c, c2) }
     }
-    //System.out.println("  -> " + rv)
     rv
   }
+}
+
+abstract class IoTypeOf[Id, T <: IoObject[Id], In](implicit typ:TypeTag[In]) extends IoType[Id, T] {
   def asTypeOf[E](implicit t:Type) = {
-    matches(t, typ.tpe) match {
+    IoTypeOf.matches(t, typ.tpe) match {
       case true => Some(this.asInstanceOf[IoTypeOf[Id, T, E]])
       case false => None
     }
-    /*    System.out.println("comparing " + t + " with " + typ.tpe + " " + (typ.tpe == t))
-        val TypeRef(a, b, c) = typ.tpe
-        val TypeRef(a2, b2, c2) = t
-        System.out.println(" 1.comparing " + a + " with " + a2 + " " + (a == a2))
-        System.out.println(" 2.comparing " + b + " with " + b2 + " " + (b == b2))
-        System.out.println(" 3.comparing " + c + " with " + c2 + " " + (c == c2))
-        t match {
-          case TypeRef(a2, b2, c2) if (a==a2 && b==b2 && c==c2)=> Some(this.asInstanceOf[IoTypeOf[Id, T, E]])
-          case _ => None
-        }*/
   }
-  /*  def tryCreate[I](id:Id, data:I, dir:Dir[Id]) = {
-      Some( create(id, data.asInstanceOf[In], dir) )
-    }*/
   def write(output:DataOutputStream, v:In) : Unit
   def writeAny(output:DataOutputStream, v:Any) = {
     v match {
@@ -94,5 +77,15 @@ abstract class IoTypeOf[Id, T <: IoObject[Id], In](implicit typ:TypeTag[In]) ext
   }
   def apply(file:FileRef[Id], v:In)(implicit scope:IoScope) = {
     scope.bind(create(file, v))
+  }
+}
+
+class ConvertedIoTypeOf[Id, T <: IoObject[Id], In, In2](t : IoTypeOf[Id, T, In2], conversion:In=>In2)(implicit typ:TypeTag[In])
+  extends IoTypeOf[Id, T, In]()(typ) {
+  override def write(output: DataOutputStream, v: In): Unit = {
+    t.write(output, conversion(v))
+  }
+  override def open(buf: IoData[Id]): T = {
+    t.open(buf)
   }
 }

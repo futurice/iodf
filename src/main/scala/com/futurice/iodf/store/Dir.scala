@@ -282,6 +282,19 @@ object IoData {
   }
 }
 
+
+
+// TODO: replace dir with land, and file with resource.
+//       requiring all memory areas to be located in directory, messes up the cleaning
+trait Resource extends Closeable {
+  def openOutput : OutputStream
+  def openMemory : RandomAccess
+}
+
+trait Land extends Closeable {
+  def createResource : Resource
+}
+
 /**
   * Created by arau on 24.11.2016.
   */
@@ -301,6 +314,7 @@ trait Dir[Id] extends Closeable {
     }
     find(0)
   }
+  def freeRef = ref(freeId)
 
 //  def create(id:Id, length:Long) : IoData[Id]
   def openOutput(id:Id) : OutputStream
