@@ -233,7 +233,7 @@ class DfTest extends TestSuite("df") {
           (0 until n).map { i =>
             view.openIndex(rnd.nextInt(index.colCount))
           }
-        }: Seq[IoBits[IoId]]
+        }: Seq[LBits]
         try {
           t.tln
           t.i("counting freqs...")
@@ -500,7 +500,7 @@ class DfTest extends TestSuite("df") {
         t.tln("merged db columns: " + dbM.colIds.mkString(", "))
         t.tln
         t.tln("merged db content:")
-        def findErrors[Id, T](col:IoSeq[Id, T], colA:IoSeq[Id,T], colB:IoSeq[Id, T]) = {
+        def findErrors[Id, T](col:LSeq[T], colA:LSeq[T], colB:LSeq[T]) = {
           (if (col.lsize != colA.lsize + colB.lsize)
             Seq(("SIZE", col.lsize, colA.lsize, colB.lsize))
           else Seq())++

@@ -102,7 +102,7 @@ class BitsView(bits:LBits, from:Long, until:Long) extends LBits {
 }
 
 object LBits {
-  def denseSparseSplit = 128L
+  def denseSparseSplit = 256L
 
   def isDense(f: Long, n: Long) = {
     f * denseSparseSplit > n
@@ -163,7 +163,7 @@ object LBits {
       def apply(i:Long) = bools(i.toInt)
       def truesFrom(from:Long) : Scanner[Long, Long] = {
         new Scanner[Long, Long] {
-          var at = 0
+          var at = from.toInt
           def nextTrue: Unit = {
             while (at < bools.length && !bools(at)) at += 1
           }
@@ -219,7 +219,7 @@ object LBits {
           override def head: Long = n
           override def seek(t: Long): Boolean = {
             n = bits.nextSetBit(t.toInt)
-            bits.get(n)
+            n == t
           }
         }
       }
@@ -293,7 +293,7 @@ object LBits {
 
           def seek(target: Long) = {
             val (hit, low, high) =
-              Utils.binarySearch(trueIndexes, target, at, at + (target - head))
+              Utils.binarySearch(trueIndexes, target, at, at + (target - head) + 1)
             at = high
             hit != -1
           }

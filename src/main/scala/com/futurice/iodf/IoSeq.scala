@@ -28,7 +28,6 @@ trait LSeq[T] extends Iterable[T] with PartialFunction[Long, T] with Closeable {
   def map[B](f: T => B) : LSeq[B] = {
     val self = this
     new LSeq[B] {
-      def ref = throw new NotImplementedError()
       def apply(l:Long) = f(self.apply(l))
       def lsize : Long = self.lsize
     }
