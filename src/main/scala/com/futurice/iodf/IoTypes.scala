@@ -140,20 +140,20 @@ object IoTypes {
     val javaIo = new JavaObjectIo[Any]
     val variantIo = new VariantIo(Array(BooleanIo, IntIo, LongIo, StringIo), javaIo)
     val tupleIo = new Tuple2Io[String, Any](StringIo, variantIo)
-    val denseBitsIoType = new DenseIoBitsType[String]
+    val bitsIoType =
+      new IoBitsType[String](// converts Bits
+        new SparseIoBitsType[String](),
+        new DenseIoBitsType[String])
     buf ++=
       Seq(
         str,
         new IntIoArrayType[String],
         new LongIoArrayType[String],
-        DenseIoBits.booleanSeqIoType(new DenseIoBitsType[String]()),// new BooleanIoSeqType[String](),  // converts Seq[Boolean]
-        new IoBitsType[String](// converts Bits
-          new SparseIoBitsType[String](),
-          denseBitsIoType),
+        IoBitsType.booleanSeqIoType(bitsIoType),// new BooleanIoSeqType[String](),  // converts Seq[Boolean]
+        bitsIoType,
         //        new SparseToDenseIoBitsType[String](),
         new IntIoArrayType[String],
-        new RefIoSeqType[String,
-          IoSeq[String, IoObject[String]]](self,
+        new RefIoSeqType[String, IoObject[String]](self,
           new ObjectIoSeqType[String, (Int, String, Long)](entryIo, entryIo)),
         new ObjectIoSeqType[String, (String, Any)](tupleIo, tupleIo),
         new ObjectIoSeqType[String, Any](javaIo, javaIo))

@@ -264,7 +264,13 @@ class BitsPerf extends TestSuite("perf/bits") {
               (p, makeBits(v => IoBits(v), p, n, rnd))
             })
 
-        val all = mbits ++ bits
+/*        t.t("sharding previous bits..")
+        val sbits =
+          bits.map { case (p, bits) =>
+            (p, MultiBits.shard(bits, mbits.head._2))
+          }*/
+
+        val all = mbits ++ bits //++ sbits
 
         all.foreach { case (p1,b1) =>
           t.tln(f"p(a)=$p1%.5f, type:" + b1.getClass.getName)

@@ -47,8 +47,8 @@ class IndexedDf[IoId, T](val df:TypedDf[IoId, T],
       case i  => openIndex(i)
     }
   }
-  def openIndex(i:Long) : IoBits[IoId] = {
-    indexDf.openCol(i).asInstanceOf[IoBits[IoId]]
+  def openIndex(i:Long) : LBits = {
+    indexDf.openCol(i).asInstanceOf[LBits]
   }
 
   def lsize = df.lsize

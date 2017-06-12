@@ -15,6 +15,8 @@ class TypedDfView[IoId, T : ClassTag](df:Df[IoId, String])(
   implicit tag:TypeTag[T], ord:Ordering[String])
   extends TypedDf[IoId, T] {
 
+  override type ColType[T] = LSeq[T]
+
 //  lazy val thisColId = indexOf("this")
 
   val (make, constructorParamNames, constructorParamTypes) = {
@@ -61,7 +63,8 @@ class TypedDfView[IoId, T : ClassTag](df:Df[IoId, String])(
   override def fieldNames = colIds // .filter(_ != "this")
   override def fieldIndexes = (0 until colIds.size) //.filter(_ != thisColIndex)
 
-  override def _cols = df._cols
+  override def _cols =
+    df._cols.map { e : LSeq[Any] => e }
 
   override def lsize: Long = df.lsize
 

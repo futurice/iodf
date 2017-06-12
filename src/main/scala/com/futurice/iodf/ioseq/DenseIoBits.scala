@@ -8,17 +8,13 @@ import com.futurice.iodf.utils._
 import xerial.larray.buffer.LBufferAPI
 import com.futurice.iodf.{IoRef, _}
 
+import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 
 
 object DenseIoBits {
   def bitsToLongCount(bitSize:Long) = ((bitSize+63L) / 64L)
   def bitsToByteSize(bitSize:Long) = bitsToLongCount(bitSize) * 8
-
-  def booleanSeqIoType[IoId](denseBits:DenseIoBitsType[IoId])(implicit t:TypeTag[Seq[Boolean]]) =
-    new ConvertedIoTypeOf[IoId, DenseIoBits[IoId], Seq[Boolean], LBits](
-      denseBits,
-      bools => LBits(bools))(t)
 
 }
 
@@ -52,7 +48,7 @@ class DenseIoBitsType[Id](implicit val t:TypeTag[LBits])
 
     def writeLong(v:Long) = {
       writeLeLong(out, (v << overbits) | overflow)
-      overflow = (v >>> (64 - overbits)).toInt
+      overflow = (v >>> (64 - overbits)).toLong
     }
 
     sizeLeLongs.foreach { case (lsize, les) =>
@@ -256,7 +252,10 @@ class DenseIoBits[IoId](val ref:IoRef[IoId, DenseIoBits[IoId]], val origBuf:Rand
   private def truesFromBit(bitPos:Long) : Scanner[Long,Long] = new Scanner[Long,Long] {
     // TODO: this moves forward byte at a time. Shouldn't this operate on (le)longs?
     var l : Long = bitPos / 8
-    var v = buf.getByte(l)
+    var v = {
+      val mask = 0xff << (bitPos % 8)
+      buf.getByte(l) & mask
+    }
     var n : Long = bitPos
 
     prepareNext()
@@ -272,22 +271,24 @@ class DenseIoBits[IoId](val ref:IoRef[IoId, DenseIoBits[IoId]], val origBuf:Rand
       v = ((v & (0xff << (zeros+1))) & 0xff).toByte
       n = l*8 + zeros
       if (n >= lsize) {
-        n = -1
+        n = lsize
       }
     }
     override def hasNext: Boolean = {
-      n != -1
+      n < lsize
     }
     override def seek(target:Long) = {
       n = target
-      l = target / 8
-      val clear = target % 8
-      v = (buf.getByte(l) & (0xff << clear)).toByte
-      prepareNext
+      if (target < lsize) {
+        l = target / 8
+        val clear = target % 8
+        v = (buf.getByte(l) & (0xff << clear)).toByte
+        prepareNext
+      }
       n == target
     }
     override def headOption = n match {
-      case -1 => None
+      case v if v == lsize => None
       case v  => Some(v)
     }
     override def head = n
