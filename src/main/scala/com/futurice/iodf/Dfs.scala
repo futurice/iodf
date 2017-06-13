@@ -18,7 +18,7 @@ trait DfColTypes[IoId, ColId] {
 }
 
 
-class Dfs[IoId : ClassTag](types:IoTypes[IoId])(implicit val seqSeqTag : TypeTag[Seq[IoObject[IoId]]]) {
+class Dfs[IoId : ClassTag](val types:IoTypes[IoId])(implicit val seqSeqTag : TypeTag[Seq[IoObject[IoId]]]) {
 
   val l = LoggerFactory.getLogger(this.getClass)
 
@@ -462,14 +462,14 @@ class Dfs[IoId : ClassTag](types:IoTypes[IoId])(implicit val seqSeqTag : TypeTag
   def multiTypedDf[T:ClassTag](dfs:Array[TypedDf[IoId,T]])
                               (implicit tag: TypeTag[T]): TypedDf[IoId, T] = {
     new TypedDfView[IoId, T](
-      new MultiDf[IoId, String](dfs, dfColTypes(dfs.head)))
+      MultiDf.autoClosing(dfs, dfColTypes(dfs.head)))
   }
 
   def multiIndexedDf[T:ClassTag](dfs:Array[IndexedDf[IoId, T]])
                                 (implicit tag: TypeTag[T]): IndexedDf[IoId, T] = {
     new IndexedDf[IoId, T](
       multiTypedDf(dfs.map(_.df)),
-      new MultiDf(dfs.map(_.indexDf), indexDfColTypes())(indexColIdOrdering))
+      MultiDf.autoClosing(dfs.map(_.indexDf), indexDfColTypes())(indexColIdOrdering))
   }
 
   def createIndexedDf[T: ClassTag](items: Seq[T],
@@ -592,7 +592,8 @@ class FsDfs(types:IoTypes[String])(implicit seqSeqTag : TypeTag[Seq[IoObject[Str
     }
   }
   def openMultiIndexedDfFiles[T : ClassTag](srcFiles:Seq[File])(implicit tag:TypeTag[T]) = {
-    multiIndexedDf( srcFiles.map { openIndexedDfFile[T] }.toArray )
+    val dfs = srcFiles.map { openIndexedDfFile[T] }.toArray
+    multiIndexedDf(  dfs )
   }
 /*
   def writeMergedIndexedDfsFile[T : ClassTag](srcFiles:Seq[File], mergeDir:File, targetFile:File)(implicit tag:TypeTag[T]) = {

@@ -485,11 +485,10 @@ class DfTest extends TestSuite("df") {
 
         t.t("creating dbA..")
         val dbA =
-          t.iMsLn(
-            bind(dfs.createTypedDf(itemsA, dirA)))
+          t.iMsLn(dfs.createTypedDf(itemsA, dirA))
         t.t("creating dbB..")
         val dbB =
-          t.iMsLn(bind(dfs.createTypedDf(itemsB, dirB)))
+          t.iMsLn(dfs.createTypedDf(itemsB, dirB))
         t.t("opening multi df..")
         val dbM =
           t.iMsLn(
@@ -544,10 +543,10 @@ class DfTest extends TestSuite("df") {
         t.t("creating dbA..")
         val dbA =
           t.iMsLn(
-            bind(dfs.createIndexedDf(itemsA, dirA)))
+            dfs.createIndexedDf(itemsA, dirA))
         t.t("creating dbB..")
         val dbB =
-          t.iMsLn(bind(dfs.createIndexedDf(itemsB, dirB)))
+          t.iMsLn(dfs.createIndexedDf(itemsB, dirB))
         t.t("opening multi df..")
         val dbM =
           t.iMsLn(

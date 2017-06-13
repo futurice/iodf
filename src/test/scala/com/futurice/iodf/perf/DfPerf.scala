@@ -1,18 +1,14 @@
-package com.futurice.iodf
+package com.futurice.iodf.perf
 
-import java.io.{DataOutputStream, File}
-import java.util
+import java.io.File
 
-import com.futurice.testtoys.{TestSuite, TestTool}
-import com.futurice.iodf.store.{MMapDir, RamDir, RefCounted}
 import com.futurice.iodf.Utils._
-import com.futurice.iodf.ioseq._
-import com.futurice.iodf.utils.LBits
+import com.futurice.iodf._
+import com.futurice.iodf.store.RefCounted
+import com.futurice.testtoys.{TestSuite, TestTool}
 
-import scala.reflect.runtime.universe._
-import scala.util.Random
-import scala.concurrent.duration._
 import scala.concurrent.Await
+import scala.concurrent.duration._
 
 
 /**

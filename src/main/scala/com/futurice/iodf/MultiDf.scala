@@ -10,6 +10,19 @@ object MultiDf {
     implicit colIdOrdering:Ordering[ColId]) = {
     new MultiDf[IoId, ColId](dfs.toArray, types)
   }
+  def refCounted[IoId, ColId](dfs:Seq[_ <: RefCounted[Df[IoId, ColId]]], types:DfColTypes[IoId, ColId])(
+    implicit colIdOrdering:Ordering[ColId]) = {
+    val rv = new MultiDf[IoId, ColId](dfs.map(_.value).toArray, types)
+    dfs.map { rv.scope.bind(_) }
+    rv
+  }
+  def autoClosing[IoId, ColId](dfs:Seq[_ <: Df[IoId, ColId]],
+                               types:DfColTypes[IoId, ColId])(
+    implicit colIdOrdering:Ordering[ColId]) = {
+    val rv = new MultiDf[IoId, ColId](dfs.toArray, types)
+    dfs.map { rv.scope.bind(_) }
+    rv
+  }
 }
 
 
@@ -21,10 +34,10 @@ class MultiDf[IoId, ColId](dfs:Array[_ <: Df[IoId, ColId]], types:DfColTypes[IoI
 
   type ColType[T] = MultiSeq[T, LSeq[T]]
 
- /* val scope = new IoScope()
-  dfs.foreach { df => scope.bind(df) }*/
+  val scope = new IoScope()
+  /* dfs.foreach { df => scope.bind(df) }*/
   override def close(): Unit = {
-//    scope.close
+    scope.close
   }
 
   val seqs : Array[LSeq[ColId]] = dfs.map(_.colIds)
