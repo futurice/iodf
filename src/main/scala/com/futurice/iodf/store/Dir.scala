@@ -50,33 +50,43 @@ object RefCounted {
   }
 }
 
-
-case class RefCounted[V <: Closeable](val value:V, val initCount:Int = 0) extends Closeable {
+case class RefCounted[V <: Closeable](val value:V, val initCount:Int) extends Closeable {
   @volatile var count = initCount
   RefCounted.opened(this)
 
-  def apply() = value
+  // FIXME: the API needs redesign based on real-world usage patterns
 
-  def bind(implicit scope:IoScope) = {
+  // NEW VERSION of apply() !
+//  def apply(implicit scope:IoScope) = inc.bind.get // this would be consistent with other methods
+
+//  def apply() = value
+  def get = value
+
+/*  def bind(implicit scope:IoScope) = {
     inc
     scope.bind(this)
     this
-  }
+  }*/
   def inc = synchronized  {
     count += 1
     this
   }
-
-  def use(implicit scope:IoScope) = {
-    var rv = open
+  def bind(implicit scope:IoScope) = {
     scope.bind(this)
-    rv
   }
-  // needs to be closed
-  def open = synchronized  {
-    count += 1
-    value
+  // prefer .inc.bind.get
+  def incBindAndGet(implicit scope:IoScope) = inc.bind.get
+  def bindAndGet(implicit scope:IoScope) = bind.get
+  def incAndBind(implicit scope:IoScope) = inc.bind
+  def incAndGet = inc.get
+
+  def closing [RV](f : (V) => RV) : RV = {
+    try { f(value) }
+    finally { close }
   }
+//  def use(implicit scope:IoScope) = incBindAndGet(scope)
+  // incAndGet
+  def open = incAndGet
   override def hashCode(): Int = value.hashCode()
   def close = synchronized {
 //    System.out.println("dec " + RefCounted.this.hashCode())

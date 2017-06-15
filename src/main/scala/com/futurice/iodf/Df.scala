@@ -15,6 +15,8 @@ import org.slf4j.{Logger, LoggerFactory}
 import scala.collection.mutable.ArrayBuffer
 
 
+case class ColKey[ColId, Type](colId:ColId) {}
+
 /*
 trait SortedIoSeq[IoId, ColId <: Ordered[ColId]] extends IoSeq[IoId, ColId] {
 }*/
@@ -41,6 +43,10 @@ trait Df[IoId, ColId] extends java.io.Closeable {
   def col[T <: Any](i: Long)(implicit scope:IoScope) : ColType[T] = {
     scope.bind(openCol[T](i))
   }
+  def col[T <: Any](key:ColKey[ColId, T])(implicit scope:IoScope) = {
+    scope.bind(openCol(key.colId))
+  }
+
   def colType[T](i:Long) : IoSeqType[IoId, T, _ <: LSeq[T], _ <: IoSeq[IoId, T]] = {
     using (openCol(i)) {
       _.asInstanceOf[IoSeq[IoId, T]].ref.typ.asInstanceOf[IoSeqType[IoId, T, _ <: LSeq[T], _ <: IoSeq[IoId, T]]]
