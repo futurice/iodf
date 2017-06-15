@@ -151,11 +151,14 @@ class BitsTest extends TestSuite("bits") {
           ("fAndSparseDense", { case (a, b) => LBits.fAndSparseDense(a, b) }),
           ("fAndDenseDense", { case (a, b) => LBits.fAndDenseDense(a, b) }),
           ("&.f", { case (a, b) => (a & b).f }),
-          ("&", { case (a, b) => (a & b).toSeq }),
-          ("&~", { case (a, b) => (a &~ b).toSeq }),
+          ("&", { case (a, b) => (a & b).toArray.toSeq }),
+          ("&~", { case (a, b) => (a &~ b).toArray.toSeq }),
+          ("&~.f", { case (a, b) => (a &~ b).f} ),
+          ("& ~", { case (a, b) => (a & b.~).toArray.toSeq} ),
+          ("& ~.f", { case (a, b) => (a & b.~).f} ),
           (".f+.f", { case (a, b) => (a.f + b.f) }),
           ("++.f", { case (a, b) => (a merge b).f }),
-          ("++", { case (a, b) => (a merge b).toSeq })
+          ("++", { case (a, b) => (a merge b).toArray.toSeq })
         )
       }
     }
@@ -284,6 +287,18 @@ class BitsTest extends TestSuite("bits") {
       bs => LBits(bs),
       verbose = true)
   }
+/*  test("lbits-sparseio-ops") { t =>
+    RefCounted.trace {
+      scoped { implicit scope =>
+        implicit val io = IoContext()
+          tTestBitSOps(
+            t,
+            ((bs: Seq[Boolean]) => toSparseIoBits(bs)),
+            ((bs: Seq[Boolean]) => toSparseIoBits(bs)),
+            verbose = true)
+      }
+    }
+  }*/
 
   def tTestBitsOpsWith(t:TestTool)(bits:(String, Seq[Boolean] => LBits)*): Unit = {
     for ((n1, b1) <- bits) {

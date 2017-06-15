@@ -165,6 +165,8 @@ class DenseIoBits[IoId](val ref:IoRef[IoId, DenseIoBits[IoId]], val origBuf:Rand
   def long(l:Long) : Long = buf.getNativeLong(l*8)
   def leLong(l:Long) : Long = buf.getLeLong(l*8)
 
+  override def isDense = true
+
   def longs =
     new Iterable[Long] {
       def iterator = new Iterator[Long] {

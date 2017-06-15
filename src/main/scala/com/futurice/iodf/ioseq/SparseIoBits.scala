@@ -77,7 +77,7 @@ class SparseIoBits[IoId](val ref:IoRef[IoId, SparseIoBits[IoId]],
     indexes.close
   }
   override def f: Long = {
-    indexes.size
+    indexes.lsize
   }
   override def fAnd(bits : LBits): Long = {
     bits match {
@@ -88,6 +88,7 @@ class SparseIoBits[IoId](val ref:IoRef[IoId, SparseIoBits[IoId]],
         LBits.fAnd(this, bits)
     }
   }
+  override def isDense = false
   def fAnd(b : SparseIoBits[_]): Long = fAndSparse(b)
 
   private def truesFromTrue(from:Long) : Scanner[Long, Long] = {
@@ -102,10 +103,11 @@ class SparseIoBits[IoId](val ref:IoRef[IoId, SparseIoBits[IoId]],
         }
       override def head : Long = indexes.apply(at)
       def seek(target:Long) = {
-        val (hit, low, high) =
+        at = indexAfter(at, target)
+/*        val (hit, low, high) =
           Utils.binarySearch(indexes, target, at, at + target - head + 1)
-        at = high
-        hit != -1
+        at = high*/
+        indexes(at) == target
       }
       def next = {
         val rv = head
@@ -119,16 +121,16 @@ class SparseIoBits[IoId](val ref:IoRef[IoId, SparseIoBits[IoId]],
     def iterator = truesFromTrue(0)
   }
 
-  def indexAfter(indexFrom:Long, target:Long) = {
-    if (indexFrom < indexes.lsize) {
-      val head = indexes(indexFrom)
-      val range = target - head + 1
-      val (hit, low, high) =
-        Utils.binarySearch(indexes, target, indexFrom, indexFrom + range)
-      high
-    } else {
-      indexes.lsize
+  def indexAfter(from:Long, target:Long) = {
+    var i = from
+    val max = indexes.lsize
+    var jump = 8
+    while (i+jump < max && indexes(i+jump) <= target) {
+      i = i+jump
+      jump *= 2
     }
+    while (i < max && indexes(i) < target) i += 1
+    i
   }
 
   def fAndSparse(b : SparseIoBits[_]): Long = {
@@ -141,11 +143,14 @@ class SparseIoBits[IoId](val ref:IoRef[IoId, SparseIoBits[IoId]],
       val t1 = indexes(i)
       val t2 = b.indexes(j)
       if (t1 < t2) {
-        i += 1
-        while (i < max1 && indexes(i) < t2) i += 1
+        i = indexAfter(i+1, t2)
+/*        i += 1
+        while (i < max1 && indexes(i) < t2) i += 1*/
+
       } else if (t2 < t1) {
-        j += 1
-        while (j < max2 && b.indexes(j) < t1) j += 1
+        j = b.indexAfter(j+1, t1)
+/*        j += 1
+        while (j < max2 && b.indexes(j) < t1) j += 1*/
       } else {
         rv += 1
         i += 1

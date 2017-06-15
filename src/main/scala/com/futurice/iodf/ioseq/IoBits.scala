@@ -84,7 +84,25 @@ class WrappedIoBits[IoId](val someRef:Option[IoRef[IoId, IoBits[IoId]]],
   override def apply(l:Long) = bits.apply(l)
   def lsize = bits.lsize
   override def f = bits.f
-  override def fAnd(bits:LBits) = this.bits.fAnd(bits)
+  override def fAnd(bits:LBits) = this.bits.fAnd(unwrap(bits))
+  def unwrap(b:LBits) = {
+    b match {
+      case w : WrappedIoBits[_] => w.bits
+      case b => b
+    }
+  }
+  override def createAnd[IoId2](b:LBits)(implicit io:IoContext[IoId2]) = {
+    this.bits.createAnd(unwrap(b))
+  }
+  override def createAndNot[IoId2](b:LBits)(implicit io:IoContext[IoId2]) = {
+    this.bits.createAndNot(unwrap(b))
+  }
+  override def createNot[IoId2](implicit io:IoContext[IoId2]) = {
+    this.bits.createNot
+  }
+  override def createMerged[IoId2](b:LBits)(implicit io:IoContext[IoId2]) = {
+    this.bits.createMerged(unwrap(b))
+  }
   override def leLongs = bits.leLongs
   override def trues = bits.trues
 
@@ -186,8 +204,8 @@ class IoBitsType[IoId](val sparse:SparseIoBitsType[IoId],
         while (i.hasNext && j.hasNext) {
           val t1 = i.head
           val t2 = j.head
-          if (t1 < t2) i.next
-          else if (t1 > t2) j.next
+          if (t1 < t2) i.seek(t2)
+          else if (t1 > t2) j.seek(t1)
           else {
             trues += t1
             i.next
@@ -212,7 +230,7 @@ class IoBitsType[IoId](val sparse:SparseIoBitsType[IoId],
     if (b1.n != b2.n) throw new IllegalArgumentException()
     (b1.isDense, b2.isDense) match {
       case (true, true) =>
-        dense.write(output, b1.size,
+        dense.write(output, b1.lsize,
           new Iterator[Long] {
             val i = b1.leLongs.iterator
             val j = b2.leLongs.iterator
@@ -224,19 +242,19 @@ class IoBitsType[IoId](val sparse:SparseIoBitsType[IoId],
 
         dense
       case (true, false) =>
-        dense.write(output, b1.size,
+        dense.write(output, b1.lsize,
           new Iterator[Long] {
             var les = b1.leLongs.iterator
             var trues = b2.trues.iterator
-            var begin = 0
+            var begin = 0L
 
             def next = {
               var rv = les.next
-              val end = begin + 64
+              val end = begin + 64L
               while (trues.hasNext && trues.head < end) {
-                rv &= ~(1<<(trues.next-begin))
+                rv &= ~(1L<<(trues.next-begin))
               }
-              begin += 64
+              begin += 64L
               rv
             }
             def hasNext = les.hasNext
@@ -262,6 +280,7 @@ class IoBitsType[IoId](val sparse:SparseIoBitsType[IoId],
             j.next
           }
         }
+        while (i.hasNext) trues += i.next
         sparse.write(output, LBits(trues, b1.n))
         sparse
     }

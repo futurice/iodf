@@ -85,8 +85,13 @@ class MultiBits(val bits:Array[LBits]) extends MultiSeq[Boolean, LBits](bits) wi
 
 
   override def apply(l: Long): Boolean = {
-    val Some((s, sIndex)) = toSeqIndex(l)
-    s(sIndex)
+    toSeqIndex(l) match {
+      case Some((s, sIndex)) =>
+        s(sIndex)
+      case None =>
+        throw new IllegalArgumentException(
+          f"no page found for index $l (this length is $lsize, pages are ${ranges.mkString(",")})")
+    }
   }
 
   def mapOperation[T, E](bs: LBits,
@@ -161,19 +166,19 @@ class MultiBits(val bits:Array[LBits]) extends MultiSeq[Boolean, LBits](bits) wi
     override def iterator = truesWith(bits.map(_.trues.iterator))
   }
 
-  def createAnd[IoId1, IoId2](b:IoBits[IoId1])(implicit io:IoContext[IoId2]) = {
+  override def createAnd[IoId2](b:LBits)(implicit io:IoContext[IoId2]) = {
     mapOperation(
       b, _ createAnd _, MultiBits.apply _,
       (a, b) => io.bits.createAnd(io.dir.ref(io.dir.freeId), a, b))
   }
-  def createAndNot[IoId1, IoId2](b:IoBits[IoId1])(implicit io:IoContext[IoId2]) = {
+  override def createAndNot[IoId2](b:LBits)(implicit io:IoContext[IoId2]) = {
     mapOperation(b, _ createAndNot _, MultiBits.apply _,
       (a, b) => io.bits.createAndNot(io.dir.ref(io.dir.freeId), a, b))
   }
-  def createNot[IoId1, IoId2](implicit io:IoContext[IoId2]) = {
+  override def createNot[IoId2](implicit io:IoContext[IoId2]) = {
     MultiBits(bits.map(_.createNot))
   }
-  def createMerged[IoId1, IoId2](b:IoBits[IoId1])(implicit io:IoContext[IoId2]) = {
+  override def createMerged[IoId2](b:LBits)(implicit io:IoContext[IoId2]) = {
     io.bits.createMerged(io.dir, Seq(this, b))
   }
 
