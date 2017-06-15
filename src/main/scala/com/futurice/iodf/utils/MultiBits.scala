@@ -17,13 +17,81 @@ object MultiBits {
 }
 
 class MultiBits(val bits:Array[LBits]) extends MultiSeq[Boolean, LBits](bits) with LBits {
-  override def f: Long = {
+  override lazy val f: Long = {
     bits.map(_.f).sum
   }
 
+  override def leLongs : Iterable[Long] = new Iterable[Long] {
+    def iterator = new Iterator[Long] {
+      val is = PeekIterator((bits.map(_.leLongs.iterator)  zip ranges).iterator)
+
+      var overbits = 0L
+      var overflow = 0L
+      var readFromCurrent = 0L
+
+      def getNextLeLongFrom(v: Long) = {
+        if (overbits > 0) {
+          val rv = (v << overbits) | overflow
+          overflow = (v >>> (64 - overbits))
+          rv
+        } else {
+          v
+        }
+      }
+
+      def getNextLeLong : Option[Long] = {
+        if (is.hasNext && is.head._1.hasNext) {
+          val (i, (begin, end)) = is.head
+          val l = i.next
+          readFromCurrent += 64
+          if (i.hasNext) {
+            Some(getNextLeLongFrom(l))
+          } else { // handle the last long in a special way
+            var extra = (end-begin) - (readFromCurrent-64)
+            val left = overbits + extra
+            if (left >= 64) { // there is one word full of content
+              val rv = getNextLeLongFrom(l)
+              overbits = (left - 64).toInt
+              Some(rv)
+            } else { // pad the extra bits to overflow
+              val ov = overflow
+              overflow = l << overbits
+              overflow = overflow | ov
+              overbits = left.toInt
+              getNextLeLong
+            }
+          }
+        } else if (is.hasNext) {
+          is.next
+          readFromCurrent = 0L
+          getNextLeLong
+        } else if (overbits > 0) {
+          val rv = overflow
+          overbits = 0
+          Some(rv)
+        } else {
+          None
+        }
+      }
+      var n = getNextLeLong
+      def hasNext = n.isDefined
+      def next = {
+        val rv = n
+        n = getNextLeLong
+        rv.get
+      }
+    }
+  }
+
+
   override def apply(l: Long): Boolean = {
-    val Some((s, sIndex)) = toSeqIndex(l)
-    s(sIndex)
+    toSeqIndex(l) match {
+      case Some((s, sIndex)) =>
+        s(sIndex)
+      case None =>
+        throw new IllegalArgumentException(
+          f"no page found for index $l (this length is $lsize, pages are ${ranges.mkString(",")})")
+    }
   }
 
   def mapOperation[T, E](bs: LBits,
@@ -34,6 +102,7 @@ class MultiBits(val bits:Array[LBits]) extends MultiSeq[Boolean, LBits](bits) wi
       case b : MultiBits =>
         reduce((bits zip b.bits).map { case (a, b) => map(a, b) })
       case _ =>
+//        reduce((bits zip ranges).map { case (b, (begin, end)) => map(b, bs.view(begin, end)) })
         fallback(this, bs)
     }
   }
@@ -63,7 +132,9 @@ class MultiBits(val bits:Array[LBits]) extends MultiSeq[Boolean, LBits](bits) wi
     }
 
     override def headOption: Option[Long] = {
-      is.headOption.flatMap { case (it, (begin, _)) => it.headOption.map(_ + begin) }
+      is.headOption.flatMap { case (it, (begin, _)) =>
+        it.headOption.map(_ + begin)
+      }
     }
     override def head : Long = {
       val (it, (begin, end)) = is.head
@@ -72,33 +143,42 @@ class MultiBits(val bits:Array[LBits]) extends MultiSeq[Boolean, LBits](bits) wi
 
     override def seek(t: Long): Boolean = {
       is.headOption.map { case (it, (begin, end)) =>
-        it.seek(t - begin) match {
-          case true => true
-          case _ if it.hasNext => false
-          case _ =>
-            prepareNext
-            seek(t) // seek in the next segment
+        if (t < begin) {
+          false
+        } else if (t >= end) {
+          it.seek(end) // finish this one
+          prepareNext
+          seek(t)
+        } else {
+          it.seek(t - begin) match {
+            case true => true
+            case _ if it.hasNext => false
+            case _ =>
+              prepareNext
+              seek(t) // seek in the next segment
+          }
         }
       }.getOrElse(false)
+
     }
   }
   override def trues = new Scannable[Long, Long] {
     override def iterator = truesWith(bits.map(_.trues.iterator))
   }
 
-  def createAnd[IoId1, IoId2](b:IoBits[IoId1])(implicit io:IoContext[IoId2]) = {
+  override def createAnd[IoId2](b:LBits)(implicit io:IoContext[IoId2]) = {
     mapOperation(
       b, _ createAnd _, MultiBits.apply _,
       (a, b) => io.bits.createAnd(io.dir.ref(io.dir.freeId), a, b))
   }
-  def createAndNot[IoId1, IoId2](b:IoBits[IoId1])(implicit io:IoContext[IoId2]) = {
+  override def createAndNot[IoId2](b:LBits)(implicit io:IoContext[IoId2]) = {
     mapOperation(b, _ createAndNot _, MultiBits.apply _,
       (a, b) => io.bits.createAndNot(io.dir.ref(io.dir.freeId), a, b))
   }
-  def createNot[IoId1, IoId2](implicit io:IoContext[IoId2]) = {
+  override def createNot[IoId2](implicit io:IoContext[IoId2]) = {
     MultiBits(bits.map(_.createNot))
   }
-  def createMerged[IoId1, IoId2](b:IoBits[IoId1])(implicit io:IoContext[IoId2]) = {
+  override def createMerged[IoId2](b:LBits)(implicit io:IoContext[IoId2]) = {
     io.bits.createMerged(io.dir, Seq(this, b))
   }
 

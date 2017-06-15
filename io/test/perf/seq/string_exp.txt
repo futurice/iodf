@@ -1,0 +1,48 @@
+creating data..11 ms (was 10 ms)
+writing 1024 entries took 15 ms
+resulting file is 16 KB
+68.267 entries/ms
+1.067 KB/ms
+
+creating data..6 ms (was 15 ms)
+writing 2048 entries took 26 ms
+resulting file is 32 KB
+78.769 entries/ms
+1.231 KB/ms
+
+creating data..8 ms (was 9 ms)
+writing 4096 entries took 45 ms
+resulting file is 65 KB
+91.022 entries/ms
+1.444 KB/ms
+
+creating data..7 ms (was 20 ms)
+writing 8192 entries took 59 ms
+resulting file is 129 KB
+138.847 entries/ms
+2.186 KB/ms
+
+creating data..15 ms (was 61 ms)
+writing 16384 entries took 123 ms
+resulting file is 260 KB
+133.203 entries/ms
+2.114 KB/ms
+
+creating data..30 ms (was 29 ms)
+writing 32768 entries took 239 ms
+resulting file is 519 KB
+137.105 entries/ms
+2.172 KB/ms
+
+creating data..59 ms 
+writing 65536 entries took 471 ms
+resulting file is 1040 KB
+139.142 entries/ms
+2.208 KB/ms
+
+creating data..118 ms 
+writing 131072 entries took 945 ms
+resulting file is 2079 KB
+138.701 entries/ms
+2.200 KB/ms
+

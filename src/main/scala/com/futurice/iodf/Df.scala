@@ -15,15 +15,20 @@ import org.slf4j.{Logger, LoggerFactory}
 import scala.collection.mutable.ArrayBuffer
 
 
+case class ColKey[ColId, Type](colId:ColId) {}
+
 /*
 trait SortedIoSeq[IoId, ColId <: Ordered[ColId]] extends IoSeq[IoId, ColId] {
 }*/
 
 trait Df[IoId, ColId] extends java.io.Closeable {
-  def colIds   : IoSeq[IoId, ColId]
+
+  def colIds   : LSeq[ColId]
   def colIdOrdering : Ordering[ColId]
 
-  def _cols    : IoSeq[IoId, IoSeq[IoId, Any]]
+  type ColType[T] <: LSeq[T]
+
+  def _cols    : LSeq[ColType[Any]]
 
   def colCount = colIds.size
   // size in Long
@@ -32,28 +37,34 @@ trait Df[IoId, ColId] extends java.io.Closeable {
   def indexOf(id:ColId) =
     Utils.binarySearch(colIds, id)(colIdOrdering)._1
 
-  def col[T <: Any](id: ColId)(implicit scope:IoScope) = {
+  def col[T <: Any](id: ColId)(implicit scope:IoScope) : ColType[T] = {
     scope.bind(openCol[T](id))
   }
-  def col[T <: Any](i: Long)(implicit scope:IoScope) = {
+  def col[T <: Any](i: Long)(implicit scope:IoScope) : ColType[T] = {
     scope.bind(openCol[T](i))
   }
+  def col[T <: Any](key:ColKey[ColId, T])(implicit scope:IoScope) = {
+    scope.bind(openCol(key.colId))
+  }
+
   def colType[T](i:Long) : IoSeqType[IoId, T, _ <: LSeq[T], _ <: IoSeq[IoId, T]] = {
-    using (openCol(i)) { _.ref.typ.asInstanceOf[IoSeqType[IoId, T, _ <: LSeq[T], _ <: IoSeq[IoId, T]]] }
+    using (openCol(i)) {
+      _.asInstanceOf[IoSeq[IoId, T]].ref.typ.asInstanceOf[IoSeqType[IoId, T, _ <: LSeq[T], _ <: IoSeq[IoId, T]]]
+    }
   }
   def colType[T](id:ColId) : IoSeqType[IoId, T, _ <: LSeq[T], _ <: IoSeq[IoId, T]] = {
     colType(indexOf(id))
   }
-  def openCol[T <: Any](i:Long) : IoSeq[IoId, T] = {
-    _cols(i).asInstanceOf[IoSeq[IoId, T]]
+  def openCol[T <: Any](i:Long) : ColType[T] = {
+    _cols(i).asInstanceOf[ColType[T]]
   }
   def apply[T <: Any](i:Long, j:Long) : T = {
     using (openCol[T](i)) { _(j) }
   }
-  def openCol[T <: Any](id:ColId) : IoSeq[IoId, T] = {
+  def openCol[T <: Any](id:ColId) : ColType[T] = {
     indexOf(id) match {
       case -1 => throw new IllegalArgumentException(id + " not found")
-      case i => _cols(i).asInstanceOf[IoSeq[IoId, T]]
+      case i => _cols(i).asInstanceOf[ColType[T]]
     }
   }
   def apply[T <: Any](id:ColId, i:Long) : T = {

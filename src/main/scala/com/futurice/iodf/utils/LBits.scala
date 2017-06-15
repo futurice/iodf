@@ -50,7 +50,7 @@ trait LBits extends LSeq[Boolean] {
   def createAndNot[IoId2](b:LBits)(implicit io:IoContext[IoId2]) : LBits = {
     io.bits.createAndNot(io.dir, this, b)
   }
-  def createNot[IoId2](implicit io:IoContext[IoId2]) = {
+  def createNot[IoId2](implicit io:IoContext[IoId2]) : LBits = {
     io.bits.createNot(io.dir, this)
   }
   def createMerged[IoId2](b:LBits)(implicit io:IoContext[IoId2]) : LBits = {
@@ -65,6 +65,8 @@ trait LBits extends LSeq[Boolean] {
   def ~[IoId2](implicit io:IoContext[IoId2], scope:IoScope) : LBits = {
     scope.bind(createNot)
   }
+  def unary_~[IoId2](implicit io:IoContext[IoId2], scope:IoScope) : LBits =
+    this~
   def merge [IoId2](b:LBits)(implicit io:IoContext[IoId2], scope:IoScope) : LBits = {
     scope.bind(createMerged(b))
   }
@@ -102,7 +104,7 @@ class BitsView(bits:LBits, from:Long, until:Long) extends LBits {
 }
 
 object LBits {
-  def denseSparseSplit = 128L
+  def denseSparseSplit = 256L
 
   def isDense(f: Long, n: Long) = {
     f * denseSparseSplit > n
@@ -141,13 +143,13 @@ object LBits {
 
   def fAndSparseSparse(a: LBits, b: LBits): Long = {
     var rv = 0L
-    val i1 = PeekIterator(a.trues.iterator)
-    val i2 = PeekIterator(b.trues.iterator)
+    val i1 = a.trues.iterator
+    val i2 = b.trues.iterator
     while (i1.hasNext && i2.hasNext) {
       val t1 = i1.head
       val t2 = i2.head
-      if (t1 < t2) i1.next
-      else if (t1 > t2) i2.next
+      if (t1 < t2) i1.seek(t2)
+      else if (t1 > t2) i2.seek(t1)
       else {
         rv += 1
         i1.next
@@ -163,7 +165,7 @@ object LBits {
       def apply(i:Long) = bools(i.toInt)
       def truesFrom(from:Long) : Scanner[Long, Long] = {
         new Scanner[Long, Long] {
-          var at = 0
+          var at = from.toInt
           def nextTrue: Unit = {
             while (at < bools.length && !bools(at)) at += 1
           }
@@ -219,7 +221,7 @@ object LBits {
           override def head: Long = n
           override def seek(t: Long): Boolean = {
             n = bits.nextSetBit(t.toInt)
-            bits.get(n)
+            n == t
           }
         }
       }
@@ -293,7 +295,7 @@ object LBits {
 
           def seek(target: Long) = {
             val (hit, low, high) =
-              Utils.binarySearch(trueIndexes, target, at, at + (target - head))
+              Utils.binarySearch(trueIndexes, target, at, at + (target - head) + 1)
             at = high
             hit != -1
           }

@@ -1,18 +1,15 @@
-package com.futurice.iodf
+package com.futurice.iodf.perf
 
-import java.io.{DataOutputStream, File}
 import java.util
 
-import com.futurice.testtoys.{TestSuite, TestTool}
-import com.futurice.iodf.store.{MMapDir, RamDir, RefCounted}
 import com.futurice.iodf.Utils._
 import com.futurice.iodf.ioseq._
+import com.futurice.iodf.store.{MMapDir, RefCounted}
 import com.futurice.iodf.utils._
+import com.futurice.iodf.{IoContext, IoScope}
+import com.futurice.testtoys.{TestSuite, TestTool}
 
-import scala.reflect.runtime.universe._
 import scala.util.Random
-import scala.concurrent.duration._
-import scala.concurrent.Await
 
 /**
   * Put the perf tests here, which are too slow to run as sanity checks
@@ -264,7 +261,13 @@ class BitsPerf extends TestSuite("perf/bits") {
               (p, makeBits(v => IoBits(v), p, n, rnd))
             })
 
-        val all = mbits ++ bits
+/*        t.t("sharding previous bits..")
+        val sbits =
+          bits.map { case (p, bits) =>
+            (p, MultiBits.shard(bits, mbits.head._2))
+          }*/
+
+        val all = mbits ++ bits //++ sbits
 
         all.foreach { case (p1,b1) =>
           t.tln(f"p(a)=$p1%.5f, type:" + b1.getClass.getName)

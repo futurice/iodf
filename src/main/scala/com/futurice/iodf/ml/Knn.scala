@@ -11,6 +11,11 @@ import com.futurice.iodf.utils.LBits
 
 
 /**
+  * NOTE; when scoring knn(X), and examining some entry E from given dataframe:
+  *   the first key weight in keyValueW is the distance, when for feature
+  *   f(E) is true, but f(X) is false, and w._2 is the distance, when
+  *   f(E) is false, buf f(X) is true
+  *
   * Created by arau on 22.3.2017.
   */
 class Knn[IoId, T](df:IndexedDf[IoId, T],
@@ -46,7 +51,7 @@ class Knn[IoId, T](df:IndexedDf[IoId, T],
           indexConf.analyze(id, getter(v)).foreach { value =>
             val keyValue = id -> value
             keyValueW.get(keyValue).foreach { case w =>
-              baseLine += w._1
+              baseLine += w._2
               scoped { implicit scope =>
                 (df.index(keyValue) & select).trues.foreach { t =>
                   rv(t.toInt) -= (w._1 + w._2) //

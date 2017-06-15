@@ -84,7 +84,8 @@ class RamDir[Id](ids:IdSchema[Id])(implicit t:ClassTag[Id]) extends Dir[Id] {
                   def close = {
                     buf.release()
                   }
-                })))
+                }),
+                0))
       }
     }
   }

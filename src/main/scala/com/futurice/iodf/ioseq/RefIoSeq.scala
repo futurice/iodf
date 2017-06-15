@@ -28,33 +28,33 @@ class RefIoSeq[Id, T <: IoObject[Id]](
   override def close(): Unit = buf.close
 }
 
-class RefIoSeqType[Id, T <: IoObject[Id]](
+class RefIoSeqType[Id, M <: IoObject[Id]](
    types:IoTypes[Id],
    entryType:ObjectIoSeqType[Id, (Int, Id, Long)])(
-   implicit val t : TypeTag[Seq[T]],
-   implicit val vTag : TypeTag[T])
-  extends IoTypeOf[Id, RefIoSeq[Id, T], Seq[T]]()(t)
-  with    IoSeqType[Id, T, LSeq[T], RefIoSeq[Id, T]] {
+   implicit val t : TypeTag[Seq[M]],
+   implicit val valueTag : TypeTag[M])
+  extends IoTypeOf[Id, RefIoSeq[Id, M], Seq[M]]()(t)
+  with    IoSeqType[Id, M, LSeq[M], RefIoSeq[Id, M]] {
 
-  override def writeSeq(output: DataOutputStream, data: LSeq[T]) = {
+  override def writeSeq(output: DataOutputStream, data: LSeq[M]) = {
     entryType.writeSeq(
       output,
       data.map[(Int, Id, Long)] { e =>
         (types.ioTypeId(e.ref.typ), e.ref.dataRef.id, e.ref.dataRef.pos) })
   }
 
-  override def write(output: DataOutputStream, data: Seq[T]) = {
+  override def write(output: DataOutputStream, data: Seq[M]) = {
     writeSeq(output, LSeq(data))
   }
-  def viewMerged(seq:Seq[LSeq[T]]) = new MultiSeq[T, LSeq[T]](seq.toArray)
+  def viewMerged(seq:Seq[LSeq[M]]) = new MultiSeq[M, LSeq[M]](seq.toArray)
 
-  override def open(buf: IoData[Id]): RefIoSeq[Id, T] = {
-    new RefIoSeq[Id, T](
-      IoRef[Id, RefIoSeq[Id, T]](this, buf.ref),
+  override def open(buf: IoData[Id]): RefIoSeq[Id, M] = {
+    new RefIoSeq[Id, M](
+      IoRef[Id, RefIoSeq[Id, M]](this, buf.ref),
       types,
       entryType.open(buf))
   }
-  override def valueTypeTag = vTag
+  override def valueTypeTag = valueTag
 
 }
 

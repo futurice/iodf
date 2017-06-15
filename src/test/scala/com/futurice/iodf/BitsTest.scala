@@ -21,8 +21,8 @@ class BitsTest extends TestSuite("bits") {
 
   def tAssertEquals[T](t:TestTool, ground:T, tested:T, verbose:Boolean = false)(properties:(String, T => Any)*) = {
     properties.flatMap { case (name, getter) =>
-      val gp = getter(ground)
       val tp = getter(tested)
+      val gp = getter(ground)
       if (gp != tp) {
         t.fail
         t.tln(f"  testing $name failed. the properties are not equal!")
@@ -48,42 +48,65 @@ class BitsTest extends TestSuite("bits") {
     using (IoScope.open) { implicit scope =>
       using(IoContext.open) { implicit io =>
         tAssertEquals[LBits](t, ground, tested, verbose)(
+          ("(0)", _.apply(0)),
+          (s"(${ground.size})", _.apply(ground.size-1)),
+          (s"(${ground.size/2})", _.apply(ground.size/2)),
           ("n", _.n),
           ("f", _.f),
-          ("~", _.~.toSeq),
-          ("iterator", _.iterator.toSeq),
-          ("leLongs", _.leLongs.toSeq),
-          ("trues", _.trues.toSeq),
-          ("trues.iterator", _.trues.iterator.toSeq),
+          ("~", _.~.toArray.toSeq),
+          ("~.f", _.~.f),
+          ("iterator", _.iterator.toArray.toSeq),
+          ("leLongs", { b =>
+            val l = b.leLongs.toArray.toSeq
+            (l.size, l)
+          }),
+          ("trues", _.trues.toArray.toSeq),
+          ("trues.iterator", _.trues.iterator.toArray.toSeq),
           ("trues.iterator.head", _.trues.iterator.head),
           ("trues.iterator.headOption", _.trues.iterator.headOption),
           ("trues.iterator.seeked(10)", {
-            _.trues.iterator.seeked(10).toSeq
+            _.trues.iterator.seeked(10).toArray.toSeq
           }),
           ("trues.iterator.seeked(100)", {
-            _.trues.iterator.seeked(100).toSeq
+            _.trues.iterator.seeked(100).toArray.toSeq
           }),
           ("trues.iterator.seeked(1000)", {
-            _.trues.iterator.seeked(1000).toSeq
+            _.trues.iterator.seeked(1000).toArray.toSeq
           }),
           (f"trues.iterator.take(8) + .copy.seeked(200).take(8)", { b =>
             val i = b.trues.iterator
-            (i.take(8).toSeq, i.copy.seeked(200).take(8).toSeq)
+            val copy = i.copy
+            (i.take(8).toArray.toSeq, copy.seeked(200).take(8).toArray.toSeq)
+          }),
+          (f"views($x,$y)(0)", { b =>
+            b.view(x, y).apply(0)
+          }),
+          (f"views($x,$y)(${y-x-1})", { b =>
+            b.view(x, y).apply(y-x-1)
+          }),
+          (f"views($x,$y)(${(y-x)/2})", { b =>
+            b.view(x, y).apply((y-x)/2)
+          }),
+          (f"views($x,$y).trues.headOption", { b =>
+            b.view(x, y).trues.headOption
           }),
           (f"views($x,$y)", { b =>
-            b.view(x, y).toSeq
+            b.view(x, y).toArray.toSeq
           }),
           (f"views($x,$y).f", { b =>
             b.view(x, y).f
           }),
           (f"views($x,$y).leLongs", { b =>
-            b.view(x, y).leLongs.toSeq
+            b.view(x, y).leLongs.toArray.toSeq
           }),
           (f"views($x,$y).trues", { b =>
-            b.view(x, y).trues.toSeq
+            b.view(x, y).trues.toArray.toSeq
           }),
-          (f"views($x,$y).trues.iterator.seeked(${2*x})", { b =>
-            b.view(x, y).trues.iterator.seeked(2*x).toSeq
+          (f"views($x,$y).trues.iterator.seeked(${x})", { b =>
+            b.view(x, y).trues.iterator.seeked(x).toArray.toSeq
+          }),
+          (f"views($x,$y).views(${x/2},$x).f", { b =>
+            b.view(x, y).view(x/2, x).f
           })
         )
       }
@@ -128,11 +151,14 @@ class BitsTest extends TestSuite("bits") {
           ("fAndSparseDense", { case (a, b) => LBits.fAndSparseDense(a, b) }),
           ("fAndDenseDense", { case (a, b) => LBits.fAndDenseDense(a, b) }),
           ("&.f", { case (a, b) => (a & b).f }),
-          ("&", { case (a, b) => (a & b).toSeq }),
-          ("&~", { case (a, b) => (a &~ b).toSeq }),
+          ("&", { case (a, b) => (a & b).toArray.toSeq }),
+          ("&~", { case (a, b) => (a &~ b).toArray.toSeq }),
+          ("&~.f", { case (a, b) => (a &~ b).f} ),
+          ("& ~", { case (a, b) => (a & b.~).toArray.toSeq} ),
+          ("& ~.f", { case (a, b) => (a & b.~).f} ),
           (".f+.f", { case (a, b) => (a.f + b.f) }),
           ("++.f", { case (a, b) => (a merge b).f }),
-          ("++", { case (a, b) => (a merge b).toSeq })
+          ("++", { case (a, b) => (a merge b).toArray.toSeq })
         )
       }
     }
@@ -249,7 +275,7 @@ class BitsTest extends TestSuite("bits") {
     RefCounted.trace {
       scoped { implicit scope =>
         implicit val io = IoContext()
-        tTestBits(t, toMultiBits(_))
+        tTestBits(t, toMultiBits(_), verbose = true)
       }
     }
   }
@@ -261,6 +287,18 @@ class BitsTest extends TestSuite("bits") {
       bs => LBits(bs),
       verbose = true)
   }
+/*  test("lbits-sparseio-ops") { t =>
+    RefCounted.trace {
+      scoped { implicit scope =>
+        implicit val io = IoContext()
+          tTestBitSOps(
+            t,
+            ((bs: Seq[Boolean]) => toSparseIoBits(bs)),
+            ((bs: Seq[Boolean]) => toSparseIoBits(bs)),
+            verbose = true)
+      }
+    }
+  }*/
 
   def tTestBitsOpsWith(t:TestTool)(bits:(String, Seq[Boolean] => LBits)*): Unit = {
     for ((n1, b1) <- bits) {
@@ -295,7 +333,8 @@ class BitsTest extends TestSuite("bits") {
           "sparse" -> toSparseBits,
           "denseIo" -> ((bs: Seq[Boolean]) => toDenseIoBits(bs)),
           "sparseIo" -> ((bs: Seq[Boolean]) => toSparseIoBits(bs)),
-          "io" -> ((bs: Seq[Boolean]) => toIoBits(bs)))
+          "io" -> ((bs: Seq[Boolean]) => toIoBits(bs)),
+          "multi" -> ((bs:Seq[Boolean]) => toMultiBits(bs)))
       }
     }
   }

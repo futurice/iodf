@@ -28,6 +28,7 @@ case class IndexConf[ColId](analyzers:Map[ColId, Any => Seq[Any]] = Map[ColId, A
   }
 }
 
+
 class IndexedDf[IoId, T](val df:TypedDf[IoId, T],
                          val indexDf:Df[IoId, (String, Any)]) extends Closeable {
 
@@ -35,6 +36,7 @@ class IndexedDf[IoId, T](val df:TypedDf[IoId, T],
   def colIds = df.colIds
   def col[T <: Any](id:String)(implicit scope:IoScope) = df.col[T](id)
   def col[T <: Any](i:Long)(implicit scope:IoScope) = df.col[T](i)
+
   def index(idValue:(String, Any))(implicit scope:IoScope) : LBits = {
     scope.bind(openIndex(idValue))
   }
@@ -47,15 +49,15 @@ class IndexedDf[IoId, T](val df:TypedDf[IoId, T],
       case i  => openIndex(i)
     }
   }
-  def openIndex(i:Long) : IoBits[IoId] = {
-    indexDf.openCol(i).asInstanceOf[IoBits[IoId]]
+  def openIndex(i:Long) : LBits = {
+    indexDf.openCol(i).asInstanceOf[LBits]
   }
 
   def lsize = df.lsize
   def size = lsize.toInt
 
   def n = df.lsize
-  def f(i:Int) = {
+  def f(i:Long) = {
     using(openIndex(i)) { _.f }
   }
   def f(idValue:(String, Any)) = {

@@ -24,6 +24,10 @@ first is boolean
 
     ok.
 
+  second is multi
+
+    ok.
+
 first is dense
 
   second is boolean
@@ -47,6 +51,10 @@ first is dense
     ok.
 
   second is io
+
+    ok.
+
+  second is multi
 
     ok.
 
@@ -76,6 +84,10 @@ first is sparse
 
     ok.
 
+  second is multi
+
+    ok.
+
 first is denseIo
 
   second is boolean
@@ -99,6 +111,10 @@ first is denseIo
     ok.
 
   second is io
+
+    ok.
+
+  second is multi
 
     ok.
 
@@ -128,6 +144,10 @@ first is sparseIo
 
     ok.
 
+  second is multi
+
+    ok.
+
 first is io
 
   second is boolean
@@ -151,6 +171,40 @@ first is io
     ok.
 
   second is io
+
+    ok.
+
+  second is multi
+
+    ok.
+
+first is multi
+
+  second is boolean
+
+    ok.
+
+  second is dense
+
+    ok.
+
+  second is sparse
+
+    ok.
+
+  second is denseIo
+
+    ok.
+
+  second is sparseIo
+
+    ok.
+
+  second is io
+
+    ok.
+
+  second is multi
 
     ok.
 

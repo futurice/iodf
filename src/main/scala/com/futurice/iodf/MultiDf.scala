@@ -10,6 +10,19 @@ object MultiDf {
     implicit colIdOrdering:Ordering[ColId]) = {
     new MultiDf[IoId, ColId](dfs.toArray, types)
   }
+  def refCounted[IoId, ColId](dfs:Seq[_ <: RefCounted[Df[IoId, ColId]]], types:DfColTypes[IoId, ColId])(
+    implicit colIdOrdering:Ordering[ColId]) = {
+    val rv = new MultiDf[IoId, ColId](dfs.map(_.value).toArray, types)
+    dfs.map { rv.scope.bind(_) }
+    rv
+  }
+  def autoClosing[IoId, ColId](dfs:Seq[_ <: Df[IoId, ColId]],
+                               types:DfColTypes[IoId, ColId])(
+    implicit colIdOrdering:Ordering[ColId]) = {
+    val rv = new MultiDf[IoId, ColId](dfs.toArray, types)
+    dfs.map { rv.scope.bind(_) }
+    rv
+  }
 }
 
 
@@ -19,13 +32,15 @@ object MultiDf {
 class MultiDf[IoId, ColId](dfs:Array[_ <: Df[IoId, ColId]], types:DfColTypes[IoId, ColId])(
   implicit val colIdOrdering:Ordering[ColId]) extends Df[IoId, ColId] {
 
- /* val scope = new IoScope()
-  dfs.foreach { df => scope.bind(df) }*/
+  type ColType[T] = MultiSeq[T, LSeq[T]]
+
+  val scope = new IoScope()
+  /* dfs.foreach { df => scope.bind(df) }*/
   override def close(): Unit = {
-//    scope.close
+    scope.close
   }
 
-  val seqs : Array[IoSeq[IoId, ColId]] = dfs.map(_.colIds).toArray
+  val seqs : Array[LSeq[ColId]] = dfs.map(_.colIds)
   val mergeIterator =
     new MergeSortIterator[ColId](seqs.map(_.iterator))
   val entries = new ArrayBuffer[MergeSortEntry[ColId]]()
@@ -36,32 +51,23 @@ class MultiDf[IoId, ColId](dfs:Array[_ <: Df[IoId, ColId]], types:DfColTypes[IoI
     }
   }
 
-  override val colIds: IoSeq[IoId, ColId] = {
-    new IoSeq[IoId, ColId] {
-
+  override val colIds: LSeq[ColId] = {
+    new LSeq[ColId] {
       override def apply(l: Long): ColId = MultiDf.this.synchronized {
         updateTo(l)
         entries(l.toInt).value
       }
-
       override def lsize: Long = MultiDf.this.synchronized {
         updateTo(Long.MaxValue)
         entries.size
       }
-
-      override def ref: IoRef[IoId, _ <: IoObject[IoId]] = {
-        throw new RuntimeException("not referable")
-      }
-      override def close(): Unit = {
-        //
-      }
     }
   }
 
-  override val _cols: IoSeq[IoId, IoSeq[IoId, Any]] =
-    new IoSeq[IoId, IoSeq[IoId, Any]] {
+  override val _cols: LSeq[ColType[Any]] =
+    new LSeq[ColType[Any]] {
       // this will open the column
-      override def apply(l: Long): IoSeq[IoId, Any] = MultiDf.this.synchronized {
+      override def apply(l: Long): ColType[Any] = MultiDf.this.synchronized {
         updateTo(l)
         val e = entries(l.toInt)
         val cols = e.sources zip e.sourceIndexes map { case (source, index) =>
@@ -71,17 +77,11 @@ class MultiDf[IoId, ColId](dfs:Array[_ <: Df[IoId, ColId]], types:DfColTypes[IoI
         val colMap = (e.sources zip cols).toMap
         t.viewAnyMerged(
           (0 until dfs.size).map {
-            i => colMap.getOrElse(i, t.defaultSeq(dfs(i).lsize)).asInstanceOf[IoSeq[IoId, Any]]
-          }).asInstanceOf[IoSeq[IoId, Any]]
+            i => colMap.getOrElse(i, t.defaultSeq(dfs(i).lsize).get).asInstanceOf[LSeq[Any]]
+          }).asInstanceOf[ColType[Any]]
       }
       override def lsize: Long = {
         MultiDf.this.lsize
-      }
-      override def ref: IoRef[IoId, _ <: IoObject[IoId]] = {
-        throw new RuntimeException("not referable")
-      }
-      override def close(): Unit = {
-        // nothing
       }
     }
 

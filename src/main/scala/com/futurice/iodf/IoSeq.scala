@@ -28,9 +28,9 @@ trait LSeq[T] extends Iterable[T] with PartialFunction[Long, T] with Closeable {
   def map[B](f: T => B) : LSeq[B] = {
     val self = this
     new LSeq[B] {
-      def ref = throw new NotImplementedError()
       def apply(l:Long) = f(self.apply(l))
       def lsize : Long = self.lsize
+      override def close = self.close
     }
   }
 }
@@ -43,10 +43,12 @@ object LSeq {
   def apply[T](v:Seq[T]) = new LSeq[T] {
     override def apply(l: Long): T = v(l.toInt)
     override def lsize: Long = v.size
+    override def iterator = v.iterator
   }
   def apply[T](v:Array[T]) = new LSeq[T] {
     override def apply(l: Long): T = v(l.toInt)
     override def lsize: Long = v.size
+    override def iterator = v.iterator
   }
 }
 
@@ -111,4 +113,5 @@ trait IoSeqType[IoId, Member, Interface <: LSeq[Member], Distributed <: IoSeq[Io
   }
 }
 
-trait IoSeq[Id, T] extends IoIterable[Id, T] with LSeq[T] {}
+trait IoSeq[Id, T] extends IoIterable[Id, T] with LSeq[T] {
+}

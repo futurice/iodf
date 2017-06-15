@@ -30,22 +30,23 @@ class SparseIoBitsType[Id](implicit val t:TypeTag[LBits])
   def viewMerged(seqs:Seq[LBits]): LBits = {
     MultiBits(seqs)
   }
-  override def writeMerged(out: DataOutputStream, seqs:Seq[LBits]): Unit = {
+/*  override def writeMerged(out: DataOutputStream, seqs:Seq[LBits]): Unit = {
     var at = 0L
     val begins = seqs.map { s =>
       val rv = at
-      at += s.lsize
+      at += s.f
       rv
     }
 
-    out.writeLong(at)
+    out.writeLong(seqs.map(_.f))
 
     longs.writeMerged2(
       out,
       (seqs zip begins).map { case (seq, begin) =>
         (seq.lsize, seq.trues.iterator.map(_ + begin))
       })
-  }
+  }*/
+
   override def open(buf: IoData[Id]) = {
     using(buf.openRandomAccess) { ra =>
       val sz = ra.getBeLong(0)
@@ -76,7 +77,7 @@ class SparseIoBits[IoId](val ref:IoRef[IoId, SparseIoBits[IoId]],
     indexes.close
   }
   override def f: Long = {
-    indexes.size
+    indexes.lsize
   }
   override def fAnd(bits : LBits): Long = {
     bits match {
@@ -87,13 +88,14 @@ class SparseIoBits[IoId](val ref:IoRef[IoId, SparseIoBits[IoId]],
         LBits.fAnd(this, bits)
     }
   }
+  override def isDense = false
   def fAnd(b : SparseIoBits[_]): Long = fAndSparse(b)
 
-  private def truesFrom(from:Long) : Scanner[Long, Long] = {
+  private def truesFromTrue(from:Long) : Scanner[Long, Long] = {
     new Scanner[Long, Long] {
-      var at = 0L
+      var at = from
       def hasNext = at < indexes.lsize
-      def copy = truesFrom(from)
+      def copy = truesFromTrue(at)
       override def headOption =
         hasNext match {
           case true => Some(head)
@@ -101,10 +103,11 @@ class SparseIoBits[IoId](val ref:IoRef[IoId, SparseIoBits[IoId]],
         }
       override def head : Long = indexes.apply(at)
       def seek(target:Long) = {
-        val (hit, low, high) =
-          Utils.binarySearch(indexes, target, at, at + target - head)
-        at = high
-        hit != -1
+        at = indexAfter(at, target)
+/*        val (hit, low, high) =
+          Utils.binarySearch(indexes, target, at, at + target - head + 1)
+        at = high*/
+        indexes(at) == target
       }
       def next = {
         val rv = head
@@ -115,21 +118,40 @@ class SparseIoBits[IoId](val ref:IoRef[IoId, SparseIoBits[IoId]],
   }
 
   def trues = new Scannable[Long, Long] {
-    def iterator = truesFrom(0)
+    def iterator = truesFromTrue(0)
+  }
+
+  def indexAfter(from:Long, target:Long) = {
+    var i = from
+    val max = indexes.lsize
+    var jump = 8
+    while (i+jump < max && indexes(i+jump) <= target) {
+      i = i+jump
+      jump *= 2
+    }
+    while (i < max && indexes(i) < target) i += 1
+    i
   }
 
   def fAndSparse(b : SparseIoBits[_]): Long = {
     var rv = 0L
     var i = 0L
     var j = 0L
-    val t1 = indexes.size
-    val t2 = b.indexes.size
-    while (i < t1 && j < t2) {
+    val max1 = indexes.size
+    val max2 = b.indexes.size
+    while (i < max1 && j < max2) {
       val t1 = indexes(i)
       val t2 = b.indexes(j)
-      if (t1 < t2) i += 1
-      else if (t1 > t2) j += 1
-      else {
+      if (t1 < t2) {
+        i = indexAfter(i+1, t2)
+/*        i += 1
+        while (i < max1 && indexes(i) < t2) i += 1*/
+
+      } else if (t2 < t1) {
+        j = b.indexAfter(j+1, t1)
+/*        j += 1
+        while (j < max2 && b.indexes(j) < t1) j += 1*/
+      } else {
         rv += 1
         i += 1
         j += 1
