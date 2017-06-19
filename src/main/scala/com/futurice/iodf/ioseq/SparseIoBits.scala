@@ -71,7 +71,8 @@ class SparseIoBits[IoId](val ref:IoRef[IoId, SparseIoBits[IoId]],
                          val indexes:LongIoArray[IoId],
                          val lsize : Long) extends IoBits[IoId]{
   override def apply(l: Long): Boolean = {
-    Utils.binarySearch(indexes, l)._1 != -1
+    val e = Utils.binarySearch(indexes, l, 0, l+1)
+    e._1 != -1
   }
   override def close(): Unit = {
     indexes.close
@@ -107,7 +108,7 @@ class SparseIoBits[IoId](val ref:IoRef[IoId, SparseIoBits[IoId]],
 /*        val (hit, low, high) =
           Utils.binarySearch(indexes, target, at, at + target - head + 1)
         at = high*/
-        indexes(at) == target
+        at < indexes.lsize && indexes(at) == target
       }
       def next = {
         val rv = head

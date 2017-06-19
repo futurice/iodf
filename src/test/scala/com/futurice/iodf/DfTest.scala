@@ -7,7 +7,7 @@ import com.futurice.testtoys.{TestSuite, TestTool}
 import com.futurice.iodf.store.{MMapDir, RamDir, RefCounted}
 import com.futurice.iodf.Utils._
 import com.futurice.iodf.ioseq._
-import com.futurice.iodf.utils.LBits
+import com.futurice.iodf.utils.{LBits, MergeSortIterator}
 
 import scala.reflect.runtime.universe._
 import scala.util.Random
@@ -535,7 +535,6 @@ class DfTest extends TestSuite("df") {
         val dfs = Dfs.fs
         val dirA = bind(new MMapDir(new File(t.fileDir, "dbA")))
         val dirB = bind(new MMapDir(new File(t.fileDir, "dbB")))
-        val dirM = bind(new MMapDir(new File(t.fileDir, "dbM")))
 
         val itemsA = ExampleItem.makeItems(0, 1000)
         val itemsB = ExampleItem.makeItems(1, 1000)
@@ -589,6 +588,20 @@ class DfTest extends TestSuite("df") {
 
         t.tln
         t.tln("merged db indexes:")
+
+ /*       implicit val ordering = dfs.indexColIdOrdering
+        val ground =
+          new MergeSortIterator[(String, Any)](Seq(dbA.indexDf.colIds.iterator, dbB.indexDf.colIds.iterator)).toArray
+//        val iterated = dbM.indexDf.colIds.iterator.toArray
+        val entries = (0L until dbM.indexDf.colIds.lsize).map( i => dbM.indexDf.asInstanceOf[MultiDf[String, (String, Any)]].colIdEntry(i))
+
+
+
+        t.tln("ground:   " + ground.mkString(","))
+        t.tln("test:     " + entries.mkString(","))
+/*        t.tln("iterated: " + iterated.mkString(","))
+        t.tln("applied:  " + applied.mkString(","))*/
+*/
 
         (0L until dbM.indexDf.colIds.lsize).filter(_ % 32 == 0).take(16).foreach { index =>
           val id = dbM.indexDf.colIds(index)

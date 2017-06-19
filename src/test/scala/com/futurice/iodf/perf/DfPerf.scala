@@ -16,6 +16,12 @@ import scala.concurrent.duration._
   */
 class DfPerf extends TestSuite("perf/df") {
 
+ /* test("multidf") { t =>
+    t.t(f"  creating items..")
+
+    val items = t.iMsLn(ExampleItem.makeItems(0, scale))
+  }*/
+
 
   def testWritingPerf(testName:String, writer:(Seq[ExampleItem], File, IndexConf[String])=>Unit) =
     test(testName) { t =>

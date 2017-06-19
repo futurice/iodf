@@ -3,6 +3,7 @@ package com.futurice.iodf
 import java.io.{Closeable, DataOutputStream, InputStream, OutputStream}
 
 import com.futurice.iodf.store.RandomAccess
+import com.futurice.iodf.utils.{PeekIterator, Scanner}
 
 
 /* long sequence interface */
@@ -12,17 +13,23 @@ trait LSeq[T] extends Iterable[T] with PartialFunction[Long, T] with Closeable {
   def lsize : Long
   override def size = lsize.toInt
   def isDefinedAt(l:Long) = l >= 0 && l < size
-  override def iterator : Iterator[T] = {
-    new Iterator[T] {
-      var i = 0L
-      override def hasNext: Boolean = {
-        i < lsize
-      }
-      override def next(): T = {
-        val rv = apply(i)
-        i += 1
-        rv
-      }
+  def iterator = new PeekIterator[T] {
+    var i = 0L
+    override def head : T = apply(i)
+    override def hasNext: Boolean = {
+      i < lsize
+    }
+    override def next(): T = {
+      val rv = apply(i)
+      i += 1
+      rv
+    }
+  }
+  def view(from:Long, until:Long) : LSeq[T] = {
+    val self = this
+    new LSeq[T] {
+      def lsize = until - from
+      def apply(l:Long) = self.apply(l+from)
     }
   }
   def map[B](f: T => B) : LSeq[B] = {
@@ -43,12 +50,12 @@ object LSeq {
   def apply[T](v:Seq[T]) = new LSeq[T] {
     override def apply(l: Long): T = v(l.toInt)
     override def lsize: Long = v.size
-    override def iterator = v.iterator
+    override def iterator = PeekIterator(v.iterator)
   }
   def apply[T](v:Array[T]) = new LSeq[T] {
     override def apply(l: Long): T = v(l.toInt)
     override def lsize: Long = v.size
-    override def iterator = v.iterator
+    override def iterator = PeekIterator(v.iterator)
   }
 }
 

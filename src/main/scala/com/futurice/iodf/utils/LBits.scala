@@ -17,6 +17,7 @@ trait LBits extends LSeq[Boolean] {
   def trues : Scannable[Long, Long]
   def f : Long
   def n = lsize
+  override
   def view(from:Long, until:Long) : LBits = new BitsView(this, from, until)
 
   def fAnd(bits:LBits) = {
@@ -199,8 +200,9 @@ object LBits {
       def apply(i:Long) = {
         bits.get(i.toInt)
       }
-      override def iterator = new Iterator[Boolean] {
+      override def iterator = new PeekIterator[Boolean] {
         var i = 0;
+        def head = bits.get(i)
         def hasNext = i < lsize
         def next = {
           val rv = bits.get(i)
@@ -306,11 +308,13 @@ object LBits {
         override def iterator = truesFromTrue(0)
       }
 
-      override def iterator = new Iterator[Boolean] {
+      override def iterator = new PeekIterator[Boolean] {
         var i = 0;
         var t = PeekIterator(trueIndexes.iterator)
 
         def hasNext = i < lsize
+
+        def head = t.head == i
 
         def next = {
           if (t.hasNext && t.head == i) {
