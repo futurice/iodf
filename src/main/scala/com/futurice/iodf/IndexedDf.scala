@@ -37,6 +37,27 @@ class IndexedDf[IoId, T](val df:TypedDf[IoId, T],
   def col[T <: Any](id:String)(implicit scope:IoScope) = df.col[T](id)
   def col[T <: Any](i:Long)(implicit scope:IoScope) = df.col[T](i)
 
+  def colIndexKeys[T <: Any](colId:String) : LSeq[(String, T)] = {
+    val from =
+      indexDf.indexFloorAndCeil(colId -> MinBound())._3
+    val until =
+      indexDf.indexFloorAndCeil(colId -> MaxBound())._3
+    indexDf.colIds.view(from, until).map[(String, T)] { case (key, value) => (key, value.asInstanceOf[T]) }
+  }
+  def colIndexKeysWithIndex[T <: Any](colId:String) : Iterable[((String, T), Long)] = {
+    val from =
+      indexDf.indexFloorAndCeil(colId -> MinBound())._3
+    val until =
+      indexDf.indexFloorAndCeil(colId -> MaxBound())._3
+    indexDf.colIds.view(from, until).zipWithIndex.map {
+      case ((key, value), index) =>
+        ((key, value.asInstanceOf[T]), index + from)
+    }
+  }
+  def colValues[T  <: Any](colId:String) = {
+    colIndexKeys[T](colId).map[T](_._2)
+  }
+
   def index(idValue:(String, Any))(implicit scope:IoScope) : LBits = {
     scope.bind(openIndex(idValue))
   }

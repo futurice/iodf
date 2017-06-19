@@ -14,6 +14,13 @@ object MultiBits {
         io.bits.create(sharded.view(from, until))
       }))
   }
+  def maybeShard[IoId](sharded:LBits, model:LBits)(implicit scope:IoScope, io:IoContext[IoId]): LBits
+  = {
+    model match {
+      case b:MultiBits  => shard(sharded, b)
+      case _ =>            sharded
+    }
+  }
 }
 
 class MultiBits(val bits:Array[LBits]) extends MultiSeq[Boolean, LBits](bits) with LBits {

@@ -37,6 +37,9 @@ trait Df[IoId, ColId] extends java.io.Closeable {
   def indexOf(id:ColId) =
     Utils.binarySearch(colIds, id)(colIdOrdering)._1
 
+  def indexFloorAndCeil(id:ColId) =
+    Utils.binarySearch(colIds, id)(colIdOrdering)
+
   def col[T <: Any](id: ColId)(implicit scope:IoScope) : ColType[T] = {
     scope.bind(openCol[T](id))
   }

@@ -252,15 +252,18 @@ class Dfs[IoId : ClassTag](val types:IoTypes[IoId])(implicit val seqSeqTag : Typ
 
   def indexColIdOrdering[ColId](implicit colOrd: Ordering[ColId]) = {
     new Ordering[(ColId, Any)] {
+      val anyOrdering = types.anyOrdering
+
       override def compare(x: (ColId, Any), y: (ColId, Any)): Int = {
         colOrd.compare(x._1, y._1) match {
           case 0 => // fields matches, so the values should be of the same type
-            x._2 match {
+            anyOrdering.compare(x._2, y._2)
+/*            x._2 match {
               case v: Boolean => v.compare(y._2.asInstanceOf[Boolean])
               case v: Int => v.compare(y._2.asInstanceOf[Int])
               case v: Long => v.compare(y._2.asInstanceOf[Long])
               case v: String => v.compare(y._2.asInstanceOf[String])
-            }
+            }*/
           case v => v
         }
       }
@@ -459,17 +462,17 @@ class Dfs[IoId : ClassTag](val types:IoTypes[IoId])(implicit val seqSeqTag : Typ
     }
   }
 
-  def multiTypedDf[T:ClassTag](dfs:Array[TypedDf[IoId,T]])
+  def multiTypedDf[T:ClassTag](dfs:Array[TypedDf[IoId,T]], colIdMemRatio:Int = MultiDf.DefaultColIdMemRatio)
                               (implicit tag: TypeTag[T]): TypedDf[IoId, T] = {
     new TypedDfView[IoId, T](
-      MultiDf.autoClosing(dfs, dfColTypes(dfs.head)))
+      MultiDf.autoClosing(dfs, dfColTypes(dfs.head), colIdMemRatio))
   }
 
-  def multiIndexedDf[T:ClassTag](dfs:Array[IndexedDf[IoId, T]])
+  def multiIndexedDf[T:ClassTag](dfs:Array[IndexedDf[IoId, T]], colIdMemRatio:Int = MultiDf.DefaultColIdMemRatio)
                                 (implicit tag: TypeTag[T]): IndexedDf[IoId, T] = {
     new IndexedDf[IoId, T](
-      multiTypedDf(dfs.map(_.df)),
-      MultiDf.autoClosing(dfs.map(_.indexDf), indexDfColTypes())(indexColIdOrdering))
+      multiTypedDf(dfs.map(_.df), colIdMemRatio),
+      MultiDf.autoClosing(dfs.map(_.indexDf), indexDfColTypes(), colIdMemRatio)(indexColIdOrdering))
   }
 
   def createIndexedDf[T: ClassTag](items: Seq[T],
@@ -591,9 +594,9 @@ class FsDfs(types:IoTypes[String])(implicit seqSeqTag : TypeTag[Seq[IoObject[Str
       }
     }
   }
-  def openMultiIndexedDfFiles[T : ClassTag](srcFiles:Seq[File])(implicit tag:TypeTag[T]) = {
+  def openMultiIndexedDfFiles[T : ClassTag](srcFiles:Seq[File], colIdMemRatio:Int=MultiDf.DefaultColIdMemRatio)(implicit tag:TypeTag[T]) = {
     val dfs = srcFiles.map { openIndexedDfFile[T] }.toArray
-    multiIndexedDf(  dfs )
+    multiIndexedDf(  dfs, colIdMemRatio )
   }
 /*
   def writeMergedIndexedDfsFile[T : ClassTag](srcFiles:Seq[File], mergeDir:File, targetFile:File)(implicit tag:TypeTag[T]) = {

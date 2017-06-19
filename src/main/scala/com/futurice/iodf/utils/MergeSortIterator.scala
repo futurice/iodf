@@ -116,19 +116,42 @@ class MultiIterable[T](i:Array[Iterable[T]]) extends Iterable[T] {
 }
 
 
-case class MergeSortEntry[T](sources:Array[Int], sourceIndexes:Array[Long], index:Long, value:T) {
+case class MergeSortEntry[T](sources:Array[Int], allSourceIndexes:Array[Long], index:Long, value:T) {
+  def sourceIndexes = sources.map(allSourceIndexes)
   override def toString = f"((${sources.mkString(",")}), (${sourceIndexes.mkString(",")}), $index, $value)"
+}
+
+object MergeSortIterator {
+  def apply[T](is:Array[_ <: Iterator[T]])(implicit ord:Ordering[T]) : MergeSortIterator[T] = {
+    apply(is.map(i => PeekIterator(i)))
+  }
+  def apply[T](is:Array[PeekIterator[T]])(implicit ord:Ordering[T]) : MergeSortIterator[T] = {
+    new MergeSortIterator[T](is, Array.fill(is.size)(0L), 0L)
+  }
+  def seek[T](is:Array[_ <: Scanner[T, T]], pos: MergeSortEntry[T])(implicit ord:Ordering[T]) = {
+    is.foreach { is =>
+      is.seek(pos.value)
+    }
+    fromReady(is, pos)
+  }
+  def scan[T](is:Array[_ <: PeekIterator[T]], pos: MergeSortEntry[T])(implicit ord:Ordering[T]) = {
+    is.foreach { is =>
+      is.scan(pos.value)
+    }
+    fromReady(is, pos)
+  }
+  def fromReady[T](is:Array[_ <: PeekIterator[T]], pos: MergeSortEntry[T])(implicit ord:Ordering[T]) = {
+    new MergeSortIterator[T](is, pos.allSourceIndexes.clone, pos.index)
+  }
 }
 
 /**
   * Created by arau on 6.6.2017.
   */
-class MergeSortIterator[T](is:Seq[Iterator[T]], var index:Long = 0L)(implicit ord:Ordering[T]) extends PeekIterator[MergeSortEntry[T]] {
+class MergeSortIterator[T](peeked:Array[_ <: PeekIterator[T]], val sourceIndexes : Array[Long], var index:Long)(implicit ord:Ordering[T])
+  extends PeekIterator[MergeSortEntry[T]] {
 
   type Entry = MergeSortEntry[T]
-
-  private val peeked = is.map(i => PeekIterator(i)).toArray
-  private val indexes = Array.fill(peeked.size)(0L)
 
   def getNext : Option[Entry] = synchronized {
     peeked.zipWithIndex
@@ -137,16 +160,14 @@ class MergeSortIterator[T](is:Seq[Iterator[T]], var index:Long = 0L)(implicit or
       case entries if entries.size > 0 =>
         val (value, iterator) = entries.head
         val sources = entries.filter(_._1 == value).map(_._2)
-        val sourceIndexes =
-          sources.map { source =>
-            peeked(source).next // move forward
-            val rv = indexes(source)
-            indexes(source) = rv + 1
-            rv
-          }
+        val allSourceIndexes = sourceIndexes.clone()
+        sources.foreach { source =>
+          peeked(source).next // move forward
+          sourceIndexes(source) = sourceIndexes(source) + 1
+        }
         val i = index
         index += 1
-        Some(MergeSortEntry[T](sources, sourceIndexes, i, value))
+        Some(MergeSortEntry[T](sources, allSourceIndexes, i, value))
       case _ =>
         None
     }
@@ -157,7 +178,7 @@ class MergeSortIterator[T](is:Seq[Iterator[T]], var index:Long = 0L)(implicit or
   override def hasNext: Boolean = n.isDefined
 
   def headIndexes = {
-    val rv = indexes.clone
+    val rv = sourceIndexes.clone
     (head.sources zip head.sourceIndexes) foreach { case (s, i) =>
       rv(s) = i
     }
@@ -172,4 +193,24 @@ class MergeSortIterator[T](is:Seq[Iterator[T]], var index:Long = 0L)(implicit or
     n = getNext
     rv
   }
+
+  def scanValue(value:T) = {
+    while (hasNext && ord.lt(head.value, value)) next
+    head.value == value
+  }
+  def scannedValue(value:T) = {
+    scanValue(value)
+    this
+  }
+
+  def scanIndex(index: Long) = {
+    while (hasNext && head.index < index) next
+    hasNext
+  }
+  def scannedIndex(index: Long) = {
+    scanIndex(index)
+    this
+  }
+
+
 }

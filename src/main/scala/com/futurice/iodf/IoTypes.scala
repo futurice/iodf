@@ -47,6 +47,10 @@ trait IoTypes[IoId] {
   }
 }
 
+abstract class Bounds() {}
+case class MinBound() extends Bounds() {}
+case class MaxBound() extends Bounds() {}
+
 
 object IoTypes {
   type strSeqType = StringIoSeqType[String]
@@ -104,10 +108,16 @@ object IoTypes {
         val s = orderingOf[String]
         override def compare(x: Any, y: Any): Int = {
           (x, y) match {
+            case (_ : MinBound, _) => -1
+            case (_ : MaxBound, _) => 1
+            case (_, _ : MinBound) => 1
+            case (_, _ : MaxBound) => -1
             case (xv: Boolean, yv:Boolean) => b.compare(xv, yv)
             case (xv: Int, yv:Int) => i.compare(xv, yv)
             case (xv: Long, yv:Long) => l.compare(xv, yv)
             case (xv: String, yv:String) => s.compare(xv, yv)
+            case (x, y) =>
+              throw new IllegalArgumentException("cannot compare " + x + " with " + y)
           }
         }
       }

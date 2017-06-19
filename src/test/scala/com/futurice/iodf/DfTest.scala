@@ -62,8 +62,6 @@ class DfTest extends TestSuite("df") {
     }
   }
 
-
-
   val items =
     Seq(ExampleItem("a", true, 3, "some text", 1000000000L),
         ExampleItem("b", false, 2, "more text", 1L),
@@ -119,6 +117,37 @@ class DfTest extends TestSuite("df") {
     t.tln
     tRefCount(t)
   }
+
+  test("indexed-df-api") { t =>
+
+    RefCounted.trace {
+      using(IoScope.open) { implicit bind =>
+        implicit val io = IoContext()
+        val dfs = Dfs.fs
+
+        t.t("creating dataframe..")
+        val df =
+          t.iMsLn {
+            bind(
+              dfs.createIndexedDfFile(ExampleItem.makeItems(0, 16), new File(t.fileDir, "df"), indexConf))
+          }
+
+        t.tln("cold ids and their value:")
+        t.tln
+        df.colIds.foreach { colId =>
+          t.tln(f"  $colId:")
+          t.tln
+          df.colValues[Any](colId).foreach { value =>
+            t.tln("    " + value)
+          }
+          t.tln
+        }
+      }
+    }
+  }
+
+
+
 
   test("index") { t =>
     RefCounted.trace {
@@ -549,7 +578,7 @@ class DfTest extends TestSuite("df") {
         t.t("opening multi df..")
         val dbM =
           t.iMsLn(
-            bind(dfs.multiIndexedDf(Array(dbA, dbB))))
+            bind(dfs.multiIndexedDf(Array(dbA, dbB), 1)))
 
         t.tln
         t.t("warming the data frame...")
@@ -589,19 +618,21 @@ class DfTest extends TestSuite("df") {
         t.tln
         t.tln("merged db indexes:")
 
- /*       implicit val ordering = dfs.indexColIdOrdering
+/*        implicit val ordering = dfs.indexColIdOrdering
         val ground =
-          new MergeSortIterator[(String, Any)](Seq(dbA.indexDf.colIds.iterator, dbB.indexDf.colIds.iterator)).toArray
-//        val iterated = dbM.indexDf.colIds.iterator.toArray
-        val entries = (0L until dbM.indexDf.colIds.lsize).map( i => dbM.indexDf.asInstanceOf[MultiDf[String, (String, Any)]].colIdEntry(i))
+          MergeSortIterator.apply[(String, Any)](Array(dbA.indexDf.colIds.iterator, dbB.indexDf.colIds.iterator)).toArray
+        val iterated = dbM.indexDf.colIds.iterator.toArray
+        val entries =
+          (0L until dbM.indexDf.colIds.lsize).map( i =>
+            dbM.indexDf.asInstanceOf[MultiDf[String, (String, Any)]].entryOfIndex(i))
 
 
 
         t.tln("ground:   " + ground.mkString(","))
-        t.tln("test:     " + entries.mkString(","))
+        t.tln("test:     " + entries.mkString(","))*/
 /*        t.tln("iterated: " + iterated.mkString(","))
         t.tln("applied:  " + applied.mkString(","))*/
-*/
+
 
         (0L until dbM.indexDf.colIds.lsize).filter(_ % 32 == 0).take(16).foreach { index =>
           val id = dbM.indexDf.colIds(index)
