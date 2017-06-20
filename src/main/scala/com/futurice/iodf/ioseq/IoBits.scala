@@ -34,7 +34,7 @@ object IoBits {
     if (dense.lsize != sparse.lsize) throw new RuntimeException("fAnd operation on bitsets of different sizes")
     var rv = 0L
     val ts = sparse.indexes
-    val sz = ts.lsize*8
+    val sz = ts.lsize*8L
     ts.buf.checkRange(ts.offset, sz)
     var i = ts.buf.address + ts.offset
     val end = i + sz
