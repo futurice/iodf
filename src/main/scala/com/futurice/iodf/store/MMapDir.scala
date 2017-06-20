@@ -50,4 +50,5 @@ class MMapDir(dir:File) extends Dir[String] {
   override def id(i:Int) : String = {
     "_" + i.toString
   }
+  def byteSize = dir.listFiles.map(_.length()).sum
 }

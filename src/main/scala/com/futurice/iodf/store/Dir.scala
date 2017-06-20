@@ -336,6 +336,8 @@ trait Dir[Id] extends Closeable {
 
   def ref(id:Id) = new FileRef(this, id)
   def ref(id:Id, pos:Long, size:Option[Long]) = new DataRef(this, id, pos, size)
+
+  def byteSize : Long
 }
 
 case class FileRef[Id](dir:Dir[Id], id:Id) {

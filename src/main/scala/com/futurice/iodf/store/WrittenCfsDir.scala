@@ -123,6 +123,9 @@ class WrittenCfsDir[IoId, DirIoId](
     dout.writeLong(posPos)
     dout.close()
   }
+
+  def byteSize = out.size
+
 }
 
 /**
@@ -192,4 +195,6 @@ class CfsDir[IoId, DirIoId](val ref:FileRef[DirIoId],
   override def close(): Unit = {
     bind.close
   }
+
+  def byteSize = ra.size
 }

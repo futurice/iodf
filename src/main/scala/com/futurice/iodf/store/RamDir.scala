@@ -1,6 +1,7 @@
 package com.futurice.iodf.store
 import java.io._
 
+import org.slf4j.LoggerFactory
 import xerial.larray.buffer.{LBuffer, LBufferConfig}
 import xerial.larray.mmap.{MMapBuffer, MMapMode}
 
@@ -33,6 +34,8 @@ object StringIdSchema extends IdSchema[String] {
 }
 
 class RamDir[Id](ids:IdSchema[Id])(implicit t:ClassTag[Id]) extends Dir[Id] {
+
+  val logger = LoggerFactory.getLogger(getClass)
 
   val defaultBufferSize = 1024*4
 
@@ -82,10 +85,12 @@ class RamDir[Id](ids:IdSchema[Id])(implicit t:ClassTag[Id]) extends Dir[Id] {
               RefCounted(
                 MemoryResource(buf.m, new Closeable {
                   def close = {
+  //                  logger.info("closing ram file of " +(pos/1024) + " KB")
                     buf.release()
                   }
                 }),
                 0))
+//        logger.info((pos/1024) + "KB allocated, total -> " + (totalMemory / 1024) + "KB")
       }
     }
   }
@@ -96,7 +101,10 @@ class RamDir[Id](ids:IdSchema[Id])(implicit t:ClassTag[Id]) extends Dir[Id] {
   override def list: Array[Id] = synchronized {
     dir.keySet.toArray
   }
+  def byteSize : Long = dir.map(_._2.size).sum
   override def close(): Unit = synchronized {
+//    logger.info("closing ram dir of " + (totalMemory / 1024) + "KB")
+
     dir.foreach {
       _._2.close()
     }
