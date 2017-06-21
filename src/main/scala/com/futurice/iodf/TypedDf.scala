@@ -9,6 +9,8 @@ trait TypedDf[IoId, T] extends Df[IoId, String] {
 //  def thisColIndex : Int
   def fieldNames : Iterable[String]
   def fieldIndexes : Iterable[Int]
+
+  def cast[E : ClassTag](implicit tag:TypeTag[E]) : TypedDf[IoId, E]
 }
 
 class TypedDfView[IoId, T : ClassTag](df:Df[IoId, String])(
@@ -17,7 +19,11 @@ class TypedDfView[IoId, T : ClassTag](df:Df[IoId, String])(
 
   override type ColType[T] = LSeq[T]
 
-//  lazy val thisColId = indexOf("this")
+  def cast[E : ClassTag](implicit tag2:TypeTag[E]) : TypedDf[IoId, E] = {
+    new TypedDfView[IoId, E](new DfRef(df))
+  }
+
+  //  lazy val thisColId = indexOf("this")
 
   val (make, constructorParamNames, constructorParamTypes) = {
 

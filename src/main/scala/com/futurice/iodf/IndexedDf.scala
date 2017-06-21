@@ -3,8 +3,13 @@ package com.futurice.iodf
 import java.io.Closeable
 
 import com.futurice.iodf.Utils.using
-import com.futurice.iodf.ioseq.{IoBits}
+import com.futurice.iodf.ioseq.IoBits
 import com.futurice.iodf.utils.LBits
+
+import scala.reflect.ClassTag
+
+
+import scala.reflect.runtime.universe._
 
 
 object IndexConf {
@@ -37,14 +42,14 @@ class IndexedDf[IoId, T](val df:TypedDf[IoId, T],
   def col[T <: Any](id:String)(implicit scope:IoScope) = df.col[T](id)
   def col[T <: Any](i:Long)(implicit scope:IoScope) = df.col[T](i)
 
-  def colIndexKeys[T <: Any](colId:String) : LSeq[(String, T)] = {
+  def colNameValues[T <: Any](colId:String) : LSeq[(String, T)] = {
     val from =
       indexDf.indexFloorAndCeil(colId -> MinBound())._3
     val until =
       indexDf.indexFloorAndCeil(colId -> MaxBound())._3
     indexDf.colIds.view(from, until).map[(String, T)] { case (key, value) => (key, value.asInstanceOf[T]) }
   }
-  def colIndexKeysWithIndex[T <: Any](colId:String) : Iterable[((String, T), Long)] = {
+  def colNameValuesWithIndex[T <: Any](colId:String) : Iterable[((String, T), Long)] = {
     val from =
       indexDf.indexFloorAndCeil(colId -> MinBound())._3
     val until =
@@ -55,7 +60,7 @@ class IndexedDf[IoId, T](val df:TypedDf[IoId, T],
     }
   }
   def colValues[T  <: Any](colId:String) = {
-    colIndexKeys[T](colId).map[T](_._2)
+    colNameValues[T](colId).map[T](_._2)
   }
 
   def index(idValue:(String, Any))(implicit scope:IoScope) : LBits = {
@@ -102,6 +107,10 @@ class IndexedDf[IoId, T](val df:TypedDf[IoId, T],
   override def close(): Unit = {
     df.close
     indexDf.close
+  }
+
+  def cast[E : ClassTag](implicit tag:TypeTag[E]) : IndexedDf[IoId, E] = {
+    new IndexedDf[IoId, E](df.cast[E], new DfRef(indexDf))
   }
 }
 

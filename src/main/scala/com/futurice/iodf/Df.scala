@@ -21,6 +21,7 @@ case class ColKey[ColId, Type](colId:ColId) {}
 trait SortedIoSeq[IoId, ColId <: Ordered[ColId]] extends IoSeq[IoId, ColId] {
 }*/
 
+
 trait Df[IoId, ColId] extends java.io.Closeable {
 
   def colIds   : LSeq[ColId]
@@ -73,6 +74,20 @@ trait Df[IoId, ColId] extends java.io.Closeable {
   def apply[T <: Any](id:ColId, i:Long) : T = {
     using (openCol[T](id)) { _(i) }
   }
+}
+
+class DfRef[IoId, ColId](val df:Df[IoId, ColId]) extends Df[IoId, ColId] {
+  override def colIds: LSeq[ColId] = df.colIds
+
+  override def colIdOrdering: Ordering[ColId] = df.colIdOrdering
+
+  override type ColType[T] = df.ColType[T]
+
+  override def _cols: LSeq[df.ColType[Any]] = df._cols
+
+  override def lsize: Long = df.lsize
+
+  override def close(): Unit = {}
 }
 
 case class TypeIoSchema[IoId, T](t:Class[_],
