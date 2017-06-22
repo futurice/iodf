@@ -15,6 +15,7 @@ import scala.reflect.runtime.universe._
 
 trait DfColTypes[IoId, ColId] {
   def colType(col:ColId) : IoSeqType[IoId, _, _ <: LSeq[_], _ <: IoSeq[IoId, _]]
+  def colType(index:Long) : IoSeqType[IoId, _, _ <: LSeq[_], _ <: IoSeq[IoId, _]]
 }
 
 
@@ -27,12 +28,44 @@ class Dfs[IoId : ClassTag](val types:IoTypes[IoId])(implicit val seqSeqTag : Typ
       def colType(col: ColId) : IoSeqType[IoId, _, _ <: LSeq[_], _ <: IoSeq[IoId, _]] = {
         df.colType(col)
       }
+      def colType(index: Long) : IoSeqType[IoId, _, _ <: LSeq[_], _ <: IoSeq[IoId, _]] = {
+        df.colType(index)
+      }
+    }
+  }
+
+  def typeColTypes[T : ClassTag](implicit tag: TypeTag[T]) = {
+    val schema = typeSchema[T]
+
+    new DfColTypes[IoId, String] {
+      def colType(col: String) : IoSeqType[IoId, _, _ <: LSeq[_], _ <: IoSeq[IoId, _]] = {
+        schema
+          .fieldIoTypes.find(_._1 == col)
+          .map(
+            _._2.asInstanceOf[
+              IoSeqType[IoId,
+                Any,
+                LSeq[Any],
+                IoSeq[IoId, Any]]]).get
+      }
+      def colType(index: Long) : IoSeqType[IoId, _, _ <: LSeq[_], _ <: IoSeq[IoId, _]] = {
+        schema
+          .fieldIoTypes(index.toInt)
+          ._2.asInstanceOf[
+            IoSeqType[IoId,
+              Any,
+              LSeq[Any],
+              IoSeq[IoId, Any]]]
+    }
     }
   }
 
   def indexDfColTypes() = {
     new DfColTypes[IoId, (String, Any)] {
-      def colType(col: (String, Any)) : IoSeqType[IoId, _, _ <: LSeq[_], _ <: IoSeq[IoId, _]] = types.bitsSeqType
+      def colType(col: (String, Any)) : IoSeqType[IoId, _, _ <: LSeq[_], _ <: IoSeq[IoId, _]] =
+        types.bitsSeqType
+      def colType(index:Long) : IoSeqType[IoId, _, _ <: LSeq[_], _ <: IoSeq[IoId, _]] =
+        types.bitsSeqType
     }
   }
 
@@ -52,6 +85,9 @@ class Dfs[IoId : ClassTag](val types:IoTypes[IoId])(implicit val seqSeqTag : Typ
       override def close(): Unit = {
         _colIds.close;
         __cols.close
+      }
+      override def view(from:Long, until:Long) = {
+        new DfView(this, from, until)
       }
 
       override def colIdOrdering: Ordering[ColId] = ord
@@ -142,35 +178,52 @@ class Dfs[IoId : ClassTag](val types:IoTypes[IoId])(implicit val seqSeqTag : Typ
     }
   }*/
 
-  def writeMergedDf[ColId](dfs: Seq[Df[IoId, ColId]], dir: Dir[IoId], colTypes:DfColTypes[IoId, ColId])(
+  def writeDf[ColId](df:Df[IoId, ColId], dir: Dir[IoId], colTypes:DfColTypes[IoId, ColId])(
     implicit colIdSeqTag: TypeTag[Seq[ColId]],
-    ordering: Ordering[ColId]): Unit = {
-    using (MultiDf.apply[IoId, ColId](dfs, colTypes)) { df =>
-      val vd =
-        df.colIds.zipWithIndex.map { case (colId, index) =>
+    ordering: Ordering[ColId]) : Unit = {
+    l.info("writing columns...")
+    val before = System.currentTimeMillis()
+
+    val vd =
+      df._cols.iterator.zipWithIndex.map { case (openedCol, index) =>
+        using (openedCol) { col => // this opens the column
+          if ((index % 10000) == 0 && index > 0) l.info("  written " + index + " columns in " + (System.currentTimeMillis() - before) + " ms")
           val fileRef = FileRef(dir, dir.id(index + 2))
-          val t = colTypes.colType(colId)
+          val t = colTypes.colType(index)
           using(new DataOutputStream(fileRef.openOutput)) { out =>
-            using(df.openCol[Any](colId)) { col =>
-              t.writeAnySeq(out, col)
-            }
+            t.writeAnySeq(out, col)
           }
           new IoRefObject[IoId, IoSeq[IoId, _]](
             IoRef(t, fileRef.toDataRef)): IoObject[IoId]
         }
-      try {
-        using(FileRef(dir, dir.id(0)).openOutput) { out =>
-          val colIdSeqType = types.seqTypeOf[ColId]
-          colIdSeqType.writeSeq(new DataOutputStream(out), df.colIds)
-        }
-        using(FileRef(dir, dir.id(1)).openOutput) { out =>
-          types.refSeqType.writeSeq(new DataOutputStream(out), LSeq(vd.toSeq))
-        }
-      } finally {
-        vd.foreach {
-          _.close
-        }
+      }.toArray
+    l.info("columns written in " + (System.currentTimeMillis() - before) + " ms")
+    try {
+      l.info("writing column ids...")
+      val before2 = System.currentTimeMillis()
+      using(FileRef(dir, dir.id(0)).openOutput) { out =>
+        val colIdSeqType = types.seqTypeOf[ColId]
+        colIdSeqType.writeSeq(new DataOutputStream(out), df.colIds)
       }
+      l.info("column ids written in " + (System.currentTimeMillis() - before2) + " ms")
+      l.info("writing column references...")
+      val before3 = System.currentTimeMillis()
+      using(FileRef(dir, dir.id(1)).openOutput) { out =>
+        types.refSeqType.writeSeq(new DataOutputStream(out), LSeq(vd.toSeq))
+      }
+      l.info("column references written in " + (System.currentTimeMillis() - before3) + " ms")
+    } finally {
+      vd.foreach {
+        _.close
+      }
+    }
+  }
+
+  def writeMergedDf[ColId](dfs: Seq[Df[IoId, ColId]], dir: Dir[IoId], colTypes:DfColTypes[IoId, ColId])(
+    implicit colIdSeqTag: TypeTag[Seq[ColId]],
+    ordering: Ordering[ColId]): Unit = {
+    using (MultiDf.apply[IoId, ColId](dfs, colTypes)) { df =>
+      writeDf(df, dir, colTypes)
     }
   }
 
@@ -462,10 +515,12 @@ class Dfs[IoId : ClassTag](val types:IoTypes[IoId])(implicit val seqSeqTag : Typ
     }
   }
 
-  def multiTypedDf[T:ClassTag](dfs:Array[TypedDf[IoId,T]], colIdMemRatio:Int = MultiDf.DefaultColIdMemRatio)
+  def multiTypedDf[T:ClassTag](dfs:Array[TypedDf[IoId,T]],
+                               colIdMemRatio:Int = MultiDf.DefaultColIdMemRatio)
                               (implicit tag: TypeTag[T]): TypedDf[IoId, T] = {
     new TypedDfView[IoId, T](
-      MultiDf.autoClosing(dfs, dfColTypes(dfs.head), colIdMemRatio))
+      MultiDf.autoClosing(dfs, typeColTypes[T], colIdMemRatio))
+
   }
 
   def multiIndexedDf[T:ClassTag](dfs:Array[IndexedDf[IoId, T]], colIdMemRatio:Int = MultiDf.DefaultColIdMemRatio)

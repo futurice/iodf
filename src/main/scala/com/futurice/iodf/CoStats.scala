@@ -6,8 +6,8 @@ import com.futurice.iodf.utils.LBits
 
 case class CoStats(n:Long, fA:Long, fB:Long, fAB:Long, priorW:Double = 2, priorA:Double =0.5, priorB:Double =0.5) {
 
-  def pA = MathUtils.eP(fA, n, priorA, priorW)
-  def pB = MathUtils.eP(fB, n, priorB, priorW)
+  def pA = MathUtils.eP(fA, n, priorA, priorW / priorA)
+  def pB = MathUtils.eP(fB, n, priorB, priorW / priorB)
 
   def hA = MathUtils.h(pA)
   def hB = MathUtils.h(pB)
@@ -20,7 +20,7 @@ case class CoStats(n:Long, fA:Long, fB:Long, fAB:Long, priorW:Double = 2, priorA
       val fS = MathUtils.relStateF(s, n, fA, fB, fAB)
       val naive = pAs * pBs
       naivePs(s) = naive
-      ps(s) = MathUtils.eP(fS, n, naive, 2 / naive)
+      ps(s) = MathUtils.eP(fS, n, naive, priorW / naive)
     }
     (naivePs, ps)
   }

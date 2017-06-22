@@ -74,6 +74,7 @@ trait Df[IoId, ColId] extends java.io.Closeable {
   def apply[T <: Any](id:ColId, i:Long) : T = {
     using (openCol[T](id)) { _(i) }
   }
+  def view(from:Long, until:Long) : Df[IoId, ColId]
 }
 
 class DfRef[IoId, ColId](val df:Df[IoId, ColId]) extends Df[IoId, ColId] {
@@ -86,6 +87,28 @@ class DfRef[IoId, ColId](val df:Df[IoId, ColId]) extends Df[IoId, ColId] {
   override def _cols: LSeq[df.ColType[Any]] = df._cols
 
   override def lsize: Long = df.lsize
+
+  override def close(): Unit = {}
+
+  override def view(from:Long, until:Long) = df.view(from, until)
+}
+
+class DfView[IoId, ColId](val df:Df[IoId, ColId], val from:Long, val until:Long) extends Df[IoId, ColId] {
+
+  override def colIds: LSeq[ColId] = df.colIds
+
+  override def colIdOrdering: Ordering[ColId] = df.colIdOrdering
+
+  override type ColType[T] = LSeq[T]
+
+  override def _cols: LSeq[LSeq[Any]] = new LSeq[LSeq[Any]] {
+    def apply(l:Long) = df._cols(l).view(from, until)
+    def lsize = until - from
+  }
+
+  override def lsize: Long = until - from
+
+  override def view(from:Long, until:Long) = df.view(this.from + from, this.from + until)
 
   override def close(): Unit = {}
 }

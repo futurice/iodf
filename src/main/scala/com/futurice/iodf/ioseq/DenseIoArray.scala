@@ -47,7 +47,12 @@ abstract class IoArrayType[Id, T](implicit t:TypeTag[Seq[T]], vTag:TypeTag[T])
   def unitByteSize : Long
   def write(output:DataOutputStream, size:Long, data:Iterator[T]) = {
     output.writeLong(size)
-    data.foreach { writeUnit(output, _) }
+    var written = 0
+    data.foreach {  i =>
+      writeUnit(output, i)
+      written += 1
+    }
+    if (written != size) throw new IllegalArgumentException("size was " + size + " yet " + written + " entries was written.")
   }
   def write(output:DataOutputStream, data:Seq[T]) = {
     write(output, data.size, data.iterator)

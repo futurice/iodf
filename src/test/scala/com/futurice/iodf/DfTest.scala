@@ -557,6 +557,48 @@ class DfTest extends TestSuite("df") {
     }
   }
 
+  test("empty-indexed-multidf") { t =>
+    RefCounted.trace {
+      using(IoScope.open) { implicit bind =>
+        val io = IoContext()
+        val dfs = Dfs.fs
+
+        t.t("opening multi df..")
+        val dbM =
+          t.iMsLn(
+            bind(dfs.multiIndexedDf[ExampleItem](Array(), 1)))
+
+        t.tln
+        t.t("warming the data frame...")
+        t.iMsLn(dbM.df.colIds.lsize)
+        t.t("warming the index ...")
+        t.iMsLn(dbM.indexDf.colIds.lsize)
+        t.tln
+        t.tln("merged db size: " + dbM.lsize)
+        t.tln("merged db columns: " + dbM.colIds.mkString(", "))
+        t.tln("merged db index entry count: " + dbM.indexDf.colIds.lsize)
+        t.tln
+        t.tln("merged db content:")
+        dbM.colIds.foreach { id =>
+          using (IoScope.open) { implicit bind =>
+            val col = dbM.col[Any](id)
+            t.tln(f"  $id values: ")
+            t.tln(f"     " + col.mkString(", "))
+          }
+        }
+        t.tln
+        t.tln("col for text: " + dbM.col("text").mkString(", "))
+        t.tln
+        t.tln("merged db indexes:")
+        dbM.indexDf.colIds.foreach { id =>
+          t.tln(f"  " + id)
+        }
+        t.tln
+        t.tln("index for (text->aa): " + dbM.index("text" -> "aa").mkString(", "))
+        t.tln
+      }
+    }
+  }
   test("indexed-multidf") { t =>
     RefCounted.trace {
       using(IoScope.open) { implicit bind =>
@@ -618,20 +660,20 @@ class DfTest extends TestSuite("df") {
         t.tln
         t.tln("merged db indexes:")
 
-/*        implicit val ordering = dfs.indexColIdOrdering
-        val ground =
-          MergeSortIterator.apply[(String, Any)](Array(dbA.indexDf.colIds.iterator, dbB.indexDf.colIds.iterator)).toArray
-        val iterated = dbM.indexDf.colIds.iterator.toArray
-        val entries =
-          (0L until dbM.indexDf.colIds.lsize).map( i =>
-            dbM.indexDf.asInstanceOf[MultiDf[String, (String, Any)]].entryOfIndex(i))
+        /*        implicit val ordering = dfs.indexColIdOrdering
+                val ground =
+                  MergeSortIterator.apply[(String, Any)](Array(dbA.indexDf.colIds.iterator, dbB.indexDf.colIds.iterator)).toArray
+                val iterated = dbM.indexDf.colIds.iterator.toArray
+                val entries =
+                  (0L until dbM.indexDf.colIds.lsize).map( i =>
+                    dbM.indexDf.asInstanceOf[MultiDf[String, (String, Any)]].entryOfIndex(i))
 
 
 
-        t.tln("ground:   " + ground.mkString(","))
-        t.tln("test:     " + entries.mkString(","))*/
-/*        t.tln("iterated: " + iterated.mkString(","))
-        t.tln("applied:  " + applied.mkString(","))*/
+                t.tln("ground:   " + ground.mkString(","))
+                t.tln("test:     " + entries.mkString(","))*/
+        /*        t.tln("iterated: " + iterated.mkString(","))
+                t.tln("applied:  " + applied.mkString(","))*/
 
 
         (0L until dbM.indexDf.colIds.lsize).filter(_ % 32 == 0).take(16).foreach { index =>

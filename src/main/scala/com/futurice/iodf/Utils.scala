@@ -23,6 +23,12 @@ class IoScope extends Closeable{
     closeables += c
     c
   }
+  def cleanup(closer:  => Unit) = {
+    closeables += new Closeable {
+      def close = closer
+    }
+    Unit
+  }
   def apply[T <: Closeable](c:T) : T = bind[T](c)
   def openScope = bind(new IoScope)
 

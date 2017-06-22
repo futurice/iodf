@@ -1,5 +1,7 @@
 package com.futurice.iodf
 
+import com.futurice.iodf.utils.{MergeSortIterator, PeekIterator}
+
 import scala.reflect.{ClassTag, classTag}
 import scala.reflect.runtime.universe._
 
@@ -7,13 +9,15 @@ import scala.reflect.runtime.universe._
 trait TypedDf[IoId, T] extends Df[IoId, String] {
   def apply(i:Long) : T
 //  def thisColIndex : Int
-  def fieldNames : Iterable[String]
-  def fieldIndexes : Iterable[Int]
+  def fieldNames : Array[String]
+  def fieldIndexes : Array[Int]
 
   def cast[E : ClassTag](implicit tag:TypeTag[E]) : TypedDf[IoId, E]
+
+  def view(from:Long, until:Long) : TypedDf[IoId, T]
 }
 
-class TypedDfView[IoId, T : ClassTag](df:Df[IoId, String])(
+class TypedDfView[IoId, T : ClassTag](val df:Df[IoId, String])(
   implicit tag:TypeTag[T], ord:Ordering[String])
   extends TypedDf[IoId, T] {
 
@@ -23,9 +27,13 @@ class TypedDfView[IoId, T : ClassTag](df:Df[IoId, String])(
     new TypedDfView[IoId, E](new DfRef(df))
   }
 
+  def view(from:Long, until:Long) = {
+    new TypedDfView[IoId, T](df.view(from, until))
+  }
+
   //  lazy val thisColId = indexOf("this")
 
-  val (make, constructorParamNames, constructorParamTypes) = {
+  val (make, constructorParamNames, constructorParamTypes, fieldNames) = {
 
     val fields =
       tag.tpe.members.filter(!_.isMethod).map { e =>
@@ -52,7 +60,7 @@ class TypedDfView[IoId, T : ClassTag](df:Df[IoId, String])(
 
     ({ vs : Array[AnyRef] =>
       constructor.newInstance(constructorParamIndexes.map(vs(_)) : _*).asInstanceOf[T]
-    }, constructorParamNames, constructorParamTypes)
+    }, constructorParamNames, constructorParamTypes, fields.map(_._2))
   }
 
   override def apply(i: Long): T = {
@@ -63,14 +71,15 @@ class TypedDfView[IoId, T : ClassTag](df:Df[IoId, String])(
 
   override def colIdOrdering = ord
 
-  override def colIds = df.colIds
+  override def colIds = LSeq(fieldNames)
 
-//  lazy val thisColIndex = indexOf("this")
-  override def fieldNames = colIds // .filter(_ != "this")
-  override def fieldIndexes = (0 until colIds.size) //.filter(_ != thisColIndex)
+  override def fieldIndexes = (0 until colIds.size).toArray //.filter(_ != thisColIndex)
 
   override def _cols =
-    df._cols.map { e : LSeq[Any] => e }
+    new LSeq[LSeq[Any]] {
+      def apply(i :Long) = df._cols.apply(i)
+      def lsize = colIds.lsize
+    }
 
   override def lsize: Long = df.lsize
 

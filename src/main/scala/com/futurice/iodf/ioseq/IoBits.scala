@@ -62,10 +62,16 @@ object IoBitsType {
   val DenseId = 1
 
   def booleanSeqIoType[IoId](bitsType:IoBitsType[IoId])(implicit t:TypeTag[Seq[Boolean]], valueTag:TypeTag[Boolean]) =
-    new ConvertedIoTypeOf[IoId, WrappedIoBits[IoId], Seq[Boolean], LBits] (
+    new ConvertedIoTypeOf[IoId, WrappedIoBits[IoId], Seq[Boolean], LBits](
       bitsType,
-      bools => LBits(bools))(t) with WithValueTypeTag[Boolean] {
+      bools => LBits(bools))(t)
+      with IoSeqType[IoId, Boolean, LBits, WrappedIoBits[IoId]] {
       override def valueTypeTag: universe.TypeTag[Boolean] = valueTag
+      def viewMerged(seqs: Seq[com.futurice.iodf.utils.LBits]) =
+        bitsType.viewMerged(seqs)
+      def writeSeq(out: java.io.DataOutputStream,v: com.futurice.iodf.utils.LBits) = {
+        bitsType.writeSeq(out, v)
+      }
     }
 
 

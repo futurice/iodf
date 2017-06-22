@@ -64,36 +64,42 @@ class MultiDf[IoId, ColId](dfs:Array[_ <: Df[IoId, ColId]], types:DfColTypes[IoI
       }, jumpEntry)
   }
 
-  def entryOfIndex(index:Long) : MergeSortEntry[ColId] = {
-    val jumpIndex = (index / colIdMemRatio).toInt
-    val jumpEntry = jumpEntries(jumpIndex)
+  def entryOfIndex(index:Long) : Option[MergeSortEntry[ColId]] = {
+    if (index < 0 || index >= lsize) {
+      None
+    } else Some({
+      val jumpIndex = (index / colIdMemRatio).toInt
+      val jumpEntry = jumpEntries(jumpIndex)
 
-    if (index == jumpIndex) {
-      jumpEntry
-    } else {
-      jumpIterator(jumpEntry).scannedIndex(index).head
-    }
+      if (index == jumpIndex) {
+        jumpEntry
+      } else {
+        jumpIterator(jumpEntry).scannedIndex(index).head
+      }
+    })
   }
 
-  def entryOfId(id: ColId) : MergeSortEntry[ColId] = {
-    val jumpIndex =
-      Utils.binarySearch(LSeq(jumpEntries).map[ColId](_.value), id)(colIdOrdering)._2.toInt
-    val jumpEntry = jumpEntries(jumpIndex)
+  def entryOfId(id: ColId) : Option[MergeSortEntry[ColId]] = {
+    if (jumpEntries.isEmpty) {
+      None
+    } else Some({
+      val jumpIndex =
+        Utils.binarySearch(LSeq(jumpEntries).map[ColId](_.value), id)(colIdOrdering)._2.toInt
+      val jumpEntry = jumpEntries(jumpIndex)
 
-    if (id == jumpEntry.value) {
-      jumpEntry
-    } else {
-      jumpIterator(jumpEntry).scannedValue(id).head
-    }
+      if (id == jumpEntry.value) {
+        jumpEntry
+      } else {
+        jumpIterator(jumpEntry).scannedValue(id).head
+      }
+    })
   }
 
 
   override def indexOf(id: ColId): Long = {
-    val e = entryOfId(id)
-    if (e.value == id) {
-      e.index
-    } else {
-      -1
+    entryOfId(id) match {
+      case Some(e) if (e.value == id)  => e.index
+      case _ => -1
     }
   }
 
@@ -102,8 +108,8 @@ class MultiDf[IoId, ColId](dfs:Array[_ <: Df[IoId, ColId]], types:DfColTypes[IoI
 
   override val colIds: LSeq[ColId] = {
     new LSeq[ColId] {
-      override def apply(l: Long): ColId = MultiDf.this.synchronized {
-        entryOfIndex(l).value
+      override def apply(l: Long): ColId = {
+        entryOfIndex(l).get.value
       }
       override def lsize: Long = colIdsLsize
       override def iterator =
@@ -116,37 +122,60 @@ class MultiDf[IoId, ColId](dfs:Array[_ <: Df[IoId, ColId]], types:DfColTypes[IoI
     }
   }
 
+  private def openMultiCol[T](
+     entry:Option[MergeSortEntry[ColId]],
+     colType : IoSeqType[IoId, _, _ <: LSeq[_], _ <: IoSeq[IoId, _]]) = {
+    val colMap =
+      entry match {
+        case Some(e) =>
+          val cols = e.sources zip e.sourceIndexes map { case (source, index) =>
+            dfs(source).openCol[T](index)
+          }
+          (e.sources zip cols).toMap
+        case None =>
+          Map.empty[Int, LSeq[T]]
+      }
+    colType.viewAnyMerged(
+      (0 until dfs.size).map { i =>
+        colMap.getOrElse(i, colType.defaultSeq(dfs(i).lsize).get).asInstanceOf[LSeq[T]]
+      }).asInstanceOf[ColType[T]]
+  }
+
   override val _cols: LSeq[ColType[Any]] =
     new LSeq[ColType[Any]] {
       // this will open the column
-      override def apply(l: Long): ColType[Any] = MultiDf.this.synchronized {
-        val e = entryOfIndex(l)
-        val cols = e.sources zip e.sourceIndexes map { case (source, index) =>
-          dfs(source).openCol(index)
+      override def apply(l: Long): ColType[Any] = {
+        openMultiCol[Any](entryOfIndex(l),
+                          types.colType(l))
+      }
+      override def lsize: Long = colIdsLsize
+      override def iterator =
+        new PeekIterator[ColType[Any]] {
+          var at = 0
+          val i =
+            MergeSortIterator[ColId](seqs.map(_.iterator))
+          def head = { // dangerous, as this opens the column
+            openMultiCol[Any](
+              i.headOption,
+              types.colType(at))
+          }
+          def hasNext = at < colIdsLsize
+          def next = {
+            val rv = head // opens the column
+            if (i.hasNext) i.next
+            at += 1
+            rv
+          }
         }
-        val t = types.colType(e.value)
-        val colMap = (e.sources zip cols).toMap
-        t.viewAnyMerged(
-          (0 until dfs.size).map {
-            i => colMap.getOrElse(i, t.defaultSeq(dfs(i).lsize).get).asInstanceOf[LSeq[Any]]
-          }).asInstanceOf[ColType[Any]]
-      }
-      override def lsize: Long = {
-        MultiDf.this.lsize
-      }
     }
 
   override def openCol[T <: Any](id:ColId) : ColType[T] = {
-    val t = types.colType(id)
-    val e = entryOfId(id)
-    val cols = e.sources zip e.sourceIndexes map { case (source, index) =>
-      dfs(source).openCol(index)
-    }
-    val colMap = (e.sources zip cols).toMap
-    t.viewAnyMerged(
-      (0 until dfs.size).map {
-        i => colMap.getOrElse(i, t.defaultSeq(dfs(i).lsize).get).asInstanceOf[LSeq[Any]]
-      }).asInstanceOf[ColType[T]]
+    openMultiCol[T](entryOfId(id),
+                    types.colType(id))
+  }
+
+  override def view(from:Long, until:Long) = {
+    new DfView[IoId, ColId](this, from, until)
   }
 
   // size in Long

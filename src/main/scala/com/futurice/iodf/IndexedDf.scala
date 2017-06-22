@@ -37,6 +37,11 @@ case class IndexConf[ColId](analyzers:Map[ColId, Any => Seq[Any]] = Map[ColId, A
 class IndexedDf[IoId, T](val df:TypedDf[IoId, T],
                          val indexDf:Df[IoId, (String, Any)]) extends Closeable {
 
+  def view(from:Long, until:Long) : IndexedDf[IoId, T] =
+    new IndexedDf[IoId, T](
+      df.view(from, until),
+      indexDf.view(from, until))
+
   def apply(i:Long) = df(i)
   def colIds = df.colIds
   def col[T <: Any](id:String)(implicit scope:IoScope) = df.col[T](id)

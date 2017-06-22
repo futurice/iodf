@@ -100,7 +100,6 @@ case class RefCounted[V <: Closeable](val value:V, val initCount:Int) extends Cl
       value.close
     }
   }
-
 }
 
 case class MemoryResource(memory:Memory, resource:Closeable) extends Closeable {

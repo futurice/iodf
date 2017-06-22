@@ -17,8 +17,7 @@ trait LBits extends LSeq[Boolean] {
   def trues : Scannable[Long, Long]
   def f : Long
   def n = lsize
-  override
-  def view(from:Long, until:Long) : LBits = new BitsView(this, from, until)
+  override def view(from:Long, until:Long) : LBits = new BitsView(this, from, until)
 
   def fAnd(bits:LBits) = {
     LBits.fAnd(this, bits)
