@@ -2,7 +2,7 @@ package com.futurice.iodf.store
 
 import java.io._
 
-import com.futurice.iodf.{IoScope, IoSeq, SeqIoType, Utils}
+import com.futurice.iodf._
 import com.futurice.iodf.ioseq.Serializer
 
 import scala.collection.mutable.ArrayBuffer
@@ -14,8 +14,8 @@ import scala.reflect.ClassTag
   */
 class WrittenCfsDir[IoId, DirIoId](
    val ref:FileRef[DirIoId],
-   idSeqType:SeqIoType[DirIoId, _ <: IoSeq[DirIoId, IoId], IoId],
-   longSeqType:SeqIoType[DirIoId, _ <: IoSeq[DirIoId, Long], Long],
+   idSeqType:IoSeqType[DirIoId, IoId, _ <: LSeq[IoId], _ <: IoSeq[DirIoId, IoId]],
+   longSeqType:IoSeqType[DirIoId, Long, _ <: LSeq[Long], _ <: IoSeq[DirIoId, Long]],
    fromInt: Int => IoId)(
    implicit tag:ClassTag[IoId],
    idOrdering:Ordering[IoId]) extends Dir[IoId] {
@@ -123,14 +123,17 @@ class WrittenCfsDir[IoId, DirIoId](
     dout.writeLong(posPos)
     dout.close()
   }
+
+  def byteSize = out.size
+
 }
 
 /**
   * Created by arau on 14.12.2016.
   */
 class CfsDir[IoId, DirIoId](val ref:FileRef[DirIoId],
-                            idSeqType:SeqIoType[DirIoId, _ <: IoSeq[DirIoId, IoId], IoId],
-                            longSeqType:SeqIoType[DirIoId, _ <: IoSeq[DirIoId, Long], Long],
+                            idSeqType:IoSeqType[DirIoId, IoId, _ <: LSeq[IoId], _ <: IoSeq[DirIoId, IoId]],
+                            longSeqType:IoSeqType[DirIoId, Long, _ <: LSeq[Long], _ <: IoSeq[DirIoId, Long]],
                             fromInt: Int => IoId)(
                             implicit tag:ClassTag[IoId],
                             idOrdering:Ordering[IoId]) extends Dir[IoId] {
@@ -170,7 +173,7 @@ class CfsDir[IoId, DirIoId](val ref:FileRef[DirIoId],
     throw new IllegalStateException("compound files are immutable once written")
   }
   override def open(id:IoId, pos:Long, size:Option[Long]): IoData[IoId] = {
-    Utils.binarySearch(idSeq, id)(idOrdering) match {
+    Utils.binarySearch(idSeq, id)(idOrdering)._1 match {
       case -1 => throw new IllegalArgumentException(id + " not found")
       case i =>
         val ord = ordSeq(i)
@@ -192,4 +195,6 @@ class CfsDir[IoId, DirIoId](val ref:FileRef[DirIoId],
   override def close(): Unit = {
     bind.close
   }
+
+  def byteSize = ra.size
 }

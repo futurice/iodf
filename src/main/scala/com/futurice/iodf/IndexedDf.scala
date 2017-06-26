@@ -3,7 +3,13 @@ package com.futurice.iodf
 import java.io.Closeable
 
 import com.futurice.iodf.Utils.using
-import com.futurice.iodf.ioseq.{EmptyIoBits, IoBits}
+import com.futurice.iodf.ioseq.IoBits
+import com.futurice.iodf.utils.LBits
+
+import scala.reflect.ClassTag
+
+
+import scala.reflect.runtime.universe._
 
 
 object IndexConf {
@@ -27,34 +33,62 @@ case class IndexConf[ColId](analyzers:Map[ColId, Any => Seq[Any]] = Map[ColId, A
   }
 }
 
+
 class IndexedDf[IoId, T](val df:TypedDf[IoId, T],
                          val indexDf:Df[IoId, (String, Any)]) extends Closeable {
+
+  def view(from:Long, until:Long) : IndexedDf[IoId, T] =
+    new IndexedDf[IoId, T](
+      df.view(from, until),
+      indexDf.view(from, until))
 
   def apply(i:Long) = df(i)
   def colIds = df.colIds
   def col[T <: Any](id:String)(implicit scope:IoScope) = df.col[T](id)
   def col[T <: Any](i:Long)(implicit scope:IoScope) = df.col[T](i)
-  def index(idValue:(String, Any))(implicit scope:IoScope) : IoBits[IoId] = {
-    scope.bind(openIndex(idValue))
+
+  def colNameValues[T <: Any](colId:String) : LSeq[(String, T)] = {
+    val from =
+      indexDf.indexFloorAndCeil(colId -> MinBound())._3
+    val until =
+      indexDf.indexFloorAndCeil(colId -> MaxBound())._3
+    indexDf.colIds.view(from, until).map[(String, T)] { case (key, value) => (key, value.asInstanceOf[T]) }
   }
-  def index(i:Int)(implicit scope:IoScope) : IoBits[IoId] = {
-    scope.bind(openIndex(i))
-  }
-  def openIndex(idValue:(String, Any)) : IoBits[IoId] = {
-    indexDf.indexOf(idValue) match {
-      case -1 => new EmptyIoBits[IoId](indexDf.lsize)
-      case i => openIndex(i)
+  def colNameValuesWithIndex[T <: Any](colId:String) : Iterable[((String, T), Long)] = {
+    val from =
+      indexDf.indexFloorAndCeil(colId -> MinBound())._3
+    val until =
+      indexDf.indexFloorAndCeil(colId -> MaxBound())._3
+    indexDf.colIds.view(from, until).zipWithIndex.map {
+      case ((key, value), index) =>
+        ((key, value.asInstanceOf[T]), index + from)
     }
   }
-  def openIndex(i:Int) : IoBits[IoId] = {
-    indexDf.openCol(i).asInstanceOf[IoBits[IoId]]
+  def colValues[T  <: Any](colId:String) = {
+    colNameValues[T](colId).map[T](_._2)
+  }
+
+  def index(idValue:(String, Any))(implicit scope:IoScope) : LBits = {
+    scope.bind(openIndex(idValue))
+  }
+  def index(i:Long)(implicit scope:IoScope) : LBits = {
+    scope.bind(openIndex(i))
+  }
+  def openIndex(idValue:(String, Any)) : LBits = {
+    indexDf.indexOf(idValue) match {
+      case -1 => LBits.empty(indexDf.lsize)
+      case i  => openIndex(i)
+    }
+  }
+  def openIndex(i:Long) : LBits = {
+    indexDf.openCol(i).asInstanceOf[LBits]
   }
 
   def lsize = df.lsize
   def size = lsize.toInt
 
   def n = df.lsize
-  def f(i:Int) = {
+  def f(i:Long) = {
     using(openIndex(i)) { _.f }
   }
   def f(idValue:(String, Any)) = {
@@ -78,6 +112,10 @@ class IndexedDf[IoId, T](val df:TypedDf[IoId, T],
   override def close(): Unit = {
     df.close
     indexDf.close
+  }
+
+  def cast[E : ClassTag](implicit tag:TypeTag[E]) : IndexedDf[IoId, E] = {
+    new IndexedDf[IoId, E](df.cast[E], new DfRef(indexDf))
   }
 }
 

@@ -1,12 +1,13 @@
 package com.futurice.iodf
 
 import com.futurice.iodf.ioseq.IoBits
+import com.futurice.iodf.utils.LBits
 
 
 case class CoStats(n:Long, fA:Long, fB:Long, fAB:Long, priorW:Double = 2, priorA:Double =0.5, priorB:Double =0.5) {
 
-  def pA = MathUtils.eP(fA, n, priorA, priorW)
-  def pB = MathUtils.eP(fB, n, priorB, priorW)
+  def pA = MathUtils.eP(fA, n, priorA, priorW / priorA)
+  def pB = MathUtils.eP(fB, n, priorB, priorW / priorB)
 
   def hA = MathUtils.h(pA)
   def hB = MathUtils.h(pB)
@@ -19,7 +20,7 @@ case class CoStats(n:Long, fA:Long, fB:Long, fAB:Long, priorW:Double = 2, priorA
       val fS = MathUtils.relStateF(s, n, fA, fB, fAB)
       val naive = pAs * pBs
       naivePs(s) = naive
-      ps(s) = MathUtils.eP(fS, n, naive, 2 / naive)
+      ps(s) = MathUtils.eP(fS, n, naive, priorW / naive)
     }
     (naivePs, ps)
   }
@@ -34,13 +35,13 @@ case class CoStats(n:Long, fA:Long, fB:Long, fAB:Long, priorW:Double = 2, priorA
 }
 
 object CoStats {
-  def apply(a: IoBits[_], b: IoBits[_], n:Long, priorW:Double, priorA:Double, priorB:Double) : CoStats = {
+  def apply(a: LBits, b: LBits, n:Long, priorW:Double, priorA:Double, priorB:Double) : CoStats = {
     CoStats(n, a.f, b.f, a.fAnd(b), priorW, priorA, priorB)
   }
-  def apply(a: IoBits[_], b: IoBits[_], n:Long) : CoStats = {
+  def apply(a: LBits, b: LBits, n:Long) : CoStats = {
     apply(a, b, n, 2.0, 0.5, 0.5)
   }
-  def apply(a: IoBits[_], b: IoBits[_]) : CoStats = {
+  def apply(a: LBits, b: LBits) : CoStats = {
     CoStats(a.lsize, a.f, b.f, a.fAnd(b))
   }
 }

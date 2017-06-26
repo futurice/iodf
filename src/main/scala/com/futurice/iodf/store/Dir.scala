@@ -50,33 +50,43 @@ object RefCounted {
   }
 }
 
-
-case class RefCounted[V <: Closeable](val value:V, val initCount:Int = 0) extends Closeable {
+case class RefCounted[V <: Closeable](val value:V, val initCount:Int) extends Closeable {
   @volatile var count = initCount
   RefCounted.opened(this)
 
-  def apply() = value
+  // FIXME: the API needs redesign based on real-world usage patterns
 
-  def bind(implicit scope:IoScope) = {
+  // NEW VERSION of apply() !
+//  def apply(implicit scope:IoScope) = inc.bind.get // this would be consistent with other methods
+
+//  def apply() = value
+  def get = value
+
+/*  def bind(implicit scope:IoScope) = {
     inc
     scope.bind(this)
     this
-  }
+  }*/
   def inc = synchronized  {
     count += 1
     this
   }
-
-  def use(implicit scope:IoScope) = {
-    var rv = open
+  def bind(implicit scope:IoScope) = {
     scope.bind(this)
-    rv
   }
-  // needs to be closed
-  def open = synchronized  {
-    count += 1
-    value
+  // prefer .inc.bind.get
+  def incBindAndGet(implicit scope:IoScope) = inc.bind.get
+  def bindAndGet(implicit scope:IoScope) = bind.get
+  def incAndBind(implicit scope:IoScope) = inc.bind
+  def incAndGet = inc.get
+
+  def closing [RV](f : (V) => RV) : RV = {
+    try { f(value) }
+    finally { close }
   }
+//  def use(implicit scope:IoScope) = incBindAndGet(scope)
+  // incAndGet
+  def open = incAndGet
   override def hashCode(): Int = value.hashCode()
   def close = synchronized {
 //    System.out.println("dec " + RefCounted.this.hashCode())
@@ -90,7 +100,6 @@ case class RefCounted[V <: Closeable](val value:V, val initCount:Int = 0) extend
       value.close
     }
   }
-
 }
 
 case class MemoryResource(memory:Memory, resource:Closeable) extends Closeable {
@@ -282,6 +291,19 @@ object IoData {
   }
 }
 
+
+
+// TODO: replace dir with land, and file with resource.
+//       requiring all memory areas to be located in directory, messes up the cleaning
+trait Resource extends Closeable {
+  def openOutput : OutputStream
+  def openMemory : RandomAccess
+}
+
+trait Land extends Closeable {
+  def createResource : Resource
+}
+
 /**
   * Created by arau on 24.11.2016.
   */
@@ -301,6 +323,7 @@ trait Dir[Id] extends Closeable {
     }
     find(0)
   }
+  def freeRef = ref(freeId)
 
 //  def create(id:Id, length:Long) : IoData[Id]
   def openOutput(id:Id) : OutputStream
@@ -312,6 +335,8 @@ trait Dir[Id] extends Closeable {
 
   def ref(id:Id) = new FileRef(this, id)
   def ref(id:Id, pos:Long, size:Option[Long]) = new DataRef(this, id, pos, size)
+
+  def byteSize : Long
 }
 
 case class FileRef[Id](dir:Dir[Id], id:Id) {

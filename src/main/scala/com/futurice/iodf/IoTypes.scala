@@ -5,7 +5,7 @@ import java.io.{BufferedOutputStream, DataOutputStream}
 import com.futurice.iodf.Utils.using
 import com.futurice.iodf.ioseq._
 import com.futurice.iodf.store.{DataRef, FileRef, RandomAccess}
-import com.futurice.iodf.utils.Bits
+import com.futurice.iodf.utils.{LBits}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.runtime.universe._
@@ -34,45 +34,56 @@ trait IoTypes[IoId] {
   // shortcuts: reconsider
   def idOrdering : Ordering[IoId]
   def anyOrdering : Ordering[Any]
-  def idSeqType : SeqIoType[IoId, _ <: IoSeq[IoId, IoId], IoId]
-  def longSeqType: SeqIoType[IoId, _ <: IoSeq[IoId, Long], Long]
-  def bitsSeqType : SeqIoType[IoId, _ <: IoSeq[IoId, Boolean], Boolean]
 
+  def seqTypeOf[Member](implicit typeTag:TypeTag[Seq[Member]]) : IoSeqType[IoId, Member, LSeq[Member],_ <: IoSeq[IoId, Member]] = {
+    ioTypeOf[Seq[Member]].asInstanceOf[IoSeqType[IoId, Member, LSeq[Member],_ <: IoSeq[IoId, Member]]]
+  }
+
+  def longSeqType = seqTypeOf[Long]
+  def idSeqType : IoSeqType[IoId, IoId, LSeq[IoId],_ <: IoSeq[IoId, IoId]]
+  def refSeqType : IoSeqType[IoId, IoObject[IoId], LSeq[IoObject[IoId]],_ <: IoSeq[IoId, IoObject[IoId]]]
+  def bitsSeqType : IoSeqType[IoId, Boolean, LBits,_ <: IoSeq[IoId, Boolean]] = {
+    ioTypeOf[LBits].asInstanceOf[IoSeqType[IoId, Boolean, LBits,_ <: IoSeq[IoId, Boolean]]]
+  }
 }
+
+abstract class Bounds() {}
+case class MinBound() extends Bounds() {}
+case class MaxBound() extends Bounds() {}
 
 
 object IoTypes {
   type strSeqType = StringIoSeqType[String]
 
-  def apply[Id](types:Seq[IoType[Id, _ <: IoObject[Id]]],
-                _idIo:Serializer[Id],
-                _intToId: Int => Id)(implicit idTag:TypeTag[Id], idOrd: Ordering[Id]) = {
-    new IoTypes[Id] {
-      def ioTypeOf(t:Type) : IoTypeOf[Id, _ <: IoObject[Id], _] = {
+  def apply[IoId](types:Seq[IoType[IoId, _ <: IoObject[IoId]]],
+                _idIo:Serializer[IoId],
+                _intToId: Int => IoId)(implicit idTag:TypeTag[IoId], idOrd: Ordering[IoId]) = {
+    new IoTypes[IoId] {
+      def ioTypeOf(t:Type) : IoTypeOf[IoId, _ <: IoObject[IoId], _] = {
         types.find(_.asTypeOf(t).isDefined).map(_.asTypeOf(t).get) match {
           case Some(v) => v
           case None =>
             throw new RuntimeException("no io type for " + t + " / " + t.hashCode() + ". ")
         }
       }
-      def ioTypeOf[T : TypeTag]() : IoTypeOf[Id, _ <: IoObject[Id], T] = {
-        ioTypeOf(typeOf[T]).asInstanceOf[IoTypeOf[Id, _ <: IoObject[Id], T]]
+      def ioTypeOf[T : TypeTag]() : IoTypeOf[IoId, _ <: IoObject[IoId], T] = {
+        ioTypeOf(typeOf[T]).asInstanceOf[IoTypeOf[IoId, _ <: IoObject[IoId], T]]
       }
-      def writeIoObject[From : TypeTag](v:From, ref:FileRef[Id]) = {
+      def writeIoObject[From : TypeTag](v:From, ref:FileRef[IoId]) = {
         val typ = ioTypeOf[From]
         using(new DataOutputStream(new BufferedOutputStream(ref.openOutput))) {
           typ.write(_, v)
         }
-        new IoRef[Id, IoObject[Id]](typ, new DataRef[Id](ref.dir, ref.id))
+        new IoRef[IoId, IoObject[IoId]](typ, new DataRef[IoId](ref.dir, ref.id))
       }
-      def openIoObject[From](ref:FileRef[Id])(implicit tag:TypeTag[From]) = {
+      def openIoObject[From](ref:FileRef[IoId])(implicit tag:TypeTag[From]) = {
         using (ref.open) { ioTypeOf[From].open(_) }
       }
-      def createIoObject[From](v:From, ref:FileRef[Id])(implicit tag:TypeTag[From]) = {
+      def createIoObject[From](v:From, ref:FileRef[IoId])(implicit tag:TypeTag[From]) = {
         writeIoObject(v, ref)
         openIoObject(ref)(tag)
       }
-      def getIoTypeId(t:IoType[Id, _]) = {
+      def getIoTypeId(t:IoType[IoId, _]) = {
         Some(types.indexOf(t)).filter(_ >= 0)
       }
       def idIoType(i:Int) = types(i)
@@ -97,24 +108,23 @@ object IoTypes {
         val s = orderingOf[String]
         override def compare(x: Any, y: Any): Int = {
           (x, y) match {
+            case (_ : MinBound, _) => -1
+            case (_ : MaxBound, _) => 1
+            case (_, _ : MinBound) => 1
+            case (_, _ : MaxBound) => -1
             case (xv: Boolean, yv:Boolean) => b.compare(xv, yv)
             case (xv: Int, yv:Int) => i.compare(xv, yv)
             case (xv: Long, yv:Long) => l.compare(xv, yv)
             case (xv: String, yv:String) => s.compare(xv, yv)
+            case (x, y) =>
+              throw new IllegalArgumentException("cannot compare " + x + " with " + y)
           }
         }
       }
-      def idSeqType : SeqIoType[Id, _ <: IoSeq[Id, Id], Id] = {
-        ioTypeOf[Seq[Id]].asInstanceOf[SeqIoType[Id, _ <: IoSeq[Id, Id], Id]]
-      }
-      def longSeqType : SeqIoType[Id, _ <: IoSeq[Id, Long], Long] = {
-        ioTypeOf[Seq[Long]].asInstanceOf[SeqIoType[Id, _ <: IoSeq[Id, Long], Long]]
-      }
-      def bitsSeqType : SeqIoType[Id, _ <: IoSeq[Id, Boolean], Boolean] = {
-        ioTypeOf[Bits].asInstanceOf[SeqIoType[Id, _ <: IoSeq[Id, Boolean], Boolean]]
-      }
+      def idSeqType = seqTypeOf[IoId]
+      def refSeqType = seqTypeOf[IoObject[IoId]]
 
-      override def intToId(i: Int): Id = _intToId(i)
+      override def intToId(i: Int): IoId = _intToId(i)
     }
   }
   def strings = {
@@ -140,19 +150,20 @@ object IoTypes {
     val javaIo = new JavaObjectIo[Any]
     val variantIo = new VariantIo(Array(BooleanIo, IntIo, LongIo, StringIo), javaIo)
     val tupleIo = new Tuple2Io[String, Any](StringIo, variantIo)
+    val bitsIoType =
+      new IoBitsType[String](// converts Bits
+        new SparseIoBitsType[String](),
+        new DenseIoBitsType[String])
     buf ++=
       Seq(
         str,
         new IntIoArrayType[String],
         new LongIoArrayType[String],
-        new BooleanIoSeqType[String](),  // converts Seq[Boolean]
-        new IoBitsType[String](// converts Bits
-          new SparseIoBitsType[String](),
-          new DenseIoBitsType[String]()),
+        IoBitsType.booleanSeqIoType(bitsIoType),// new BooleanIoSeqType[String](),  // converts Seq[Boolean]
+        bitsIoType,
         //        new SparseToDenseIoBitsType[String](),
         new IntIoArrayType[String],
-        new RefIoSeqType[String,
-          IoSeq[String, IoObject[String]]](self,
+        new RefIoSeqType[String, IoObject[String]](self,
           new ObjectIoSeqType[String, (Int, String, Long)](entryIo, entryIo)),
         new ObjectIoSeqType[String, (String, Any)](tupleIo, tupleIo),
         new ObjectIoSeqType[String, Any](javaIo, javaIo))

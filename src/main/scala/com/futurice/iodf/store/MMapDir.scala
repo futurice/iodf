@@ -38,7 +38,7 @@ class MMapDir(dir:File) extends Dir[String] {
 //            System.out.println("memory closed")
             m.close()
           }
-        })))
+        }), 0))
   }
 
   override def list: Array[String] = {
@@ -50,4 +50,5 @@ class MMapDir(dir:File) extends Dir[String] {
   override def id(i:Int) : String = {
     "_" + i.toString
   }
+  def byteSize = dir.listFiles.map(_.length()).sum
 }
