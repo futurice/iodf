@@ -77,7 +77,11 @@ class TypedDfView[IoId, T : ClassTag](val df:Df[IoId, String])(
 
   override def _cols =
     new LSeq[LSeq[Any]] {
-      def apply(i :Long) = df._cols.apply(i)
+      def apply(i :Long) =
+        if (i < df._cols.size)
+          df._cols.apply (i)
+        else
+          LSeq.empty
       def lsize = colIds.lsize
     }
 

@@ -297,8 +297,12 @@ class Dfs[IoId : ClassTag](val types:IoTypes[IoId])(implicit val seqSeqTag : Typ
     val ioCols =
       types.openIoObject[Seq[IoObject[IoId]]](
         FileRef(dir, dir.id(1))).asInstanceOf[IoSeq[IoId, IoSeq[IoId, Any]]]
-    val sz = using(ioCols(0)) {
-      _.lsize
+    val sz = ioCols.size match {
+      case 0 => 0
+      case _ =>
+        using(ioCols(0)) {
+          _.lsize
+        }
     }
     apply(ioIds, ioCols, sz)
   }
@@ -469,11 +473,12 @@ class Dfs[IoId : ClassTag](val types:IoTypes[IoId])(implicit val seqSeqTag : Typ
     using (openCfs(dir, id))(open)
   }
 
-  def writeMergedIndexedDf[T](dfs: Seq[IndexedDf[IoId, T]],
-                              targetDir: Dir[IoId])(
-                               implicit t: TypeTag[Seq[(String, Any)]]): Unit = {
+  def writeMergedIndexedDf[T : ClassTag](dfs: Seq[IndexedDf[IoId, T]],
+                                         targetDir: Dir[IoId])(
+                                         implicit tag: TypeTag[T],
+                                         t: TypeTag[Seq[(String, Any)]]): Unit = {
     using(openWrittenCfs(targetDir, 0)) { d =>
-      writeMergedDf(dfs.map(_.df), d, dfColTypes(dfs.head.df))
+      writeMergedDf(dfs.map(_.df), d, typeColTypes[T])
     }
     using(openWrittenCfs(targetDir, 1)) { d =>
       writeMergedDf(dfs.map(_.indexDf), d, indexDfColTypes())(

@@ -557,6 +557,59 @@ class DfTest extends TestSuite("df") {
     }
   }
 
+  def tDf[IoId, T](t:TestTool, df:IndexedDf[IoId, T]) = {
+    scoped { implicit bind =>
+      t.tln
+      t.t("warming the data frame...")
+      t.iMsLn(df.df.colIds.lsize)
+      t.t("warming the index ...")
+      t.iMsLn(df.indexDf.colIds.lsize)
+      t.tln
+      t.tln("merged db size: " + df.lsize)
+      t.tln("merged db columns: " + df.colIds.mkString(", "))
+      t.tln("merged db index entry count: " + df.indexDf.colIds.lsize)
+      t.tln
+      t.tln("merged db content:")
+      df.colIds.foreach { id =>
+        using(IoScope.open) { implicit bind =>
+          val col = df.col[Any](id)
+          t.tln(f"  $id values: ")
+          t.tln(f"     " + col.mkString(", "))
+        }
+      }
+      t.tln
+      t.tln("col for text: " + df.col("text").mkString(", "))
+      t.tln
+      t.tln("merged db indexes:")
+      df.indexDf.colIds.foreach { id =>
+        t.tln(f"  " + id)
+      }
+      t.tln
+      t.tln("index for (text->aa): " + df.index("text" -> "aa").mkString(", "))
+      t.tln
+    }
+  }
+
+  test("merging-zero-indexed-dfs") { t =>
+    RefCounted.trace {
+      scoped { implicit bind =>
+        val io = IoContext()
+        val dfs = Dfs.fs
+        val dirM = bind(new MMapDir(new File(t.fileDir, "dbM")))
+
+        t.t("merging empty db-list..")
+        t.iMsLn(
+          dfs.writeMergedIndexedDf[ExampleItem](Seq(), dirM))
+        t.t("opening merged db..")
+        val dbM =
+          t.iMsLn(
+            bind(dfs.openIndexedDf[ExampleItem](dirM)))
+
+        tDf(t, dbM)
+      }
+    }
+  }
+
   test("empty-indexed-multidf") { t =>
     RefCounted.trace {
       using(IoScope.open) { implicit bind =>
@@ -568,34 +621,7 @@ class DfTest extends TestSuite("df") {
           t.iMsLn(
             bind(dfs.multiIndexedDf[ExampleItem](Array(), 1)))
 
-        t.tln
-        t.t("warming the data frame...")
-        t.iMsLn(dbM.df.colIds.lsize)
-        t.t("warming the index ...")
-        t.iMsLn(dbM.indexDf.colIds.lsize)
-        t.tln
-        t.tln("merged db size: " + dbM.lsize)
-        t.tln("merged db columns: " + dbM.colIds.mkString(", "))
-        t.tln("merged db index entry count: " + dbM.indexDf.colIds.lsize)
-        t.tln
-        t.tln("merged db content:")
-        dbM.colIds.foreach { id =>
-          using (IoScope.open) { implicit bind =>
-            val col = dbM.col[Any](id)
-            t.tln(f"  $id values: ")
-            t.tln(f"     " + col.mkString(", "))
-          }
-        }
-        t.tln
-        t.tln("col for text: " + dbM.col("text").mkString(", "))
-        t.tln
-        t.tln("merged db indexes:")
-        dbM.indexDf.colIds.foreach { id =>
-          t.tln(f"  " + id)
-        }
-        t.tln
-        t.tln("index for (text->aa): " + dbM.index("text" -> "aa").mkString(", "))
-        t.tln
+        tDf(t, dbM)
       }
     }
   }
