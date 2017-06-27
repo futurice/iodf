@@ -1,13 +1,25 @@
-opening multi df..185 ms 
+opening multi df..3 ms (was 185 ms)
 
-warming the data frame...0 ms 
-warming the index ...0 ms 
+warming the data frame...0 ms (was 0 ms)
+warming the index ...0 ms (was 0 ms)
 
 merged db size: 0
-merged db columns: 
+merged db columns: bigNumber, name, property, quantity, text
 merged db index entry count: 0
 
 merged db content:
+  bigNumber values: 
+     
+  name values: 
+     
+  property values: 
+     
+  quantity values: 
+     
+  text values: 
+     
+
+col for text: 
 
 merged db indexes:
 
