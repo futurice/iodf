@@ -4,8 +4,9 @@ import java.io.File
 
 import com.futurice.iodf.Utils._
 import com.futurice.iodf._
+import com.futurice.iodf.df.{IndexConf, IndexedDf}
 import com.futurice.iodf.store.{MMapDir, RefCounted}
-import com.futurice.iodf.utils.LBits
+import com.futurice.iodf.util.LBits
 import com.futurice.testtoys.{TestSuite, TestTool}
 
 import scala.concurrent.Await

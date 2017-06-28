@@ -6,8 +6,9 @@ import java.util
 import com.futurice.testtoys.{TestSuite, TestTool}
 import com.futurice.iodf.store.{MMapDir, RamDir, RefCounted}
 import com.futurice.iodf.Utils._
+import com.futurice.iodf.df.{Df, IndexConf, IndexedDf}
 import com.futurice.iodf.ioseq._
-import com.futurice.iodf.utils.{LBits, MergeSortIterator}
+import com.futurice.iodf.util.{LBits, LSeq, MergeSortIterator}
 
 import scala.reflect.runtime.universe._
 import scala.util.Random

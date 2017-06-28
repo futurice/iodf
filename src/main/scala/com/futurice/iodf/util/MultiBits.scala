@@ -1,4 +1,4 @@
-package com.futurice.iodf.utils
+package com.futurice.iodf.util
 
 import com.futurice.iodf.{IoContext, IoScope, MultiSeq}
 import com.futurice.iodf.ioseq.IoBits

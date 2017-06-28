@@ -3,9 +3,11 @@ package com.futurice.iodf.perf
 import java.io.{DataOutputStream, File}
 
 import com.futurice.iodf.store.MMapDir
-import com.futurice.iodf.{Dfs, IoSeq, IoSeqType, LSeq}
+import com.futurice.iodf.{Dfs, IoSeqType}
 import com.futurice.testtoys.{TestSuite, TestTool}
 import com.futurice.iodf.Utils._
+import com.futurice.iodf.ioseq.{IoSeq, IoSeqType}
+import com.futurice.iodf.util.LSeq
 
 import scala.util.Random
 

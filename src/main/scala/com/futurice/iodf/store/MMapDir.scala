@@ -14,7 +14,7 @@ object MMapDir {
   * TODO: These should be unique, and mmaps should be unique to avoid
   *       double mmaps (!)
   */
-class MMapDir(dir:File) extends Dir[String] {
+class MMapDir(dir:File) extends MutableDir[String] {
 
   dir.mkdirs()
 
@@ -23,19 +23,23 @@ class MMapDir(dir:File) extends Dir[String] {
 /*  override def create(name: String, length: Long): LBufferAPI = {
     new MMapBuffer(file(name), 0, length, MMapMode.READ_WRITE)
   }*/
-  override def openOutput(name: String): OutputStream = {
-    new FileOutputStream(file(name))
-  }
-  override def open(name: String, pos:Long, size:Option[Long]): IoData[String] = {
+  override def create(name: String) =
+    new DataCreator {
+      val out = new FileOutputStream(file(name))
+      override def close = out.close
+      override def adoptResult: DataRef = {
+        close
+        openRef(name)
+      }
+      override def write(b: Int): Unit = out.write(b)
+    }
+  override def open(name: String, pos:Long, size:Option[Long]): RandomAccess = {
     val f = file(name)
-    val m = new MMapBuffer (f, 0, f.length(), MMapMode.READ_ONLY)
-  //  System.out.println("memory opened")
-    IoData.open(
-      FileDataRef(this, name, pos, size),
+    val m = new MMapBuffer(f, 0, f.length(), MMapMode.READ_ONLY)
+    new RandomAccess(
       RefCounted(
         MemoryResource(m.m, new Closeable {
           def close = {
-//            System.out.println("memory closed")
             m.close()
           }
         }), 0))

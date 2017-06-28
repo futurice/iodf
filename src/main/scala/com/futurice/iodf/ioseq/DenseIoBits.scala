@@ -4,9 +4,9 @@ import java.io.DataOutputStream
 import java.util
 
 import com.futurice.iodf.store.{Dir, FileRef, IoData, RandomAccess}
-import com.futurice.iodf.utils._
-import xerial.larray.buffer.LBufferAPI
-import com.futurice.iodf.{IoRef, _}
+import com.futurice.iodf.util._
+import com.futurice.iodf._
+import com.futurice.iodf.io.IoRef
 
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
@@ -146,7 +146,7 @@ class BooleanIoSeqType[Id](implicit val t:TypeTag[Seq[Boolean]])
 /**
   * Created by arau on 24.11.2016.
   */
-class DenseIoBits[IoId](val ref:IoRef[IoId, DenseIoBits[IoId]], val origBuf:RandomAccess)
+class DenseIoBits[IoId](val openRef:IoRef[IoId, DenseIoBits[IoId]], val origBuf:RandomAccess)
   extends IoBits[IoId] with java.io.Closeable {
 
   val bitSize = origBuf.getBeLong(0)

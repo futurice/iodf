@@ -1,4 +1,4 @@
-package com.futurice.iodf
+package com.futurice.iodf.ml
 
 object MathUtils {
   val INV_LOG2 = 1/Math.log(2)

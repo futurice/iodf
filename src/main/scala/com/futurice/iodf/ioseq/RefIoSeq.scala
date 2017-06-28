@@ -5,8 +5,8 @@ import java.io.DataOutputStream
 import com.futurice.iodf.store.{Dir, IoData}
 import com.futurice.iodf._
 import com.futurice.iodf.Utils._
-import com.futurice.iodf.utils.LBits
-import xerial.larray.buffer.LBufferAPI
+import com.futurice.iodf.io.{IoObject, IoRef, IoTypes}
+import com.futurice.iodf.util.{LBits, LSeq}
 
 import scala.reflect.runtime.universe._
 
@@ -14,10 +14,10 @@ import scala.reflect.runtime.universe._
   * Created by arau on 25.11.2016.
   */
 class RefIoSeq[Id, T <: IoObject[Id]](
-    override val ref:IoRef[Id, RefIoSeq[Id, T]],
-    val types:IoTypes[Id],
-    val buf:ObjectIoSeq[Id, (Int, Id, Long)]) extends IoSeq[Id, T] {
-  def dir = ref.dataRef.dir // assume that the referred items are in the same directory
+                                       override val openRef:IoRef[Id, RefIoSeq[Id, T]],
+                                       val types:IoTypes[Id],
+                                       val buf:ObjectIoSeq[Id, (Int, Id, Long)]) extends IoSeq[Id, T] {
+  def dir = openRef.dataRef.dir // assume that the referred items are in the same directory
   override def apply(l: Long): T = {
     val (typ, id, pos) = buf(l)
     using (dir.open(id, pos)) { mem =>
@@ -40,7 +40,7 @@ class RefIoSeqType[Id, M <: IoObject[Id]](
     entryType.writeSeq(
       output,
       data.map[(Int, Id, Long)] { e =>
-        (types.ioTypeId(e.ref.typ), e.ref.dataRef.id, e.ref.dataRef.pos) })
+        (types.ioTypeId(e.openRef.typ), e.openRef.dataRef.id, e.openRef.dataRef.pos) })
   }
 
   override def write(output: DataOutputStream, data: Seq[M]) = {

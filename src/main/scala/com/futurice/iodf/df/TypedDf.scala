@@ -1,34 +1,61 @@
-package com.futurice.iodf
+package com.futurice.iodf.df
 
-import com.futurice.iodf.utils.{MergeSortIterator, PeekIterator}
+import com.futurice.iodf.util.LSeq
+import com.futurice.iodf.IoType
+import com.futurice.iodf.io.{IoObject, IoType}
 
-import scala.reflect.{ClassTag, classTag}
 import scala.reflect.runtime.universe._
+import scala.reflect.{ClassTag, classTag}
 
+case class TypeIoSchema[T](t:Class[_],
+                           thisIoType:IoType[_ <: IoObject],
+                           fields : Seq[(Type, String, _ <: IoType[_ <: IoObject])]) {
 
-trait TypedDf[IoId, T] extends Df[IoId, String] {
+  def fieldIoTypes: Seq[(String, _ <: IoType[_ <: IoObject])] =
+  //    Seq("this" -> thisIoType) ++
+    fields.map(e => (e._2, e._3)).toSeq
+
+  def getAccessor(name:String) =
+    t.getMethods.find(m => (m.getName == name) && (m.getParameterCount == 0))
+
+  def getter(name:String) = {
+    getAccessor(name).map { a =>
+      (v: T) => a.invoke(v)
+    }
+  }
+
+  def toColumns(items: Seq[T]) =
+  //   Seq(items) ++
+    fields.map { case (field, name, vt) =>
+      //          System.out.println("matching '" + name + "' with " + t.getMethods.map(e => e.getName + "/" + e.getParameterCount + "/" + (e.getName == name)).mkString(","))
+      val accessor = getAccessor(name).get
+      items.map { i => accessor.invoke(i) }
+    }
+}
+
+trait TypedDf[T] extends Df[String] {
   def apply(i:Long) : T
-//  def thisColIndex : Int
+
   def fieldNames : Array[String]
   def fieldIndexes : Array[Int]
 
-  def cast[E : ClassTag](implicit tag:TypeTag[E]) : TypedDf[IoId, E]
+  def cast[E : ClassTag](implicit tag:TypeTag[E]) : TypedDf[E]
 
-  def view(from:Long, until:Long) : TypedDf[IoId, T]
+  def view(from:Long, until:Long) : TypedDf[T]
 }
 
-class TypedDfView[IoId, T : ClassTag](val df:Df[IoId, String])(
+class TypedDfView[T : ClassTag](val df:Df[String])(
   implicit tag:TypeTag[T], ord:Ordering[String])
-  extends TypedDf[IoId, T] {
+  extends TypedDf[T] {
 
   override type ColType[T] = LSeq[T]
 
-  def cast[E : ClassTag](implicit tag2:TypeTag[E]) : TypedDf[IoId, E] = {
-    new TypedDfView[IoId, E](new DfRef(df))
+  def as[E : ClassTag](implicit tag2:TypeTag[E]) : TypedDf[E] = {
+    new TypedDfView[E](new DfRef(df))
   }
 
   def view(from:Long, until:Long) = {
-    new TypedDfView[IoId, T](df.view(from, until))
+    new TypedDfView[T](df.view(from, until))
   }
 
   //  lazy val thisColId = indexOf("this")

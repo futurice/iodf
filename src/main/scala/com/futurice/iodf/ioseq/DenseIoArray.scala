@@ -2,18 +2,17 @@ package com.futurice.iodf.ioseq
 
 import java.io.DataOutputStream
 
-import com.futurice.iodf.store.{FileDataRef, Dir, IoData, RandomAccess}
+import com.futurice.iodf.store.{Dir, FileDataRef, IoData, RandomAccess}
 import com.futurice.iodf._
-import com.futurice.iodf.utils.{PeekIterable, PeekIterator, Scannable, Scanner}
-import xerial.larray.LArray
+import com.futurice.iodf.io.{IoObject, IoRef}
+import com.futurice.iodf.util._
 
 import scala.reflect.runtime.universe._
-import xerial.larray.buffer.LBufferAPI
 
 /**
   * Created by arau on 24.11.2016.
   */
-abstract class IoArray[Id, T](val ref:IoRef[Id, _ <: IoObject[Id]],
+abstract class IoArray[Id, T](val openRef:IoRef[Id, _ <: IoObject[Id]],
                               val buf:RandomAccess)
   extends IoSeq[Id, T] with PeekIterable[T] {
   def offset = 8L

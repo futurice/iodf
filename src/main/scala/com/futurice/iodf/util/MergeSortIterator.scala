@@ -1,6 +1,6 @@
-package com.futurice.iodf.utils
+package com.futurice.iodf.util
 
-import com.futurice.iodf.{LSeq, Utils}
+import com.futurice.iodf.Utils
 
 trait SeekIterator[T, S] extends Iterator[T] {
   /* seeks the position after the given position */

@@ -1,49 +1,70 @@
-package com.futurice.iodf
+package com.futurice.iodf.io
 
 import java.io.{BufferedOutputStream, DataOutputStream}
 
 import com.futurice.iodf.Utils.using
 import com.futurice.iodf.ioseq._
-import com.futurice.iodf.store.{FileDataRef, FileRef, RandomAccess}
-import com.futurice.iodf.utils.{LBits}
+import com.futurice.iodf.store.{DataCreatorRef, DataRef, FileRef, RandomAccess}
+import com.futurice.iodf.util.{LBits, LSeq}
 
 import scala.collection.mutable.ArrayBuffer
+import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 
+/**
+ * Few thoughts..
+ *
+ *   it would be nice to have version of write / open that
+ *   will write down the object type.
+ *
+ *   In this case, you could
+ *
+ */
 
-trait IoTypes[IoId] {
+trait IoTypes {
   def orderingOf(valueTypeTag: TypeTag[_]) : Ordering[Any]
 
-  def ioTypeOf(t : Type) : IoTypeOf[IoId, _ <: IoObject[IoId], _]
-  def ioTypeOf[T : TypeTag]() : IoTypeOf[IoId, _ <: IoObject[IoId], T]
-  def writeIoObject[From](t:From, ref:FileRef[IoId])(implicit tag:TypeTag[From]) : IoRef[IoId, _ <: IoObject[IoId]]
-  def createIoObject[From](t:From, ref:FileRef[IoId])(implicit tag:TypeTag[From]) : IoObject[IoId]
-  def openIoObject[From](ref:FileRef[IoId])(implicit tag:TypeTag[From]) : IoObject[IoId]
+/*  def ioType = new IoType[Any] {
+    override def valueType: universe.Type = typeOf[Any]
+    override def open(data: DataRef): Any =
+      open[]()
+    override def write(out: DataOutputStream, iface: Any): Unit = ???
+  }*/
 
-  def getIoTypeId(t:IoType[IoId, _]) : Option[Int]
-  def ioTypeId(t:IoType[IoId, _]) = {
+  def ioTypeOf(t : Type) : IoType[Any]
+  def ioTypeOf[T : TypeTag]() : IoType[T]
+
+  def write[Interface](ref:DataOutputStream, t:Interface)(
+    implicit tag:TypeTag[Interface])
+  def create[Interface](ref:DataCreatorRef, t:Interface)(
+    implicit tag:TypeTag[Interface]) : Interface
+  def open[Interface](ref:DataRef)(implicit tag:TypeTag[Interface])
+    : Interface
+
+  def getIoTypeId(t:IoType[_]) : Option[Int]
+
+  def ioTypeId(t:IoType[_]) = {
     getIoTypeId(t) match {
       case Some(id) => id
       case None => throw new RuntimeException("type " + t + " of ClassLoader " + t.getClass.getClassLoader + " not found for type scheme " + this + " of ClassLoader " + IoTypes.this.getClass.getClassLoader)
     }
   }
-  def idIoType(i:Int) : IoType[IoId, _]
-
-  def intToId(i:Int) : IoId
+  def idIoType(i:Int) : IoType[_]
 
   // shortcuts: reconsider
-  def idOrdering : Ordering[IoId]
+//  def idOrdering : Ordering[IoId]
   def anyOrdering : Ordering[Any]
 
-  def seqTypeOf[Member](implicit typeTag:TypeTag[Seq[Member]]) : IoSeqType[IoId, Member, LSeq[Member],_ <: IoSeq[IoId, Member]] = {
-    ioTypeOf[Seq[Member]].asInstanceOf[IoSeqType[IoId, Member, LSeq[Member],_ <: IoSeq[IoId, Member]]]
+  def seqTypeOf[Member](implicit typeTag:TypeTag[LSeq[Member]])
+    : IoSeqType[Member, LSeq[Member],_ <: IoSeq[Member]] = {
+    ioTypeOf[LSeq[Member]].asInstanceOf[IoSeqType[Member, LSeq[Member],_ <: IoSeq[Member]]]
   }
 
   def longSeqType = seqTypeOf[Long]
-  def idSeqType : IoSeqType[IoId, IoId, LSeq[IoId],_ <: IoSeq[IoId, IoId]]
-  def refSeqType : IoSeqType[IoId, IoObject[IoId], LSeq[IoObject[IoId]],_ <: IoSeq[IoId, IoObject[IoId]]]
-  def bitsSeqType : IoSeqType[IoId, Boolean, LBits,_ <: IoSeq[IoId, Boolean]] = {
-    ioTypeOf[LBits].asInstanceOf[IoSeqType[IoId, Boolean, LBits,_ <: IoSeq[IoId, Boolean]]]
+//  def idSeqType : IoSeqType[IoId, LSeq[IoId],_ <: IoSeq[IoId, IoId]]
+  def refSeqType : IoSeqType[IoObject, LSeq[IoObject],_ <: IoSeq[IoObject]]
+  def bitsSeqType : IoSeqType[Boolean, LBits,_ <: IoSeq[Boolean]] = {
+    ioTypeOf[LBits].asInstanceOf[IoSeqType[Boolean, LBits,_ <: IoSeq[Boolean]]]
   }
 }
 
@@ -51,39 +72,42 @@ abstract class Bounds() {}
 case class MinBound() extends Bounds() {}
 case class MaxBound() extends Bounds() {}
 
-
 object IoTypes {
   type strSeqType = StringIoSeqType[String]
 
-  def apply[IoId](types:Seq[IoType[IoId, _ <: IoObject[IoId]]],
-                _idIo:Serializer[IoId],
-                _intToId: Int => IoId)(implicit idTag:TypeTag[IoId], idOrd: Ordering[IoId]) = {
-    new IoTypes[IoId] {
-      def ioTypeOf(t:Type) : IoTypeOf[IoId, _ <: IoObject[IoId], _] = {
-        types.find(_.asTypeOf(t).isDefined).map(_.asTypeOf(t).get) match {
+  def apply(types:Seq[IoType[_]]) = {
+    new IoTypes {
+      def entryOf(t:Type) : (IoType[_ <: IoObject], Int) = {
+        types.toStream
+             .zipWithIndex
+             .flatMap(e => e._1.cast(t).map(c => (c, e._2)))
+             .headOption match {
           case Some(v) => v
           case None =>
             throw new RuntimeException("no io type for " + t + " / " + t.hashCode() + ". ")
         }
       }
-      def ioTypeOf[T : TypeTag]() : IoTypeOf[IoId, _ <: IoObject[IoId], T] = {
-        ioTypeOf(typeOf[T]).asInstanceOf[IoTypeOf[IoId, _ <: IoObject[IoId], T]]
+      def entryOf[T : TypeTag] : (IoType[T], Int) = {
+        entryOf(typeOf[T]).asInstanceOf[(IoType[T], Int)]
       }
-      def writeIoObject[From : TypeTag](v:From, ref:FileRef[IoId]) = {
-        val typ = ioTypeOf[From]
-        using(new DataOutputStream(new BufferedOutputStream(ref.openOutput))) {
-          typ.write(_, v)
-        }
-        new IoRef[IoId, IoObject[IoId]](typ, new FileDataRef[IoId](ref.dir, ref.id))
+      def ioTypeOf(t:Type) : IoType[_ <: IoObject] = {
+        entryOf(t)._1
       }
-      def openIoObject[From](ref:FileRef[IoId])(implicit tag:TypeTag[From]) = {
-        using (ref.open) { ioTypeOf[From].open(_) }
+      def ioTypeOf[T : TypeTag]() : IoType[T] = {
+        ioTypeOf(typeOf[T]).asInstanceOf[IoType[T]]
       }
-      def createIoObject[From](v:From, ref:FileRef[IoId])(implicit tag:TypeTag[From]) = {
-        writeIoObject(v, ref)
-        openIoObject(ref)(tag)
+      def write[From : TypeTag](out:DataOutputStream, v:From) = {
+        val (typ, id) = entryOf[From]
+        out.writeInt(id)
+        typ.write(out, v)
       }
-      def getIoTypeId(t:IoType[IoId, _]) = {
+      def open[From : TypeTag](ref : DataRef) = {
+        ioTypeOf[From].open(ref)
+      }
+      def create[From](v:From, ref:DataCreatorRef)(implicit tag:TypeTag[From]) = {
+        write(v, ref).open
+      }
+      def getIoTypeId(t:IoType[_]) = {
         Some(types.indexOf(t)).filter(_ >= 0)
       }
       def idIoType(i:Int) = types(i)
@@ -100,7 +124,6 @@ object IoTypes {
             throw new IllegalArgumentException(valueTypeTag.tpe + " is unknown")
         }).asInstanceOf[Ordering[Any]] // TODO: refactor, there has to be a better way
       }
-      def idOrdering = idOrd
       def anyOrdering : Ordering[Any] = new Ordering[Any] {
         val b = orderingOf[Boolean]
         val i = orderingOf[Int]
@@ -121,16 +144,13 @@ object IoTypes {
           }
         }
       }
-      def idSeqType = seqTypeOf[IoId]
-      def refSeqType = seqTypeOf[IoObject[IoId]]
-
-      override def intToId(i: Int): IoId = _intToId(i)
+      def refSeqType = seqTypeOf[IoObject]
     }
   }
   def strings = {
     val str = new strSeqType
-    val buf = new ArrayBuffer[IoType[String, _ <: IoObject[String]]]()
-    val self = apply(buf, StringIo, "_" + _.toString)
+    val buf = new ArrayBuffer[IoType[_]]()
+    val self = apply(buf)
     val entryIo = new Serializer[(Int, String, Long)] {
       override def read(b: RandomAccess, pos: Long): (Int, String, Long) = {
         val i = b.getBeInt(pos)
@@ -163,7 +183,7 @@ object IoTypes {
         bitsIoType,
         //        new SparseToDenseIoBitsType[String](),
         new IntIoArrayType[String],
-        new RefIoSeqType[String, IoObject[String]](self,
+        new RefIoSeqType[String, IoObject](self,
           new ObjectIoSeqType[String, (Int, String, Long)](entryIo, entryIo)),
         new ObjectIoSeqType[String, (String, Any)](tupleIo, tupleIo),
         new ObjectIoSeqType[String, Any](javaIo, javaIo))

@@ -5,8 +5,9 @@ import java.util
 
 import com.futurice.iodf.Utils._
 import com.futurice.iodf._
+import com.futurice.iodf.io.IoRef
 import com.futurice.iodf.store.{FileRef, IoData}
-import com.futurice.iodf.utils._
+import com.futurice.iodf.util._
 
 import scala.reflect.runtime.universe._
 
@@ -67,7 +68,7 @@ class SparseIoBitsType[Id](implicit val t:TypeTag[LBits])
 /**
   * Created by arau on 15.12.2016.
   */
-class SparseIoBits[IoId](val ref:IoRef[IoId, SparseIoBits[IoId]],
+class SparseIoBits[IoId](val openRef:IoRef[IoId, SparseIoBits[IoId]],
                          val indexes:LongIoArray[IoId],
                          val lsize : Long) extends IoBits[IoId]{
   override def apply(l: Long): Boolean = {

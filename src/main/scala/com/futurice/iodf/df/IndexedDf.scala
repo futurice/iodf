@@ -1,14 +1,14 @@
-package com.futurice.iodf
+package com.futurice.iodf.df
 
 import java.io.Closeable
 
 import com.futurice.iodf.Utils.using
-import com.futurice.iodf.ioseq.IoBits
-import com.futurice.iodf.utils.LBits
+import com.futurice.iodf._
+import com.futurice.iodf.io.{MaxBound, MinBound}
+import com.futurice.iodf.ml.CoStats
+import com.futurice.iodf.util.{LBits, LSeq}
 
 import scala.reflect.ClassTag
-
-
 import scala.reflect.runtime.universe._
 
 
@@ -34,11 +34,11 @@ case class IndexConf[ColId](analyzers:Map[ColId, Any => Seq[Any]] = Map[ColId, A
 }
 
 
-class IndexedDf[IoId, T](val df:TypedDf[IoId, T],
-                         val indexDf:Df[IoId, (String, Any)]) extends Closeable {
+class IndexedDf[T](val df:TypedDf[T],
+                   val indexDf:Df[(String, Any)]) extends Closeable {
 
-  def view(from:Long, until:Long) : IndexedDf[IoId, T] =
-    new IndexedDf[IoId, T](
+  def view(from:Long, until:Long) : IndexedDf[T] =
+    new IndexedDf[T](
       df.view(from, until),
       indexDf.view(from, until))
 

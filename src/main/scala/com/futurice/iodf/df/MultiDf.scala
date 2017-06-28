@@ -1,17 +1,19 @@
-package com.futurice.iodf
+package com.futurice.iodf.df
 
+import com.futurice.iodf.ioseq.{IoSeq, IoSeqType}
 import com.futurice.iodf.store.RefCounted
-import com.futurice.iodf.utils.{MergeSortEntry, MergeSortIterator, PeekIterator, Scanner}
+import com.futurice.iodf.util._
+import com.futurice.iodf.{DfColTypes, IoScope, Utils}
 
 import scala.collection.mutable.ArrayBuffer
 
 object MultiDf {
   def DefaultColIdMemRatio = 16
-  def apply[IoId, ColId](dfs:Seq[_ <: Df[IoId, ColId]], types:DfColTypes[IoId, ColId])(
+  def apply[ColId](dfs:Seq[_ <: Df[ColId]], types:DfColTypes[ColId])(
     implicit colIdOrdering:Ordering[ColId]) = {
-    new MultiDf[IoId, ColId](dfs.toArray, types)
+    new MultiDf[ColId](dfs.toArray, types)
   }
-  def refCounted[IoId, ColId](dfs:Seq[_ <: RefCounted[Df[IoId, ColId]]], types:DfColTypes[IoId, ColId])(
+  def refCounted[ColId](dfs:Seq[_ <: RefCounted[Df[ColId]]], types:DfColTypes[ColId])(
     implicit colIdOrdering:Ordering[ColId]) = {
     val rv = new MultiDf[IoId, ColId](dfs.map(_.value).toArray, types)
     dfs.map { rv.scope.bind(_) }

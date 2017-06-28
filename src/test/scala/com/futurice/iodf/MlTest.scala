@@ -3,10 +3,11 @@ package com.futurice.iodf
 import java.io.File
 
 import com.futurice.iodf.Utils._
+import com.futurice.iodf.df.IndexConf
 import com.futurice.iodf.ioseq.DenseIoBits
 import com.futurice.iodf.ml.Knn
 import com.futurice.iodf.store.{MMapDir, RefCounted}
-import com.futurice.iodf.utils.LBits
+import com.futurice.iodf.util.LBits
 import com.futurice.testtoys.TestSuite
 
 case class Animal(legs:Int, features:String, noise:Boolean, isDuck:Boolean)

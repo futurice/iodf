@@ -5,7 +5,8 @@ import java.io._
 import com.futurice.iodf.store.{Dir, IoData, RandomAccess}
 import com.futurice.iodf.Utils._
 import com.futurice.iodf._
-import xerial.larray.buffer.LBufferAPI
+import com.futurice.iodf.io.{IoObject, IoRef}
+import com.futurice.iodf.util.LSeq
 
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.runtime.universe._
@@ -111,9 +112,9 @@ object ObjectIoSeqWriter {
 }
 
 class ObjectIoSeq[Id, T](
-  val ref:IoRef[Id, _ <: IoObject[Id]],
-  val buf:RandomAccess,
-  val i:RandomAccessReading[T]) extends IoSeq[Id, T] {
+                          val openRef:IoRef[Id, _ <: IoObject[Id]],
+                          val buf:RandomAccess,
+                          val i:RandomAccessReading[T]) extends IoSeq[Id, T] {
 //  new RuntimeException().printStackTrace()
 
   val indexPos = buf.getBeLong(buf.size - 8)

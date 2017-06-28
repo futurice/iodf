@@ -5,7 +5,7 @@ import java.util
 import com.futurice.iodf.Utils._
 import com.futurice.iodf.ioseq._
 import com.futurice.iodf.store.{MMapDir, RefCounted}
-import com.futurice.iodf.utils._
+import com.futurice.iodf.util._
 import com.futurice.iodf.{IoContext, IoScope}
 import com.futurice.testtoys.{TestSuite, TestTool}
 

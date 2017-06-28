@@ -7,7 +7,7 @@ import com.futurice.testtoys.{TestSuite, TestTool}
 import com.futurice.iodf.store.{MMapDir, RamDir, RefCounted}
 import com.futurice.iodf.Utils._
 import com.futurice.iodf.ioseq._
-import com.futurice.iodf.utils.{LBits, MultiBits}
+import com.futurice.iodf.util.{LBits, MultiBits}
 
 import scala.reflect.runtime.universe._
 import scala.util.Random

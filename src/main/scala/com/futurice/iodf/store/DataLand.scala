@@ -2,33 +2,65 @@ package com.futurice.iodf.store
 
 import java.io.{Closeable, OutputStream}
 
+import com.futurice.iodf.Utils.using
 import org.slf4j.LoggerFactory
+
 import xerial.larray.buffer.{LBuffer, LBufferConfig}
+import xerial.larray.mmap.{MMapBuffer, MMapMode}
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
-trait DataRef extends Closeable {
-  def open : RandomAccess
-  def size : Long
-  def openView(from:Long, until:Option[Long]) : DataRef
+/**
+ * Handles are used for lifecyles & resource management.
+ * You can copy a handle, or you can close a handle
+ */
+trait Handle extends Closeable {
+  def copy : Handle
 }
 
 trait DataCreator extends OutputStream {
-  /**
-    * Grabs the ownership of the resulting data
-    */
-  def adoptOpenResult : DataRef
+  /* returned reference is open */
+  def adoptResult : DataRef
 }
 
+trait DataCreatorRef {
+  def create : DataCreator
+}
 
 /**
-  * Created by arau on 26.6.2017.
+  * Why reference need to be opened, copied and closed?
+  *
+  *   Because otherwise we couldn't release ad-hoc allocated resources
+  *   in off-heap memory, in filesystem, or in remote hosts!
+  *
+  *   We have to control the resource life cycles.
+  *
   */
+trait DataRef extends Handle {
+  def open     : RandomAccess
+  def byteSize : Long
+  def copy     : DataRef
+
+  def openView(from:Long, until:Long) : DataRef
+}
+
+class DataRefView(viewed:DataRef,
+                  from:Long,
+                  until:Long) extends DataRef {
+  val v        = viewed.copy
+  def close    = v.close
+  def copy     = new DataRefView(v, from, until)
+  def open     =
+    using (v.open) { _.openView(from, until) }
+  def byteSize = until - from
+  def openView(from:Long, until:Long) = {
+    new DataRefView(v, this.from + from, this.from + until)
+  }
+}
+
 trait DataLand extends Closeable {
   def create : DataCreator
-  def byteSize : Long
-  def size : Long
 }
 
 object LBufferCreator {
@@ -36,19 +68,22 @@ object LBufferCreator {
 }
 
 object DataRef {
-  def open(memRef:RefCounted[MemoryResource], from:Long = 0, sz:Option[Long] = None) : DataRef =
+  def open(memRef:RefCounted[MemoryResource], from:Long = 0, sz:Option[Long] = None) : DataRef = {
     new DataRef {
       memRef.inc
+      val f = from
       override def open: RandomAccess =
         new RandomAccess(memRef)
+      def copy = DataRef.open(memRef, from, sz)
+      override def byteSize: Long =
+        sz.getOrElse(memRef.value.memory.size())
 
-      override def size: Long = sz.getOrElse(memRef.value.memory.size())
-
-      override def openView(f: Long, until: Option[Long]): DataRef =
-        DataRef.open(memRef, from + f, until.orElse(sz))
+      override def openView(from: Long, until: Long): DataRef =
+        DataRef.open(memRef, f + from, Some(until))
 
       override def close(): Unit = memRef.close
     }
+  }
 
 }
 
@@ -83,7 +118,7 @@ class LBufferCreator extends DataCreator {
       buf = null
     }
   }
-  override def adoptOpenResult: DataRef = {
+  override def adoptResult: DataRef = {
     val b = buf
     buf = null
     DataRef.open(

@@ -6,7 +6,8 @@ import java.util
 import com.futurice.iodf.Utils._
 import com.futurice.iodf.store._
 import com.futurice.iodf._
-import com.futurice.iodf.utils._
+import com.futurice.iodf.io.IoRef
+import com.futurice.iodf.util._
 import oracle.jrockit.jfr.events.Bits
 
 import scala.collection.mutable.ArrayBuffer
@@ -67,9 +68,9 @@ object IoBitsType {
       bools => LBits(bools))(t)
       with IoSeqType[IoId, Boolean, LBits, WrappedIoBits[IoId]] {
       override def valueTypeTag: universe.TypeTag[Boolean] = valueTag
-      def viewMerged(seqs: Seq[com.futurice.iodf.utils.LBits]) =
+      def viewMerged(seqs: Seq[com.futurice.iodf.util.LBits]) =
         bitsType.viewMerged(seqs)
-      def writeSeq(out: java.io.DataOutputStream,v: com.futurice.iodf.utils.LBits) = {
+      def writeSeq(out: java.io.DataOutputStream,v: com.futurice.iodf.util.LBits) = {
         bitsType.writeSeq(out, v)
       }
     }
@@ -79,7 +80,7 @@ object IoBitsType {
 
 class WrappedIoBits[IoId](val someRef:Option[IoRef[IoId, IoBits[IoId]]],
                           val bits:LBits) extends IoBits[IoId] {
-  def ref = someRef.get
+  def openRef = someRef.get
 
   def unwrap = bits
   override def close = {

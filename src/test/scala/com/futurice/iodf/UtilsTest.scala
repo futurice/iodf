@@ -1,5 +1,6 @@
 package com.futurice.iodf
 
+import com.futurice.iodf.util.LSeq
 import com.futurice.testtoys.TestSuite
 
 import scala.util.Random

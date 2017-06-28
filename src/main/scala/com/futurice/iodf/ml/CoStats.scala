@@ -1,7 +1,6 @@
-package com.futurice.iodf
+package com.futurice.iodf.ml
 
-import com.futurice.iodf.ioseq.IoBits
-import com.futurice.iodf.utils.LBits
+import com.futurice.iodf.util.LBits
 
 
 case class CoStats(n:Long, fA:Long, fB:Long, fAB:Long, priorW:Double = 2, priorA:Double =0.5, priorB:Double =0.5) {

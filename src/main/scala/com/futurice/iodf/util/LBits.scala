@@ -1,4 +1,4 @@
-package com.futurice.iodf.utils
+package com.futurice.iodf.util
 
 import java.util
 

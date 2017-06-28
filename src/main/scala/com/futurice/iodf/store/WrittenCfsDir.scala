@@ -3,7 +3,8 @@ package com.futurice.iodf.store
 import java.io._
 
 import com.futurice.iodf._
-import com.futurice.iodf.ioseq.Serializer
+import com.futurice.iodf.ioseq.{IoSeq, IoSeqType, Serializer}
+import com.futurice.iodf.util.LSeq
 
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
@@ -18,7 +19,7 @@ class WrittenCfsDir[IoId, DirIoId](
    longSeqType:IoSeqType[DirIoId, Long, _ <: LSeq[Long], _ <: IoSeq[DirIoId, Long]],
    fromInt: Int => IoId)(
    implicit tag:ClassTag[IoId],
-   idOrdering:Ordering[IoId]) extends Dir[IoId] {
+   idOrdering:Ordering[IoId]) extends WritableDir[IoId] {
 
   val out = new OutputStream {
     val o = new BufferedOutputStream(ref.openOutput)
@@ -57,31 +58,32 @@ class WrittenCfsDir[IoId, DirIoId](
   override def id(i: Int) = fromInt(i)
 
   //  def create(id:Id, length:Long) : IoData[Id]
-  override def openOutput(id: IoId): OutputStream = {
+  override def create(id: IoId) : DataCreator = {
     if (!ready) throw new IllegalStateException("cfd dir can be written one file at a time.")
     ids += id
     pos += out.size
     ready = false
-    new OutputStream {
+    new DataCreator {
       override def write(b: Int): Unit = {
         out.write(b)
       }
-
       override def write(b: Array[Byte]) {
         out.write(b)
       }
-
       override def write(b: Array[Byte], off: Int, len: Int) {
         out.write(b, off, len)
       }
-
       override def close = {
         ready = true
+      }
+      override def adoptResult: DataRef = {
+        close
+        ref(id)
       }
     }
   }
 
-  override def open(id: IoId, pos: Long, size: Option[Long]): IoData[IoId] = {
+  override def open(id: IoId): RandomAccess = {
     out.flush
     val i = ids.indexOf(id)
     if (i == -1) throw new IllegalArgumentException(id + " not found.")
@@ -95,23 +97,8 @@ class WrittenCfsDir[IoId, DirIoId](
     }
 
     val p = this.pos(i)
-    val begin = p + pos
-    val origSize = size
-    val sz = size.getOrElse(end - begin)
-    val data = ref.open(begin, Some(sz))
-    // TODO: check size
-    new IoData[IoId] {
-      def close = data.close
-
-      def ref = new FileDataRef[IoId](WrittenCfsDir.this, id, pos, origSize)
-
-      def openRandomAccess = data.openRandomAccess
-
-      def byteSize = data.byteSize
-
-      def openView(offset: Long, size: Option[Long] = None) =
-        open(id, begin + offset, size.orElse(Some(sz)))
-    }
+    val begin = p
+    Utils.using (ref.openView(begin, end)) { _.open }
   }
 
   override def list = ids.toArray
@@ -137,11 +124,6 @@ class WrittenCfsDir[IoId, DirIoId](
     val posPos = out.size
     longSeqType.writeAny(dout, pos)
 
-    /*    out.writeInt(idPos.size)
-     idPos.foreach { case (id, pos) =>
-        idIo.write(out, id)
-        out.writeLong(pos)
-    }*/
     dout.writeLong(idPos)
     dout.writeLong(ordPos)
     dout.writeLong(posPos)
@@ -163,8 +145,7 @@ class CfsDir[IoId, DirIoId](val ref:FileRef[DirIoId],
                             idOrdering:Ordering[IoId]) extends Dir[IoId] {
 
   val bind = IoScope.open
-  val buf = bind(ref.open)
-  val ra = bind(buf.openRandomAccess)
+  val ra = bind(ref.open)
 
   val (dataSize, idSeq, ordSeq, posSeq) = {
     val idSeqPos = ra.getBeLong(ra.size-24)
@@ -172,25 +153,11 @@ class CfsDir[IoId, DirIoId](val ref:FileRef[DirIoId],
     val posSeqPos = ra.getBeLong(ra.size-8)
     val rv =
        (idSeqPos,
-        bind(idSeqType.open(bind(buf.openView(idSeqPos, Some(ordSeqPos - idSeqPos))))),
-        bind(longSeqType.open(bind(buf.openView(ordSeqPos, Some(posSeqPos - ordSeqPos))))),
-        bind(longSeqType.open(bind(buf.openView(posSeqPos, Some(ra.size - posSeqPos))))))
+        bind(idSeqType.open(bind(ref.openView(idSeqPos, Some(ordSeqPos - idSeqPos))))),
+        bind(longSeqType.open(bind(ref.openView(ordSeqPos, Some(posSeqPos - ordSeqPos))))),
+        bind(longSeqType.open(bind(ref.openView(posSeqPos, Some(ra.size - posSeqPos))))))
     rv
   }
-
-/*  val (dataSize, idPos) = {
-    val indexPos = ra.getBeLong(ra.size-8)
-    val indexSize = ra.getBeInt(indexPos)
-    var at = indexPos + 4
-    (indexPos,
-     (0 until indexSize) map { i =>
-       val id = idIo.read(ra, at)
-       at += idIo.size(ra, at)
-       val pos = ra.getBeLong(at)
-       at += 8
-       (id, pos)
-     })
-  }*/
 
   override def id(i: Int) = fromInt(i)
   override def byteSize(id: IoId) = {
@@ -204,32 +171,19 @@ class CfsDir[IoId, DirIoId](val ref:FileRef[DirIoId],
     }
   }
 
-  override def openOutput(id:IoId): OutputStream = {
-    throw new IllegalStateException("compound files are immutable once written")
-  }
-  override def open(id:IoId, pos:Long, size:Option[Long]): IoData[IoId] = {
+  override def open(id:IoId): RandomAccess = {
     Utils.binarySearch(idSeq, id)(idOrdering)._1 match {
       case -1 => throw new IllegalArgumentException(id + " not found")
       case i =>
         val ord = ordSeq(i)
-        val begin = posSeq(ord) + pos
+        val begin = posSeq(ord)
         val end = (if (ord + 1 == idSeq.lsize) dataSize else posSeq(ord + 1))
-        val sz = size.getOrElse(end - begin)
-        new IoData[IoId] {
-          override def close(): Unit = {}
-          override def ref: FileDataRef[IoId] = FileDataRef(CfsDir.this, id, pos)
-          override def openRandomAccess = ra.openSlice(begin, sz)
-          override def byteSize: Long = sz
-
-          override def openView(offset: Long, size:Option[Long]): IoData[IoId] =
-            open(id, pos+offset, size)
-        }
+        Utils.using (ref.openView(begin, end)) { _.open }
     }
   }
   override def list: Array[IoId] = idSeq.toArray
   override def close(): Unit = {
     bind.close
   }
-
-  def byteSize = ra.size
+  def byteSize = ra.byteSize
 }
