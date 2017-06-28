@@ -126,7 +126,7 @@ class IoBitsType[IoId](val sparse:SparseIoBitsType[IoId],
   override def valueTypeTag =
     _root_.scala.reflect.runtime.universe.typeTag[Boolean]
 
-  def wrap(data:Option[DataRef[IoId]], ioBits:LBits) = {
+  def wrap(data:Option[FileDataRef[IoId]], ioBits:LBits) = {
     new WrappedIoBits(
       data.map( ref => IoRef[IoId, IoBits[IoId]](this, ref)),
       ioBits)

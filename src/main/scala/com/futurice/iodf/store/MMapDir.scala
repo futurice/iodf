@@ -31,7 +31,7 @@ class MMapDir(dir:File) extends Dir[String] {
     val m = new MMapBuffer (f, 0, f.length(), MMapMode.READ_ONLY)
   //  System.out.println("memory opened")
     IoData.open(
-      DataRef(this, name, pos, size),
+      FileDataRef(this, name, pos, size),
       RefCounted(
         MemoryResource(m.m, new Closeable {
           def close = {
@@ -44,6 +44,7 @@ class MMapDir(dir:File) extends Dir[String] {
   override def list: Array[String] = {
     dir.list
   }
+  override def byteSize(id:String) = new File(dir, id).length()
 
   override def close(): Unit = {}
 

@@ -234,7 +234,7 @@ class Dfs[IoId : ClassTag](val types:IoTypes[IoId])(implicit val seqSeqTag : Typ
     t
   }
 
-  def openSeq[T](ref: DataRef[IoId])(implicit seqTag: TypeTag[Seq[T]]) = {
+  def openSeq[T](ref: FileDataRef[IoId])(implicit seqTag: TypeTag[Seq[T]]) = {
     val t = types.ioTypeOf[Seq[T]]
     using(ref.open) { d =>
       t.open(d).asInstanceOf[IoSeq[IoId, T]]
@@ -447,37 +447,77 @@ class Dfs[IoId : ClassTag](val types:IoTypes[IoId])(implicit val seqSeqTag : Typ
       dir)
   }
 
-  def openCfs(dir: Dir[IoId], id: Int) = {
-    new CfsDir[IoId, IoId](dir.ref(dir.id(id)),
+  def openCfs(fileRef:FileRef[IoId]) : CfsDir[IoId, IoId] = {
+    new CfsDir[IoId, IoId](fileRef,
       types.idSeqType,
       types.longSeqType,
       types.intToId _)(classTag[IoId], types.idOrdering)
   }
+  def openCfs(dir: Dir[IoId], id: Int) : CfsDir[IoId, IoId] = {
+    openCfs(dir.ref(dir.id(id)))
+  }
 
-  def openWrittenCfs(dir: Dir[IoId], id: Int) = {
-    new WrittenCfsDir[IoId, IoId](dir.ref(dir.id(id)),
+  def openWrittenCfs(fileRef:FileRef[IoId]) : WrittenCfsDir[IoId, IoId] = {
+    new WrittenCfsDir[IoId, IoId](fileRef,
       types.idSeqType,
       types.longSeqType,
       types.intToId _)(classTag[IoId], types.idOrdering)
+  }
+  def openWrittenCfs(dir: Dir[IoId], id: Int) : WrittenCfsDir[IoId, IoId] = {
+    openWrittenCfs(dir.ref(dir.id(id)))
   }
 
   def writingCfs[T](dir:Dir[IoId], id:Int, make:Dir[IoId] => T) = {
     using (openWrittenCfs(dir, id))(make)
   }
 
-  def usingCfs[T](dir:Dir[IoId], id:Int, open:Dir[IoId] => T) = {
-    using (openCfs(dir, id))(open)
+  def usingCfs[T](fileRef:FileRef[IoId])(f:Dir[IoId] => T) : T = {
+    using (openCfs(fileRef))(f(_))
+  }
+  def usingCfs[T](dir:Dir[IoId], id:Int)(f:Dir[IoId] => T) : T = {
+    using (openCfs(dir, id))(f(_))
   }
 
-  def writeMergedIndexedDf[T](dfs: Seq[IndexedDf[IoId, T]],
-                              targetDir: Dir[IoId])(
-                               implicit t: TypeTag[Seq[(String, Any)]]): Unit = {
+  def writeIndexedDf[T : ClassTag](df:IndexedDf[IoId, T],
+                        targetDir:Dir[IoId])(
+                        implicit t : TypeTag[T],
+                                 indexSeqT: TypeTag[Seq[(String, Any)]]) : Unit = {
     using(openWrittenCfs(targetDir, 0)) { d =>
-      writeMergedDf(dfs.map(_.df), d, dfColTypes(dfs.head.df))
+      writeDf(df.df, d, typeColTypes[T])
+    }
+    using(openWrittenCfs(targetDir, 1)) { d =>
+      writeDf(df.indexDf, d, indexDfColTypes())(
+        indexSeqT, Ordering.Tuple2(Ordering[String], types.anyOrdering)
+      )
+    }
+  }
+
+  def writeIndexedDf[T: ClassTag](
+                         df:IndexedDf[IoId, T],
+                         fileRef:FileRef[IoId])(
+                         implicit t : TypeTag[T],
+                         indexSeqT: TypeTag[Seq[(String, Any)]]) : Unit = {
+    using (openWrittenCfs(fileRef)) { dir =>
+      writeIndexedDf[T](df, dir)
+    }
+  }
+
+  def openIndexedDf[T : ClassTag](fileRef:FileRef[IoId])(
+                       implicit t : TypeTag[T],
+                       indexSeqT: TypeTag[Seq[(String, Any)]]) : IndexedDf[IoId, T] = {
+    usingCfs(fileRef) { openIndexedDf[T](_) }
+  }
+
+  def writeMergedIndexedDf[T : ClassTag](dfs: Seq[IndexedDf[IoId, T]],
+                              targetDir: Dir[IoId])(
+                              implicit t : TypeTag[T],
+                              indexedSeqT: TypeTag[Seq[(String, Any)]]): Unit = {
+    using(openWrittenCfs(targetDir, 0)) { d =>
+      writeMergedDf(dfs.map(_.df), d, typeColTypes[T])
     }
     using(openWrittenCfs(targetDir, 1)) { d =>
       writeMergedDf(dfs.map(_.indexDf), d, indexDfColTypes())(
-        t, Ordering.Tuple2(Ordering[String], types.anyOrdering))
+        indexedSeqT, Ordering.Tuple2(Ordering[String], types.anyOrdering))
     }
   }
 
@@ -584,7 +624,7 @@ class FsDfs(types:IoTypes[String])(implicit seqSeqTag : TypeTag[Seq[IoObject[Str
       }
     }
   }
-  def openingFile[T](file:File)( f : DataRef[String] => T) = {
+  def openingFile[T](file:File)( f : FileDataRef[String] => T) = {
     using (new MMapDir(file.getParentFile))( dir => f(dir.ref(file.getName, 0, None)) )
   }
 

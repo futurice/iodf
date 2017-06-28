@@ -81,7 +81,7 @@ class RamDir[Id](ids:IdSchema[Id])(implicit t:ClassTag[Id]) extends Dir[Id] {
         dir +=
           id ->
             IoData.open(
-              DataRef[Id](RamDir.this, id, 0),
+              FileDataRef[Id](RamDir.this, id, 0),
               RefCounted(
                 MemoryResource(buf.m, new Closeable {
                   def close = {
@@ -101,7 +101,8 @@ class RamDir[Id](ids:IdSchema[Id])(implicit t:ClassTag[Id]) extends Dir[Id] {
   override def list: Array[Id] = synchronized {
     dir.keySet.toArray
   }
-  def byteSize : Long = dir.map(_._2.size).sum
+  def byteSize(id:Id) : Long = dir(id).byteSize
+  def byteSize : Long = dir.map(_._2.byteSize).sum
   override def close(): Unit = synchronized {
 //    logger.info("closing ram dir of " + (totalMemory / 1024) + "KB")
 

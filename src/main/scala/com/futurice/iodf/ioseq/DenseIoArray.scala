@@ -2,7 +2,7 @@ package com.futurice.iodf.ioseq
 
 import java.io.DataOutputStream
 
-import com.futurice.iodf.store.{DataRef, Dir, IoData, RandomAccess}
+import com.futurice.iodf.store.{FileDataRef, Dir, IoData, RandomAccess}
 import com.futurice.iodf._
 import com.futurice.iodf.utils.{PeekIterable, PeekIterator, Scannable, Scanner}
 import xerial.larray.LArray

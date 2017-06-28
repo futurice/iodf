@@ -4,7 +4,7 @@ import java.io.{BufferedOutputStream, DataOutputStream}
 
 import com.futurice.iodf.Utils.using
 import com.futurice.iodf.ioseq._
-import com.futurice.iodf.store.{DataRef, FileRef, RandomAccess}
+import com.futurice.iodf.store.{FileDataRef, FileRef, RandomAccess}
 import com.futurice.iodf.utils.{LBits}
 
 import scala.collection.mutable.ArrayBuffer
@@ -74,7 +74,7 @@ object IoTypes {
         using(new DataOutputStream(new BufferedOutputStream(ref.openOutput))) {
           typ.write(_, v)
         }
-        new IoRef[IoId, IoObject[IoId]](typ, new DataRef[IoId](ref.dir, ref.id))
+        new IoRef[IoId, IoObject[IoId]](typ, new FileDataRef[IoId](ref.dir, ref.id))
       }
       def openIoObject[From](ref:FileRef[IoId])(implicit tag:TypeTag[From]) = {
         using (ref.open) { ioTypeOf[From].open(_) }

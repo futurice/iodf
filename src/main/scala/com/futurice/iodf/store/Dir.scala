@@ -263,26 +263,26 @@ class RandomAccess(val countedM:RefCounted[MemoryResource],
 
 }
 trait IoData[Id] extends Closeable {
-  def ref : DataRef[Id]
+  def ref : FileDataRef[Id]
 
 //  def inputStream(pos:Long = 0L) : InputStream
   def openRandomAccess : RandomAccess
-  def size : Long
+  def byteSize : Long
 
   def openView(offset:Long, length:Option[Long] = None) : IoData[Id]
 }
 
 object IoData {
-  def open[Id](r:DataRef[Id], mem: RefCounted[MemoryResource]) : IoData[Id] = {
+  def open[Id](r:FileDataRef[Id], mem: RefCounted[MemoryResource]) : IoData[Id] = {
     new IoData[Id] {
       val m = mem.open.memory
       override def close(): Unit = mem.close
-      override def ref: DataRef[Id] = {
+      override def ref: FileDataRef[Id] = {
         r
       }
       override def openRandomAccess = new RandomAccess(mem, r.pos, r.size)
 
-      override def size: Long = m.size()
+      override def byteSize: Long = m.size()
 
       override def openView(offset: Long, size:Option[Long]): IoData[Id] = {
         open(r.view(offset, size), mem)
@@ -332,22 +332,24 @@ trait Dir[Id] extends Closeable {
 
   def list : Array[Id]
   def exists(id:Id) = list.contains(id)
+  def byteSize(id:Id) : Long
 
   def ref(id:Id) = new FileRef(this, id)
-  def ref(id:Id, pos:Long, size:Option[Long]) = new DataRef(this, id, pos, size)
+  def ref(id:Id, pos:Long, size:Option[Long]) = new FileDataRef(this, id, pos, size)
 
   def byteSize : Long
 }
 
 case class FileRef[Id](dir:Dir[Id], id:Id) {
+  def byteSize = dir.byteSize(id)
   def open : IoData[Id] = open()
   def open(pos:Long = 0, size:Option[Long] = None) : IoData[Id]  = dir.open(id, pos, size)
   def openOutput = dir.openOutput(id)
-  def toDataRef = new DataRef[Id](dir, id, 0, None)
+  def toDataRef = new FileDataRef[Id](dir, id, 0, None)
 //  def create(l:Long) = dir.create(id, l)
 }
 /* TODO: add maxSize:Option[Long] */
-case class DataRef[Id](dir:Dir[Id], id:Id, pos:Long = 0, size:Option[Long] = None) {
+case class FileDataRef[Id](dir:Dir[Id], id:Id, pos:Long = 0, size:Option[Long] = None) {
   def open : IoData[Id] = open()
   def open(p:Long = 0, sz:Option[Long] = None) = {
     val begin = pos + p
@@ -355,7 +357,7 @@ case class DataRef[Id](dir:Dir[Id], id:Id, pos:Long = 0, size:Option[Long] = Non
   }
 
   def view(offset:Long, sz:Option[Long] = None) = {
-    new DataRef(dir, id,
+    new FileDataRef(dir, id,
                 pos + offset,
                 sz.orElse(size.map(_ - offset)))
   }
