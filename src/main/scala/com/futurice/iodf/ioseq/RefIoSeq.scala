@@ -2,21 +2,22 @@ package com.futurice.iodf.ioseq
 
 import java.io.DataOutputStream
 
-import com.futurice.iodf.store.{Dir, IoData}
+import com.futurice.iodf.store.{Dir}
 import com.futurice.iodf._
 import com.futurice.iodf.Utils._
 import com.futurice.iodf.io.{IoObject, IoRef, IoTypes}
-import com.futurice.iodf.util.{LBits, LSeq}
+import com.futurice.iodf.util.{LBits, LSeq, MultiSeq}
 
 import scala.reflect.runtime.universe._
+
+/*
 
 /**
   * Created by arau on 25.11.2016.
   */
-class RefIoSeq[Id, T <: IoObject[Id]](
-                                       override val openRef:IoRef[Id, RefIoSeq[Id, T]],
-                                       val types:IoTypes[Id],
-                                       val buf:ObjectIoSeq[Id, (Int, Id, Long)]) extends IoSeq[Id, T] {
+class RefIoSeq[Id, T <: IoObject](override val openRef:IoRef[RefIoSeq[T]],
+                                  val types:IoTypes,
+                                  val buf:ObjectIoSeq[(Int, Id, Long)]) extends IoSeq[T] {
   def dir = openRef.dataRef.dir // assume that the referred items are in the same directory
   override def apply(l: Long): T = {
     val (typ, id, pos) = buf(l)
@@ -28,9 +29,9 @@ class RefIoSeq[Id, T <: IoObject[Id]](
   override def close(): Unit = buf.close
 }
 
-class RefIoSeqType[Id, M <: IoObject[Id]](
-   types:IoTypes[Id],
-   entryType:ObjectIoSeqType[Id, (Int, Id, Long)])(
+class RefIoSeqType[M <: IoObject, FileId](
+   types:IoTypes,
+   entryType:ObjectIoSeqType[(Int, Id, Long)])(
    implicit val t : TypeTag[Seq[M]],
    implicit val valueTag : TypeTag[M])
   extends IoTypeOf[Id, RefIoSeq[Id, M], Seq[M]]()(t)
@@ -48,7 +49,7 @@ class RefIoSeqType[Id, M <: IoObject[Id]](
   }
   def viewMerged(seq:Seq[LSeq[M]]) = new MultiSeq[M, LSeq[M]](seq.toArray)
 
-  override def open(buf: IoData[Id]): RefIoSeq[Id, M] = {
+  override def open(buf: DataRef): RefIoSeq[Id, M] = {
     new RefIoSeq[Id, M](
       IoRef[Id, RefIoSeq[Id, M]](this, buf.ref),
       types,
@@ -83,4 +84,5 @@ class RefIoSeqType[Id, M <: IoObject[Id]](
     new String(bytes)
   }
 }
+*/
 */

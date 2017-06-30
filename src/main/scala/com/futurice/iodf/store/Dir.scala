@@ -44,6 +44,8 @@ trait Dir[Id] extends Closeable {
   def openRef(id:Id) =
     new FileRef(this, id)
 
+  def ref(id:Id)(implicit bind:IoScope) = bind(openRef(id))
+
   def open(id:Id, pos:Long = 0, size:Option[Long] = None) :
     RandomAccess
 

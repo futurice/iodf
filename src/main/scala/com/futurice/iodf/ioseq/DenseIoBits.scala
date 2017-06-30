@@ -3,7 +3,7 @@ package com.futurice.iodf.ioseq
 import java.io.DataOutputStream
 import java.util
 
-import com.futurice.iodf.store.{Dir, FileRef, IoData, RandomAccess}
+import com.futurice.iodf.store._
 import com.futurice.iodf.util._
 import com.futurice.iodf._
 import com.futurice.iodf.io.IoRef
@@ -22,9 +22,12 @@ object DenseIoBits {
 //       to dense bits. These should be merged !!!
 
 
-class DenseIoBitsType[Id](implicit val t:TypeTag[LBits])
-  extends IoTypeOf[Id, DenseIoBits[Id], LBits]()(t)
-    with IoSeqType[Id, Boolean, LBits, DenseIoBits[Id]] {
+class DenseIoBitsType
+  extends IoSeqType[Boolean, LBits, DenseIoBits] {
+
+  def interfaceType = typeOf[LBits]
+  def ioInstanceType = typeOf[DenseIoBits]
+  def valueTypeTag = implicitly[TypeTag[Boolean]]
 
   def defaultSeq[Id](lsize:Long) = {
     LBits.empty(lsize)
@@ -39,8 +42,9 @@ class DenseIoBitsType[Id](implicit val t:TypeTag[LBits])
     out.writeByte((long >>> (8*6)).toInt & 0xFF)
     out.writeByte((long >>> (8*7)).toInt & 0xFF)
   }
+
   def writeMerged2(out: DataOutputStream,
-                  sizeLeLongs:Seq[(Long, Iterator[Long])]) = {
+                   sizeLeLongs:Seq[(Long, Iterator[Long])]) = {
     out.writeLong(sizeLeLongs.map(_._1).sum)
 
     var overbits = 0
@@ -100,9 +104,6 @@ class DenseIoBitsType[Id](implicit val t:TypeTag[LBits])
     val byteSize = DenseIoBits.bitsToByteSize(sz)
     (written until byteSize.toInt).foreach { i => output.writeByte(0) }
   }
-  def write(output: DataOutputStream, v:Seq[Boolean]): Unit = {
-    writeLSeq(output, LSeq(v))
-  }
   def write(output: DataOutputStream, bitN:Long, leLongs:Iterator[Long]): Unit = {
     output.writeLong(bitN)
     for (l <- leLongs) writeLeLong( output,  l )
@@ -114,8 +115,8 @@ class DenseIoBitsType[Id](implicit val t:TypeTag[LBits])
     writeSeq(output, v)
   }
 
-  override def open(buf: IoData[Id]): DenseIoBits[Id] = {
-    new DenseIoBits[Id](IoRef(this, buf.ref), buf.openRandomAccess)
+  override def open(buf: DataRef): DenseIoBits = {
+    new DenseIoBits(new IoRef(this, buf), buf.open)
   }
   override def valueTypeTag =
     _root_.scala.reflect.runtime.universe.typeTag[Boolean]
@@ -146,16 +147,18 @@ class BooleanIoSeqType[Id](implicit val t:TypeTag[Seq[Boolean]])
 /**
   * Created by arau on 24.11.2016.
   */
-class DenseIoBits[IoId](val openRef:IoRef[IoId, DenseIoBits[IoId]], val origBuf:RandomAccess)
-  extends IoBits[IoId] with java.io.Closeable {
+class DenseIoBits(ref:IoRef[DenseIoBits], val origBuf:RandomAccess)
+  extends IoBits with java.io.Closeable {
+  ref.copy // let's inc
+
+  def openRef = ref.copy
 
   val bitSize = origBuf.getBeLong(0)
-
-  val buf = origBuf.openSlice(8)
-
-  override def close = { origBuf.close; buf.close } //close both handles
-
   override val longCount = DenseIoBits.bitsToLongCount(bitSize)
+
+  val buf = origBuf.openView(8, 8 + longCount*8)
+
+  override def close = { ref.close; origBuf.close; buf.close } //close both handles
 
   def byteSize = buf.size
 
@@ -209,15 +212,15 @@ class DenseIoBits[IoId](val openRef:IoRef[IoId, DenseIoBits[IoId]], val origBuf:
 
   override def fAnd(bits:LBits) : Long = {
     bits match {
-      case wrap : WrappedIoBits[_] => fAnd(wrap.unwrap)
-      case dense : DenseIoBits[_] => fAnd(dense)
-      case sparse : SparseIoBits[_] => IoBits.fAndDenseSparse(this, sparse)
+      case wrap : WrappedIoBits => fAnd(wrap.unwrap)
+      case dense : DenseIoBits => fAnd(dense)
+      case sparse : SparseIoBits => IoBits.fAndDenseSparse(this, sparse)
       case _ =>
         LBits.fAnd(this, bits)
     }
   }
 
-  def fAnd(bits:DenseIoBits[_]) = {
+  def fAnd(bits:DenseIoBits) = {
     if (bitSize != bits.bitSize) {
       throw new IllegalArgumentException("given bitset is of different length")
     }

@@ -2,11 +2,11 @@ package com.futurice.iodf.ioseq
 
 import java.io._
 
-import com.futurice.iodf.store.{Dir, IoData, RandomAccess}
+import com.futurice.iodf.store.{DataRef, Dir, RandomAccess}
 import com.futurice.iodf.Utils._
 import com.futurice.iodf._
 import com.futurice.iodf.io.{IoObject, IoRef}
-import com.futurice.iodf.util.LSeq
+import com.futurice.iodf.util.{LSeq, MultiSeq}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.runtime.universe._
@@ -28,18 +28,17 @@ trait TypedSerializer[T] extends Serializer[T] {
   def tryWrite(o:DataOutputStream, t:Any) = write(o, t.asInstanceOf[T])
 }
 
-class ObjectIoSeqType[Id, T](i:RandomAccessReading[T], o:OutputWriting[T])(
+class ObjectIoSeqType[T](i:RandomAccessReading[T], o:OutputWriting[T])(
   implicit val t: TypeTag[Seq[T]], vTag:TypeTag[T])
-  extends IoTypeOf[Id, ObjectIoSeq[Id, T], Seq[T]]()(t)
-  with IoSeqType[Id, T, LSeq[T], ObjectIoSeq[Id, T]] {
+  extends IoSeqType[T, LSeq[T], ObjectIoSeq[T]] {
 
-  override def writeSeq(output: DataOutputStream, v: LSeq[T]): Unit = {
+  override def write(output: DataOutputStream, v: LSeq[T]): Unit = {
     val w = new ObjectIoSeqWriter[T](output, o)
     v.foreach { w.write(_) }
     w.writeIndex
   }
   override def writeMerged(out: DataOutputStream, seqs: Seq[LSeq[T]]): Unit = {
-    seqs.exists(!_.isInstanceOf[ObjectIoSeq[Id, T]]) match {
+    seqs.exists(!_.isInstanceOf[ObjectIoSeq[T]]) match {
       case true => // there is at least one sequence, which cannot be white box merged
         super.writeMerged(out, seqs) // go generic
       case false => // go whitebox merge: awe can skip serialization & deserialization
@@ -47,16 +46,14 @@ class ObjectIoSeqType[Id, T](i:RandomAccessReading[T], o:OutputWriting[T])(
     }
   }
 
-  override def open(buf: IoData[Id])= {
-    new ObjectIoSeq[Id, T](IoRef(this, buf.ref), buf.openRandomAccess, i)
+  override def open(buf: DataRef) = {
+    new ObjectIoSeq[T](new IoRef(this, buf), buf.open, i)
   }
 
   override def valueTypeTag = vTag
 
-  override def viewMerged(seqs: Seq[LSeq[T]]): LSeq[T] = new MultiSeq[T, LSeq[T]](seqs.toArray)
-
-  override def write(out: DataOutputStream, v: Seq[T]): Unit =
-    writeSeq(out, LSeq(v))
+  override def viewMerged(seqs: Seq[LSeq[T]]): LSeq[T] =
+    new MultiSeq[T, LSeq[T]](seqs.toArray)
 
 }
 
@@ -111,11 +108,9 @@ object ObjectIoSeqWriter {
   }
 }
 
-class ObjectIoSeq[Id, T](
-                          val openRef:IoRef[Id, _ <: IoObject[Id]],
-                          val buf:RandomAccess,
-                          val i:RandomAccessReading[T]) extends IoSeq[Id, T] {
-//  new RuntimeException().printStackTrace()
+class ObjectIoSeq[T](val openRef:IoRef[ObjectIoSeq],
+                     val buf:RandomAccess,
+                     val i:RandomAccessReading[T]) extends IoSeq[T] {
 
   val indexPos = buf.getBeLong(buf.size - 8)
   val lsize = ((buf.size-8)-indexPos) / 8

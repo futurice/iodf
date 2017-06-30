@@ -61,6 +61,9 @@ class DataRefView(viewed:DataRef,
 
 trait DataLand extends Closeable {
   def create : DataCreator
+  def openRef : DataCreatorRef = new DataCreatorRef {
+    override def create = DataLand.this.create
+  }
 }
 
 object LBufferCreator {

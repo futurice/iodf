@@ -16,37 +16,33 @@ trait SortedIoSeq[IoId, ColId <: Ordered[ColId]] extends IoSeq[IoId, ColId] {
 
 trait Df[ColId] extends java.io.Closeable {
 
-  def colIds   : LSeq[ColId]
-  def colIdOrdering : Ordering[ColId]
-
   type ColType[T] <: LSeq[T]
 
-  def _cols    : LSeq[ColType[Any]]
+  def colIds   : LSeq[ColId]
+  def colTypes : LSeq[Type]
+
+  def colIdOrdering : Ordering[ColId]
+
+  def _cols    : LSeq[ColType[_ <: Any]]
 
   def colCount = colIds.size
-  // size in Long
+
   def lsize : Long
 
   def indexOf(colId:ColId) =
     Utils.binarySearch(colIds, colId)(colIdOrdering)._1
-
   def indexFloorAndCeil(id:ColId) =
     Utils.binarySearch(colIds, id)(colIdOrdering)
 
   def col[T <: Any](id: ColId)(implicit scope:IoScope) : ColType[T] = {
     scope.bind(openCol[T](id))
-  }
   def col[T <: Any](i: Long)(implicit scope:IoScope) : ColType[T] = {
     scope.bind(openCol[T](i))
-  }
   def col[T <: Any](key:ColKey[ColId, T])(implicit scope:IoScope) = {
     scope.bind(openCol(key.colId))
   }
   def openCol[T <: Any](i:Long) : ColType[T] = {
     _cols(i).asInstanceOf[ColType[T]]
-  }
-  def apply[T <: Any](i:Long, j:Long) : T = {
-    using (openCol[T](i)) { _(j) }
   }
   def openCol[T <: Any](id:ColId) : ColType[T] = {
     indexOf(id) match {
@@ -54,21 +50,15 @@ trait Df[ColId] extends java.io.Closeable {
       case i => _cols(i).asInstanceOf[ColType[T]]
     }
   }
+
+  def apply[T <: Any](i:Long, j:Long) : T = {
+    using (openCol[T](i)) { _(j) }
+  }
   def apply[T <: Any](id:ColId, i:Long) : T = {
     using (openCol[T](id)) { _(i) }
   }
+
   def view(from:Long, until:Long) : Df[ColId]
-
-
-  /*  def colType[T](i:Long) : IoSeqType[T, _ <: LSeq[T], _ <: IoSeq[T]] = {
-      using (openCol(i)) {
-        _.asInstanceOf[IoSeq[T]].openRef.typ.asInstanceOf[IoSeqType[T, _ <: LSeq[T], _ <: IoSeq[IoId, T]]]
-      }
-    }
-    def colType[T](id:ColId) : IoSeqType[T, _ <: LSeq[T], _ <: IoSeq[T]] = {
-      colType(indexOf(id))
-    }*/
-
 }
 
 class DfRef[ColId](val df:Df[ColId]) extends Df[ColId] {

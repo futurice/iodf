@@ -1,6 +1,6 @@
 package com.futurice.iodf.io
 
-import java.io.{BufferedOutputStream, DataOutputStream}
+import java.io.{BufferedOutputStream, DataOutputStream, OutputStream}
 
 import com.futurice.iodf.Utils.using
 import com.futurice.iodf.ioseq._
@@ -31,15 +31,30 @@ trait IoTypes {
     override def write(out: DataOutputStream, iface: Any): Unit = ???
   }*/
 
-  def ioTypeOf(t : Type) : IoType[Any]
-  def ioTypeOf[T : TypeTag]() : IoType[T]
+  def ioTypeOf(t : Type)      : IoType[_, _]
+  def ioTypeOf[T : TypeTag]() : IoType[T, _ <: T]
 
-  def write[Interface](ref:DataOutputStream, t:Interface)(
+  def write[Interface](out:DataOutputStream, t:Interface)(
     implicit tag:TypeTag[Interface])
   def create[Interface](ref:DataCreatorRef, t:Interface)(
     implicit tag:TypeTag[Interface]) : Interface
   def open[Interface](ref:DataRef)(implicit tag:TypeTag[Interface])
     : Interface
+
+  def write[Interface](out:OutputStream, t:Interface)(
+    implicit tag:TypeTag[Interface]): Unit =  {
+    write[Interface](new DataOutputStream(out), t)
+  }
+
+  /** note: this returns and opened a data reference */
+  def written[Interface](ref:DataCreatorRef, t:Interface)(
+    implicit tag:TypeTag[Interface]): DataRef = {
+    using (ref.create) { out =>
+      write(new DataOutputStream(out), t)
+      out.adoptResult
+    }
+  }
+
 
   def getIoTypeId(t:IoType[_]) : Option[Int]
 
@@ -98,14 +113,18 @@ object IoTypes {
       }
       def write[From : TypeTag](out:DataOutputStream, v:From) = {
         val (typ, id) = entryOf[From]
-        out.writeInt(id)
         typ.write(out, v)
       }
       def open[From : TypeTag](ref : DataRef) = {
         ioTypeOf[From].open(ref)
       }
       def create[From](v:From, ref:DataCreatorRef)(implicit tag:TypeTag[From]) = {
-        write(v, ref).open
+        val (typ, id) = entryOf[From]
+        using(
+          using(ref.create) { out =>
+            typ.write(out, v)
+            out.adoptResult
+          }) { typ.open }
       }
       def getIoTypeId(t:IoType[_]) = {
         Some(types.indexOf(t)).filter(_ >= 0)
@@ -171,22 +190,22 @@ object IoTypes {
     val variantIo = new VariantIo(Array(BooleanIo, IntIo, LongIo, StringIo), javaIo)
     val tupleIo = new Tuple2Io[String, Any](StringIo, variantIo)
     val bitsIoType =
-      new IoBitsType[String](// converts Bits
-        new SparseIoBitsType[String](),
-        new DenseIoBitsType[String])
+      new IoBitsType(// converts Bits
+        new SparseIoBitsType(),
+        new DenseIoBitsType())
     buf ++=
       Seq(
         str,
-        new IntIoArrayType[String],
-        new LongIoArrayType[String],
+        new IntIoArrayType,
+        new LongIoArrayType,
         IoBitsType.booleanSeqIoType(bitsIoType),// new BooleanIoSeqType[String](),  // converts Seq[Boolean]
         bitsIoType,
         //        new SparseToDenseIoBitsType[String](),
-        new IntIoArrayType[String],
-        new RefIoSeqType[String, IoObject](self,
-          new ObjectIoSeqType[String, (Int, String, Long)](entryIo, entryIo)),
-        new ObjectIoSeqType[String, (String, Any)](tupleIo, tupleIo),
-        new ObjectIoSeqType[String, Any](javaIo, javaIo))
+        new IntIoArrayType,
+        new RefIoSeqType[IoObject](self,
+          new ObjectIoSeqType[(Int, String, Long)](entryIo, entryIo)),
+        new ObjectIoSeqType[(String, Any)](tupleIo, tupleIo),
+        new ObjectIoSeqType[Any](javaIo, javaIo))
     self
   }
 }

@@ -6,29 +6,29 @@ import java.util
 import com.futurice.iodf.Utils._
 import com.futurice.iodf._
 import com.futurice.iodf.io.IoRef
-import com.futurice.iodf.store.{FileRef, IoData}
+import com.futurice.iodf.store.{DataRef, FileRef}
 import com.futurice.iodf.util._
 
 import scala.reflect.runtime.universe._
 
-class SparseIoBitsType[Id](implicit val t:TypeTag[LBits])
-  extends IoTypeOf[Id, SparseIoBits[Id], LBits]()(t)
-    with IoSeqType[Id, Boolean, LBits, SparseIoBits[Id]] {
-  val longs = new LongIoArrayType[Id]()
+class SparseIoBitsType
+  extends IoSeqType[Boolean, LBits, SparseIoBits] {
+  val longs = new LongIoArrayType()
+
+  override def interfaceType = typeOf[LBits]
+  override def ioInstanceType = typeOf[SparseIoBits]
+  override def valueTypeTag = implicitly[TypeTag[Boolean]]
 
   override def defaultSeq(lsize:Long) = Some(LBits.empty(lsize))
 
-  def write(output: DataOutputStream, f:Long, n:Long, trues: Iterator[Long]): Unit = {
+  def write(output: DataOutputStream, f:Long, n:Long, trues: Iterator[Long]) : Unit = {
     output.writeLong(n)
     longs.write(output, f, trues)
   }
-  override def write(output: DataOutputStream, v: LBits): Unit = {
+  override def write(output: DataOutputStream, v: LBits) : Unit = {
     write(output, v.f, v.n, v.trues.iterator)
   }
-  override def writeSeq(output: DataOutputStream, v: LBits): Unit = {
-    write(output, v)
-  }
-  def viewMerged(seqs:Seq[LBits]): LBits = {
+  def viewMerged(seqs:Seq[LBits]) : LBits = {
     MultiBits(seqs)
   }
 /*  override def writeMerged(out: DataOutputStream, seqs:Seq[LBits]): Unit = {
@@ -48,29 +48,26 @@ class SparseIoBitsType[Id](implicit val t:TypeTag[LBits])
       })
   }*/
 
-  override def open(buf: IoData[Id]) = {
-    using(buf.openRandomAccess) { ra =>
+  override def open(ref: DataRef) = {
+    using(ref.open) { ra =>
       val sz = ra.getBeLong(0)
-      using (buf.openView(8)) { view =>
-        new SparseIoBits[Id](
-          IoRef(this, buf.ref),
-          longs.open(view).asInstanceOf[LongIoArray[Id]],
+      using (ref.openView(8, ra.size)) { view =>
+        new SparseIoBits(
+          IoRef(this, ref),
+          longs.open(view).asInstanceOf[LongIoArray],
           sz)
       }
     }
   }
-
-  override def valueTypeTag =
-    _root_.scala.reflect.runtime.universe.typeTag[Boolean]
 
 }
 
 /**
   * Created by arau on 15.12.2016.
   */
-class SparseIoBits[IoId](val openRef:IoRef[IoId, SparseIoBits[IoId]],
-                         val indexes:LongIoArray[IoId],
-                         val lsize : Long) extends IoBits[IoId]{
+class SparseIoBits(val openRef:IoRef[SparseIoBits],
+                   val indexes:LongIoArray,
+                   val lsize : Long) extends IoBits {
   override def apply(l: Long): Boolean = {
     val e = Utils.binarySearch(indexes, l, 0, l+1)
     e._1 != -1
@@ -83,15 +80,15 @@ class SparseIoBits[IoId](val openRef:IoRef[IoId, SparseIoBits[IoId]],
   }
   override def fAnd(bits : LBits): Long = {
     bits match {
-      case b : WrappedIoBits[_] => fAnd(b.unwrap)
-      case b : SparseIoBits[_] => fAnd(b)
-      case b : DenseIoBits[_] => IoBits.fAndDenseSparse(b, this)
+      case b : WrappedIoBits => fAnd(b.unwrap)
+      case b : SparseIoBits => fAnd(b)
+      case b : DenseIoBits => IoBits.fAndDenseSparse(b, this)
       case _ =>
         LBits.fAnd(this, bits)
     }
   }
   override def isDense = false
-  def fAnd(b : SparseIoBits[_]): Long = fAndSparse(b)
+  def fAnd(b : SparseIoBits): Long = fAndSparse(b)
 
   private def truesFromTrue(from:Long) : Scanner[Long, Long] = {
     new Scanner[Long, Long] {
@@ -135,7 +132,7 @@ class SparseIoBits[IoId](val openRef:IoRef[IoId, SparseIoBits[IoId]],
     i
   }
 
-  def fAndSparse(b : SparseIoBits[_]): Long = {
+  def fAndSparse(b : SparseIoBits): Long = {
     var rv = 0L
     var i = 0L
     var j = 0L

@@ -1,6 +1,6 @@
 package com.futurice.iodf.io
 
-import java.io.DataOutputStream
+import java.io.{DataOutputStream, OutputStream, Writer}
 
 import com.futurice.iodf.Utils.using
 import com.futurice.iodf.store.{DataCreatorRef, DataRef}
@@ -8,28 +8,58 @@ import com.futurice.iodf.store.{DataCreatorRef, DataRef}
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 
-trait IoType[Interface] {
+trait IoWriter[T] {
+  def writingType : Type
+  def write(out:DataOutputStream, iface:T) : Unit
 
-  def valueType : Type
+  def write(out:OutputStream, iface:T) = {
+    write(new DataOutputStream(out), iface)
+  }
 
-  def open(data:DataRef) : Interface
-  def write(out:DataOutputStream, iface:Interface) : Unit
-  def create(ref:DataCreatorRef, iface:Interface) : Interface = {
+  def castToWriter[To](implicit to:TypeTag[To]) : Option[Writer[To]] = {
+    castToWriter[To](to.tpe)
+  }
+  def castToWriter[To](to:Type) : Option[Writer[To]] = {
+    writingType <:< to match {
+      case true => Some(this.asInstanceOf[Writer[To]])
+      case false => None
+    }
+  }
+}
+
+trait IoOpener[T] {
+  def openingType : Type
+  def open(ref:DataRef) : T
+
+  def openRef(ref:DataRef) = new IoRef[T](this, ref)
+
+  def castToOpener[To](implicit to:TypeTag[To]) : Option[IoOpener[To]] = {
+    castToOpener[To](to.tpe)
+  }
+  def castToOpener[To](to:Type) : Option[IoOpener[To]] = {
+    openingType <:< to match {
+      case true => Some(this.asInstanceOf[IoOpener[To]])
+      case false => None
+    }
+  }
+}
+
+trait IoType[Interface, IoInstance <: Interface] extends IoWriter[Interface] with IoOpener[IoInstance] {
+
+  def interfaceType : Type
+  def ioInstanceType : Type
+
+  def writingType = interfaceType
+  def openingType = ioInstanceType
+
+  def create(ref:DataCreatorRef, iface:Interface) : IoInstance = {
     using (ref.create) { out =>
       write(new DataOutputStream(out), iface)
       open(out.adoptResult)
     }
   }
 
-  def cast[To](implicit to:TypeTag[To]) : Option[IoType[To]] = {
-    cast[To](to.tpe)
-  }
-  def cast[To](to:Type) : Option[IoType[To]] = {
-    valueType <:< to match {
-      case true => Some(this.asInstanceOf[IoType[To]])
-      case false => None
-    }
-  }
+/*
   def as[Super >: Interface] = {
     val self = this
     new IoType[Super] {
@@ -45,20 +75,19 @@ trait IoType[Interface] {
         }
       }
     }
-  }
+  }*/
 }
-
-trait IoObjectType[T <: IoObject] extends IoType[T] {}
 
 /**
   * Makes it possible to convert LSeq[Boolean] into LBits automatically
   */
-class SuperIoType[SuperIface, DerivedIface <: SuperIface](
-  derivedType : IoType[SuperIface],
+class SuperIoType[SuperIface : TypeTag, DerivedIface <: SuperIface, IoInstance <: DerivedIface](
+  derivedType : IoType[SuperIface, IoInstance],
   conversion:SuperIface=>DerivedIface)(
   implicit typ:TypeTag[SuperIface]) extends IoType[SuperIface] {
 
-  override def valueType: universe.Type = typ.tpe
+  override def interfaceType = typeOf[SuperIface]
+  override def ioInstanceType = derivedType.ioInstanceType
 
   override def open(data: DataRef): SuperIface =
     derivedType.open(data)
@@ -67,7 +96,6 @@ class SuperIoType[SuperIface, DerivedIface <: SuperIface](
     derivedType.write(out, conversion(iface))
 }
 
-/*
 trait WithValueTypeTag[M] {
   def valueTypeTag : TypeTag[M]
 }
