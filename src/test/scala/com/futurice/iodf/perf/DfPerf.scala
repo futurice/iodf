@@ -19,7 +19,7 @@ import scala.util.Random
   */
 class DfPerf extends TestSuite("perf/df") {
 
-  def tIndexedDfPerf[IoId, T](t:TestTool, view:IndexedDf[IoId, T]) = {
+  def tIndexedDfPerf[IoId, T](t:TestTool, view:IndexedDf[T]) = {
     val df = view.df
     val index = view.indexDf
 

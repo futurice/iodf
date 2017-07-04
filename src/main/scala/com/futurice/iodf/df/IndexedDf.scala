@@ -114,8 +114,8 @@ class IndexedDf[T](val df:TypedDf[T],
     indexDf.close
   }
 
-  def cast[E : ClassTag](implicit tag:TypeTag[E]) : IndexedDf[IoId, E] = {
-    new IndexedDf[IoId, E](df.cast[E], new DfRef(indexDf))
+  def as[E : ClassTag](implicit tag:TypeTag[E]) : IndexedDf[E] = {
+    new IndexedDf[E](df.as[E], new DfRef(indexDf))
   }
 }
 

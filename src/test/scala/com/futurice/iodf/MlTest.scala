@@ -61,7 +61,7 @@ class MlTest extends TestSuite("ml") {
       scoped { implicit bind =>
         implicit val io = IoContext()
         val dir = bind(new MMapDir(t.fileDir))
-        val df = bind(dfs.createIndexedDf[Animal](items, dir, indexConf))
+        val df = bind(dfs.createIndexedDf[Animal, String](items, dir, indexConf))
         val knn =
           Knn(
             df,
@@ -88,9 +88,9 @@ class MlTest extends TestSuite("ml") {
       scoped { implicit bind =>
         implicit val io = IoContext()
         val dir = bind(new MMapDir(new File(t.fileDir, "articles")))
-        val df = bind(dfs.createIndexedDf[Article](articles, dir, indexConf))
+        val df = bind(dfs.createIndexedDf[Article, String](articles, dir, indexConf))
         val dir2 = bind(new MMapDir(new File(t.fileDir, "decisions")))
-        val df2 = bind(dfs.createIndexedDf[Decision](decisions, dir2, indexConf))
+        val df2 = bind(dfs.createIndexedDf[Decision, String](decisions, dir2, indexConf))
         val weights =
           Knn.keyValueWeights(
             df2,

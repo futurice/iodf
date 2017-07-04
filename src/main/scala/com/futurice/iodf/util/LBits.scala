@@ -44,30 +44,30 @@ trait LBits extends LSeq[Boolean] {
 
   // NOTE, these should be moved to same separate trait, where they can be imported from
 
-  def createAnd[IoId2](b:LBits)(implicit io:IoContext[IoId2]) : LBits = {
-    io.bits.createAnd(io.dir, this, b)
+  def createAnd(b:LBits)(implicit io:IoContext) : LBits = {
+    io.bits.createAnd(io.allocator, this, b)
   }
-  def createAndNot[IoId2](b:LBits)(implicit io:IoContext[IoId2]) : LBits = {
-    io.bits.createAndNot(io.dir, this, b)
+  def createAndNot(b:LBits)(implicit io:IoContext) : LBits = {
+    io.bits.createAndNot(io.allocator, this, b)
   }
-  def createNot[IoId2](implicit io:IoContext[IoId2]) : LBits = {
-    io.bits.createNot(io.dir, this)
+  def createNot(implicit io:IoContext) : LBits = {
+    io.bits.createNot(io.allocator, this)
   }
-  def createMerged[IoId2](b:LBits)(implicit io:IoContext[IoId2]) : LBits = {
-    io.bits.createMerged(io.dir, Seq(this, b))
+  def createMerged(b:LBits)(implicit io:IoContext) : LBits = {
+    io.bits.createMerged(io.allocator, Seq(this, b))
   }
-  def &[IoId2](b:LBits)(implicit io:IoContext[IoId2], scope:IoScope) : LBits = {
+  def &(b:LBits)(implicit io:IoContext, scope:IoScope) : LBits = {
     scope.bind(createAnd(b))
   }
-  def &~[IoId2](b:LBits)(implicit io:IoContext[IoId2], scope:IoScope) : LBits = {
+  def &~(b:LBits)(implicit io:IoContext, scope:IoScope) : LBits = {
     scope.bind(createAndNot(b))
   }
-  def ~[IoId2](implicit io:IoContext[IoId2], scope:IoScope) : LBits = {
+  def ~(implicit io:IoContext, scope:IoScope) : LBits = {
     scope.bind(createNot)
   }
-  def unary_~[IoId2](implicit io:IoContext[IoId2], scope:IoScope) : LBits =
+  def unary_~(implicit io:IoContext, scope:IoScope) : LBits =
     this~
-  def merge [IoId2](b:LBits)(implicit io:IoContext[IoId2], scope:IoScope) : LBits = {
+  def merge (b:LBits)(implicit io:IoContext, scope:IoScope) : LBits = {
     scope.bind(createMerged(b))
   }
 
@@ -158,16 +158,19 @@ object LBits {
     }
     rv
   }
-  def apply(bools:Seq[Boolean]) = {
+  def apply(bools:Seq[Boolean]) : LBits = {
+    apply(LSeq(bools))
+  }
+  def apply(bools:LSeq[Boolean]) : LBits  = {
     new LBits {
       lazy val f = bools.count(b => b).toLong
-      def lsize = bools.length
+      def lsize = bools.size
       def apply(i:Long) = bools(i.toInt)
       def truesFrom(from:Long) : Scanner[Long, Long] = {
         new Scanner[Long, Long] {
           var at = from.toInt
           def nextTrue: Unit = {
-            while (at < bools.length && !bools(at)) at += 1
+            while (at < bools.size && !bools(at)) at += 1
           }
           nextTrue
           override def copy: Scanner[Long, Long] = truesFrom(at)
@@ -177,7 +180,7 @@ object LBits {
             nextTrue
             at == t
           }
-          override def hasNext: Boolean = at < bools.length
+          override def hasNext: Boolean = at < bools.size
           override def next(): Long = {
             val rv = head
             at += 1

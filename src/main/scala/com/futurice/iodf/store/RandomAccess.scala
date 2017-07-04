@@ -3,7 +3,7 @@ package com.futurice.iodf.store
 import xerial.larray.buffer.{LBufferAPI, Memory, UnsafeUtil}
 
 import java.io.{Closeable, OutputStream}
-
+/*
 case class MemoryResource(memory:Memory, resource:Closeable) extends Closeable {
   /*  val l = Logger.getLogger("MemoryResource")
     l.info(memory.address() + " opened:\n" + new RuntimeException().getStackTrace.mkString("\n"))*/
@@ -13,17 +13,18 @@ case class MemoryResource(memory:Memory, resource:Closeable) extends Closeable {
     isClosed = true
     resource.close
   }
-}
+}*/
 
-class RandomAccess(val countedM:RefCounted[MemoryResource],
+class RandomAccess(val countedM:Ref[Memory],
                    val from:Long = 0,
                    val until:Option[Long] = None)
   extends Closeable {
-  val m = countedM.open.memory
-  override def close(): Unit = countedM.close
+  val ref = countedM.copy
+  val m = ref.get
+  override def close(): Unit = ref.close
 
   val address = m.address() + from
-  val size    = until.getOrElse(m.dataSize())
+  val size    = until.getOrElse(m.dataSize()) - from
 
   val unsafe = UnsafeUtil.getUnsafe
 
@@ -35,9 +36,9 @@ class RandomAccess(val countedM:RefCounted[MemoryResource],
   }
 
   def safeGetMemoryByte(memory:Long) = {
-    if (countedM.count <= 0) {
+/*    if (countedM.get.isClosed) {
       throw new RuntimeException("closed")
-    }
+    }*/
     if (memory < address || memory >= address + size) {
       throw new RuntimeException(memory + s" is outside the range [$address, ${address+size}]")
     }
@@ -59,9 +60,9 @@ class RandomAccess(val countedM:RefCounted[MemoryResource],
     if (offset < 0 || offset + sz > size) {
       throw new RuntimeException(offset + s" is outside the range [0, $size]")
     }
-    if (countedM.count <= 0 || countedM.value.isClosed) {
-      throw new RuntimeException("memory resource " + countedM.value.memory.address + " is closed")
-    }
+/*    if (countedM.get.isClosed) {
+      throw new RuntimeException("memory resource " + countedM.get.memory.address + " is closed")
+    }*/
   }
 
   def getByte(offset:Long) = {
@@ -160,5 +161,6 @@ class RandomAccess(val countedM:RefCounted[MemoryResource],
       (getMemoryByte(m + 1) & 0xFF).toShort
   }
 
-  def openView(from:Long, until:Long) = new RandomAccess(countedM, this.from + from, Some(this.from + until))
+  def openView(from:Long, until:Long) =
+    new RandomAccess(countedM, this.from + from, Some(this.from + until))
 }

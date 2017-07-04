@@ -3,7 +3,7 @@ package com.futurice.iodf.io
 import java.io.{DataOutputStream, OutputStream, Writer}
 
 import com.futurice.iodf.Utils.using
-import com.futurice.iodf.store.{DataCreatorRef, DataRef}
+import com.futurice.iodf.store.{AllocateOnce, DataRef}
 
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
@@ -12,17 +12,21 @@ trait IoWriter[T] {
   def writingType : Type
   def write(out:DataOutputStream, iface:T) : Unit
 
-  def write(out:OutputStream, iface:T) = {
-    write(new DataOutputStream(out), iface)
+  def castToWriter[To](implicit to:TypeTag[To]) : Option[IoWriter[To]] = {
+    castToWriter(to.tpe).map(_.asInstanceOf[IoWriter[To]])
   }
-
-  def castToWriter[To](implicit to:TypeTag[To]) : Option[Writer[To]] = {
-    castToWriter[To](to.tpe)
-  }
-  def castToWriter[To](to:Type) : Option[Writer[To]] = {
-    writingType <:< to match {
-      case true => Some(this.asInstanceOf[Writer[To]])
+  def castToWriter(to:Type) : Option[IoWriter[_]] = {
+    to <:< writingType match {
+      case true => Some(this)
       case false => None
+    }
+  }
+  def asAnyWriter = {
+    val self = this
+    new IoWriter[Any] {
+      override def writingType: universe.Type = self.writingType
+      override def write(out: DataOutputStream, iface: Any): Unit =
+        self.write(out, iface.asInstanceOf[T])
     }
   }
 }
@@ -34,14 +38,15 @@ trait IoOpener[T] {
   def openRef(ref:DataRef) = new IoRef[T](this, ref)
 
   def castToOpener[To](implicit to:TypeTag[To]) : Option[IoOpener[To]] = {
-    castToOpener[To](to.tpe)
+    castToOpener(to.tpe).map(_.asInstanceOf[IoOpener[To]])
   }
-  def castToOpener[To](to:Type) : Option[IoOpener[To]] = {
+  def castToOpener(to:Type) : Option[IoOpener[_]] = {
     openingType <:< to match {
-      case true => Some(this.asInstanceOf[IoOpener[To]])
+      case true => Some(this)
       case false => None
     }
   }
+
 }
 
 trait IoType[Interface, IoInstance <: Interface] extends IoWriter[Interface] with IoOpener[IoInstance] {
@@ -52,7 +57,7 @@ trait IoType[Interface, IoInstance <: Interface] extends IoWriter[Interface] wit
   def writingType = interfaceType
   def openingType = ioInstanceType
 
-  def create(ref:DataCreatorRef, iface:Interface) : IoInstance = {
+  def create(ref:AllocateOnce, iface:Interface) : IoInstance = {
     using (ref.create) { out =>
       write(new DataOutputStream(out), iface)
       open(out.adoptResult)
@@ -82,24 +87,27 @@ trait IoType[Interface, IoInstance <: Interface] extends IoWriter[Interface] wit
   * Makes it possible to convert LSeq[Boolean] into LBits automatically
   */
 class SuperIoType[SuperIface : TypeTag, DerivedIface <: SuperIface, IoInstance <: DerivedIface](
-  derivedType : IoType[SuperIface, IoInstance],
+  derivedType : IoType[DerivedIface, IoInstance],
   conversion:SuperIface=>DerivedIface)(
-  implicit typ:TypeTag[SuperIface]) extends IoType[SuperIface] {
+  implicit typ:TypeTag[SuperIface]) extends IoType[SuperIface, IoInstance] {
 
-  override def interfaceType = typeOf[SuperIface]
+  override def interfaceType = typ.tpe
   override def ioInstanceType = derivedType.ioInstanceType
-
-  override def open(data: DataRef): SuperIface =
-    derivedType.open(data)
 
   override def write(out: DataOutputStream, iface: SuperIface): Unit =
     derivedType.write(out, conversion(iface))
+
+  override def open(ref: DataRef): IoInstance = {
+    derivedType.open(ref)
+  }
 }
 
 trait WithValueTypeTag[M] {
   def valueTypeTag : TypeTag[M]
+  def valueType = valueTypeTag.tpe
 }
 
+/*
 object IoTypeOf {
 
   /* Scala creates separate Int types for typeOf[Int] and for case class A {i:Int} members

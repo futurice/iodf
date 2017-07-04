@@ -49,10 +49,11 @@ object RefCounted {
   }
 }
 
-case class RefCounted[V <: Closeable](val value:V, val initCount:Int) extends Closeable {
+case class RefCounted[V <: Closeable](val value:V, val initCount:Int) extends Ref[V] {
   @volatile var count = initCount
   RefCounted.opened(this)
 
+  def copy = inc // 'copies' the reference by incrementing & returning self
   // FIXME: the API needs redesign based on real-world usage patterns
 
   // NEW VERSION of apply() !

@@ -7,7 +7,7 @@ import scala.reflect.runtime.universe._
 import com.futurice.iodf._
 import com.futurice.iodf.ioseq.{DenseIoBits, IoBits}
 import com.futurice.iodf.Utils._
-import com.futurice.iodf.df.{IndexConf, IndexedDf}
+import com.futurice.iodf.df.{IndexConf, IndexedDf, TypedDf}
 import com.futurice.iodf.util.LBits
 
 
@@ -24,7 +24,7 @@ class Knn[T](df:IndexedDf[T],
              indexConf:IndexConf[String],
              keyValueW:Map[(String, Any), (Double, Double)])(implicit tag:ClassTag[T],tt:TypeTag[T]) {
 
-  val schema = Dfs.fs.typeSchema[T]
+  val schema = TypedDf.typeSchema[T]
 
   val baseDistance = {
     using (IoContext.open) { implicit io =>
@@ -103,7 +103,7 @@ object Knn {
                           predicted:(String,Any),
                           varDFilter:Double)(
                           implicit scope:IoScope,
-                          io:IoContext[Int]) : Map[(String, Any), (Double, Double)] =
+                          io:IoContext) : Map[(String, Any), (Double, Double)] =
     keyValueWeights(
       df,
       in,
@@ -120,7 +120,7 @@ object Knn {
                implicit tag:ClassTag[T],
                tt:TypeTag[T],
                scope:IoScope,
-               io:IoContext[Int]) = {
+               io:IoContext) = {
     new Knn(df,
             LBits((0L until df.lsize).map(e => true)),
             indexConf,

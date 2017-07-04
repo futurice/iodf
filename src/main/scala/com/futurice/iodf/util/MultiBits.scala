@@ -1,6 +1,6 @@
 package com.futurice.iodf.util
 
-import com.futurice.iodf.{IoContext, IoScope, MultiSeq}
+import com.futurice.iodf.{IoContext, IoScope}
 import com.futurice.iodf.ioseq.IoBits
 
 object MultiBits {
@@ -8,13 +8,13 @@ object MultiBits {
   def apply(bits:Seq[LBits]) = new MultiBits(bits.toArray)
 
   /* it's faster to do bit operations, if both bits have the same scheme */
-  def shard[IoId](sharded:LBits, model:MultiBits)(implicit scope:IoScope, io:IoContext[IoId]): MultiBits = {
+  def shard[IoId](sharded:LBits, model:MultiBits)(implicit scope:IoScope, io:IoContext): MultiBits = {
     scope.bind(new MultiBits(
       model.ranges.map { case (from, until) =>
         io.bits.create(sharded.view(from, until))
       }))
   }
-  def maybeShard[IoId](sharded:LBits, model:LBits)(implicit scope:IoScope, io:IoContext[IoId]): LBits
+  def maybeShard[IoId](sharded:LBits, model:LBits)(implicit scope:IoScope, io:IoContext): LBits
   = {
     model match {
       case b:MultiBits  => shard(sharded, b)
@@ -153,7 +153,7 @@ class MultiBits(val bits:Array[LBits]) extends MultiSeq[Boolean, LBits](bits) wi
         if (t < begin) {
           false
         } else if (t >= end) {
-          it.seek(end) // finish this one
+          it.seek(end-begin) // finish this one
           prepareNext
           seek(t)
         } else {
@@ -173,20 +173,20 @@ class MultiBits(val bits:Array[LBits]) extends MultiSeq[Boolean, LBits](bits) wi
     override def iterator = truesWith(bits.map(_.trues.iterator))
   }
 
-  override def createAnd[IoId2](b:LBits)(implicit io:IoContext[IoId2]) = {
+  override def createAnd(b:LBits)(implicit io:IoContext) = {
     mapOperation(
       b, _ createAnd _, MultiBits.apply _,
-      (a, b) => io.bits.createAnd(io.dir.ref(io.dir.freeId), a, b))
+      (a, b) => io.bits.createAnd(io.allocator, a, b))
   }
-  override def createAndNot[IoId2](b:LBits)(implicit io:IoContext[IoId2]) = {
+  override def createAndNot(b:LBits)(implicit io:IoContext) = {
     mapOperation(b, _ createAndNot _, MultiBits.apply _,
-      (a, b) => io.bits.createAndNot(io.dir.ref(io.dir.freeId), a, b))
+      (a, b) => io.bits.createAndNot(io.allocator, a, b))
   }
-  override def createNot[IoId2](implicit io:IoContext[IoId2]) = {
+  override def createNot(implicit io:IoContext) = {
     MultiBits(bits.map(_.createNot))
   }
-  override def createMerged[IoId2](b:LBits)(implicit io:IoContext[IoId2]) = {
-    io.bits.createMerged(io.dir, Seq(this, b))
+  override def createMerged(b:LBits)(implicit io:IoContext) = {
+    io.bits.createMerged(io.allocator, Seq(this, b))
   }
 
 }

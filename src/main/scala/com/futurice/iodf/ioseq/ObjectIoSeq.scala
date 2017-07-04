@@ -9,6 +9,7 @@ import com.futurice.iodf.io.{IoObject, IoRef}
 import com.futurice.iodf.util.{LSeq, MultiSeq}
 
 import scala.collection.mutable.ArrayBuffer
+import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 
 trait OutputWriting[T] {
@@ -29,8 +30,11 @@ trait TypedSerializer[T] extends Serializer[T] {
 }
 
 class ObjectIoSeqType[T](i:RandomAccessReading[T], o:OutputWriting[T])(
-  implicit val t: TypeTag[Seq[T]], vTag:TypeTag[T])
+  implicit ifaceTag: TypeTag[LSeq[T]], vTag:TypeTag[T])
   extends IoSeqType[T, LSeq[T], ObjectIoSeq[T]] {
+
+  override def interfaceType: universe.Type = ifaceTag.tpe
+  override def ioInstanceType: universe.Type = typeOf[ObjectIoSeq[T]]
 
   override def write(output: DataOutputStream, v: LSeq[T]): Unit = {
     val w = new ObjectIoSeqWriter[T](output, o)
@@ -42,7 +46,7 @@ class ObjectIoSeqType[T](i:RandomAccessReading[T], o:OutputWriting[T])(
       case true => // there is at least one sequence, which cannot be white box merged
         super.writeMerged(out, seqs) // go generic
       case false => // go whitebox merge: awe can skip serialization & deserialization
-        ObjectIoSeqWriter.writeMerged(out, seqs.map(_.asInstanceOf[ObjectIoSeq[Id, T]]))
+        ObjectIoSeqWriter.writeMerged(out, seqs.map(_.asInstanceOf[ObjectIoSeq[T]]))
     }
   }
 
@@ -82,7 +86,7 @@ class ObjectIoSeqWriter[T](out:OutputStream, io:OutputWriting[T]) extends Closea
 }
 
 object ObjectIoSeqWriter {
-  def writeMerged(out: DataOutputStream, seqs: Seq[ObjectIoSeq[_, _]]): Unit = {
+  def writeMerged(out: DataOutputStream, seqs: Seq[ObjectIoSeq[_]]): Unit = {
     val o = new DataOutputStream(out)
 
     // 1. write copy data areas, avoiding deserialization & serialization
@@ -108,7 +112,7 @@ object ObjectIoSeqWriter {
   }
 }
 
-class ObjectIoSeq[T](val openRef:IoRef[ObjectIoSeq],
+class ObjectIoSeq[T](val openRef:IoRef[ObjectIoSeq[T]],
                      val buf:RandomAccess,
                      val i:RandomAccessReading[T]) extends IoSeq[T] {
 
@@ -272,6 +276,8 @@ object StringIo extends TypedSerializer[String] {
   override def clazz = classOf[String]
 }
 
-class StringIoSeqType[Id](implicit t:TypeTag[Seq[String]], vTag:TypeTag[String])
-  extends ObjectIoSeqType[Id, String](StringIo, StringIo)(t, vTag) {
+class StringIoSeqType(implicit ifaceTag:TypeTag[LSeq[String]],
+                      vTag:TypeTag[String])
+  extends ObjectIoSeqType[String](StringIo, StringIo)(ifaceTag, vTag) {
+
 }

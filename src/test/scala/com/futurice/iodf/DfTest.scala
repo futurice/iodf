@@ -74,7 +74,7 @@ class DfTest extends TestSuite("df") {
     RefCounted.trace {
       val dfs = Dfs.fs
       using(new MMapDir(t.fileDir)) { dir =>
-        using(dfs.createTypedDf[ExampleItem](items, dir)) { df =>
+        using(dfs.createTypedDf[ExampleItem, String](items, dir)) { df =>
           t.tln
           t.tln("fields are: ")
           df.fieldNames.foreach { id => t.tln("  " + id) }
@@ -95,7 +95,7 @@ class DfTest extends TestSuite("df") {
         t.tln
         t.tln("db closed")
         t.tln("db reopened")
-        using(dfs.openTypedDf[ExampleItem](dir)) { df =>
+        using(dfs.openTypedDf[ExampleItem, String](dir)) { df =>
           t.tln
           t.tln("colIds are: ")
           df.colIds.foreach { id => t.tln("  " + id) }
@@ -153,7 +153,7 @@ class DfTest extends TestSuite("df") {
   test("index") { t =>
     RefCounted.trace {
 
-      def tDb(df: Df[String, String], index: Df[String, (String, Any)]) = {
+      def tDb(df: Df[String], index: Df[(String, Any)]) = {
         t.tln
         t.tln("colIds are: ")
         t.tln
@@ -182,7 +182,7 @@ class DfTest extends TestSuite("df") {
       using(new MMapDir(new File(t.fileDir, "db"))) { dir =>
         using(new MMapDir(new File(t.fileDir, "idx"))) { dir2 =>
           val dfs = Dfs.fs
-          using(dfs.createTypedDf[ExampleItem](items, dir)) { df =>
+          using(dfs.createTypedDf[ExampleItem, String](items, dir)) { df =>
             using(dfs.createIndex(df, dir2, indexConf)) { index =>
               tDb(df, index)
             }
@@ -190,7 +190,7 @@ class DfTest extends TestSuite("df") {
           t.tln
           t.tln("db and index closed")
           t.tln("db and index reopened")
-          using(dfs.openTypedDf[ExampleItem](dir)) { df =>
+          using(dfs.openTypedDf[ExampleItem, String](dir)) { df =>
             using(dfs.openIndex(df, dir2)) { index =>
               tDb(df, index)
             }
@@ -202,7 +202,7 @@ class DfTest extends TestSuite("df") {
     tRefCount(t)
   }
 
-  def tIndexedDfPerf[IoId, T](t:TestTool, view:IndexedDf[IoId, T]) = {
+  def tIndexedDfPerf[T](t:TestTool, view:IndexedDf[T]) = {
     val df = view.df
     val index = view.indexDf
 
@@ -407,7 +407,7 @@ class DfTest extends TestSuite("df") {
         t.t("opening merged db..")
         val dbM =
           t.iMsLn(
-            bind(dfs.openIndexedDf[ExampleItem](dirM)))
+            bind(dfs.openIndexedDf[ExampleItem, String](dirM)))
 
         t.tln
         t.tln("merged db size: " + dbM.lsize)

@@ -118,8 +118,6 @@ class DenseIoBitsType
   override def open(buf: DataRef): DenseIoBits = {
     new DenseIoBits(new IoRef(this, buf), buf.open)
   }
-  override def valueTypeTag =
-    _root_.scala.reflect.runtime.universe.typeTag[Boolean]
 
   override def viewMerged(seqs: Seq[LBits]): LBits = MultiBits(seqs)
 }
@@ -255,6 +253,7 @@ class DenseIoBits(ref:IoRef[DenseIoBits], val origBuf:RandomAccess)
   }
 
   private def truesFromBit(bitPos:Long) : Scanner[Long,Long] = new Scanner[Long,Long] {
+    if (bitPos > lsize || bitPos < 0) throw new IllegalArgumentException(f"position $bitPos is outside bounds [0, $bitSize]")
     // TODO: this moves forward byte at a time. Shouldn't this operate on (le)longs?
     var l : Long = bitPos / 8
     var v = {
@@ -283,6 +282,9 @@ class DenseIoBits(ref:IoRef[DenseIoBits], val origBuf:RandomAccess)
       n < lsize
     }
     override def seek(target:Long) = {
+      if (target < 0 || target > bitSize) {
+        throw new IllegalArgumentException(f"seek $target outside bounds [0, $bitSize]")
+      }
       n = target
       if (target < lsize) {
         l = target / 8

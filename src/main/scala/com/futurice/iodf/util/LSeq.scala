@@ -10,7 +10,7 @@ trait LSeq[T] extends Iterable[T] with PartialFunction[Long, T] with Closeable {
   def lsize : Long
   override def size = lsize.toInt
   def isDefinedAt(l:Long) = l >= 0 && l < size
-  def iterator = new PeekIterator[T] {
+  def iterator : PeekIterator[T] = new PeekIterator[T] {
     var i = 0L
     override def head : T = apply(i)
     override def hasNext: Boolean = {

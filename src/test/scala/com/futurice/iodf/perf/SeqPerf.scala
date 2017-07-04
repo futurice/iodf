@@ -3,7 +3,7 @@ package com.futurice.iodf.perf
 import java.io.{DataOutputStream, File}
 
 import com.futurice.iodf.store.MMapDir
-import com.futurice.iodf.{Dfs, IoSeqType}
+import com.futurice.iodf.{Dfs}
 import com.futurice.testtoys.{TestSuite, TestTool}
 import com.futurice.iodf.Utils._
 import com.futurice.iodf.ioseq.{IoSeq, IoSeqType}
@@ -16,17 +16,22 @@ import scala.util.Random
   */
 class SeqPerf extends TestSuite("perf/seq") {
 
-  def tWritePerf[IoId, T](t:TestTool, scale:Int, source:Iterable[T], ty:IoSeqType[IoId, T, LSeq[T],  _ <: IoSeq[IoId, T]]): Unit = {
+  def tWritePerf[T](t:TestTool,
+                    scale:Int,
+                    source:Iterable[T],
+                    ty:IoSeqType[T, LSeq[T],  _ <: IoSeq[T]]): Unit =
+    scoped { implicit bind =>
     val dirFile = t.file("files")
+
     using (new MMapDir(dirFile)) { dir =>
       def writeN(n: Int) = {
         val file = dir.ref(n.toString)
         t.t("creating data..")
         val data = t.iMsLn(LSeq(source.take(n).toSeq))
         val (ms, _) =
-          using (new DataOutputStream(file.openOutput)) { out =>
+          using (new DataOutputStream(file.create)) { out =>
             TestTool.ms(
-              ty.writeSeq(out, data))
+              ty.write(out, data))
           }
         val kbs = new File(dirFile, n.toString).length() / 1024
         t.iln(f"writing $n entries took $ms ms")
@@ -63,11 +68,19 @@ class SeqPerf extends TestSuite("perf/seq") {
     }
 
   test("string") { t =>
-    tWritePerf(t, 1024, stringSource(new Random(0)), Dfs.fs.types.ioTypeOf[Seq[String]]().asInstanceOf[IoSeqType[String, String, LSeq[String],  _ <: IoSeq[String, String]]])
+    tWritePerf(
+      t,
+      1024,
+      stringSource(new Random(0)),
+      Dfs.fs.types.seqTypeOf[String])
   }
 
   test("int") { t =>
-    tWritePerf[String, Int](t, 4*1024, intSource(new Random(0)), Dfs.fs.types.ioTypeOf[Seq[Int]]().asInstanceOf[IoSeqType[String, Int, LSeq[Int],  _ <: IoSeq[String, Int]]])
+    tWritePerf(
+      t,
+      4*1024,
+      intSource(new Random(0)),
+      Dfs.fs.types.seqTypeOf[Int])
   }
 
 }

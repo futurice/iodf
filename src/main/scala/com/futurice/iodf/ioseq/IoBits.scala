@@ -61,19 +61,25 @@ object IoBitsType {
   val SparseId = 0
   val DenseId = 1
 
-  def booleanSeqIoType(bitsType:IoBitsType)(implicit t:TypeTag[Seq[Boolean]], valueTag:TypeTag[Boolean]) =
-    new SuperIoType[Seq[Boolean], WrappedIoBits](
-      bitsType,
-      bools => LBits(bools))(t)
-      with IoSeqType[Boolean, LBits, WrappedIoBits] {
+  def booleanSeqIoType(bitsType:IoBitsType)(implicit t:TypeTag[LSeq[Boolean]], valueTag:TypeTag[Boolean]) =
+    new IoSeqType[Boolean, LSeq[Boolean], WrappedIoBits] {
+      val tp =
+        new SuperIoType[LSeq[Boolean], LBits, WrappedIoBits](
+          bitsType,
+          bools => LBits(bools))
       override def valueTypeTag: universe.TypeTag[Boolean] = valueTag
-      def viewMerged(seqs: Seq[com.futurice.iodf.util.LBits]) =
-        bitsType.viewMerged(seqs)
-      def writeSeq(out: java.io.DataOutputStream,v: com.futurice.iodf.util.LBits) = {
-        bitsType.writeSeq(out, v)
-      }
-    }
+      def viewMerged(seqs: Seq[LSeq[Boolean]]) =
+        bitsType.viewMerged(seqs.map { _ match {
+          case bits : LBits => bits
+          case bools : LSeq[Boolean] => LBits(bools)
+        }})
+      override def interfaceType: universe.Type = tp.interfaceType
+      override def ioInstanceType: universe.Type = tp.ioInstanceType
 
+      override def open(ref: DataRef): WrappedIoBits = tp.open(ref)
+
+      override def write(out: DataOutputStream, iface: LSeq[Boolean]): Unit = tp.write(out, iface)
+    }
 
 }
 
@@ -93,20 +99,20 @@ class WrappedIoBits(val someRef:Option[IoRef[IoBits]],
   override def fAnd(bits:LBits) = this.bits.fAnd(unwrap(bits))
   def unwrap(b:LBits) = {
     b match {
-      case w : WrappedIoBits[_] => w.bits
+      case w : WrappedIoBits => w.bits
       case b => b
     }
   }
-  override def createAnd[IoId2](b:LBits)(implicit io:IoContext[IoId2]) = {
+  override def createAnd(b:LBits)(implicit io:IoContext) = {
     this.bits.createAnd(unwrap(b))
   }
-  override def createAndNot[IoId2](b:LBits)(implicit io:IoContext[IoId2]) = {
+  override def createAndNot(b:LBits)(implicit io:IoContext) = {
     this.bits.createAndNot(unwrap(b))
   }
-  override def createNot[IoId2](implicit io:IoContext[IoId2]) = {
+  override def createNot(implicit io:IoContext) = {
     this.bits.createNot
   }
-  override def createMerged[IoId2](b:LBits)(implicit io:IoContext[IoId2]) = {
+  override def createMerged(b:LBits)(implicit io:IoContext) = {
     this.bits.createMerged(unwrap(b))
   }
   override def leLongs = bits.leLongs
@@ -125,22 +131,25 @@ class IoBitsType(val sparse:SparseIoBitsType,
   override def valueTypeTag =
     _root_.scala.reflect.runtime.universe.typeTag[Boolean]
 
-  def wrap(data:Option[FileDataRef], ioBits:LBits) = {
+  override def interfaceType = typeOf[LBits]
+  override def ioInstanceType = typeOf[WrappedIoBits]
+
+  def wrap(data:Option[DataRef], ioBits:LBits) = {
     new WrappedIoBits(
-      data.map( ref => IoRef[IoId, IoBits](this, ref)),
+      data.map( ref => IoRef[IoBits](this, ref)),
       ioBits)
   }
 
-  def open(buf:IoData) = {
-    wrap(Some(buf.ref),
-      using (buf.openRandomAccess) { ra =>
+  def open(ref:DataRef) = {
+    wrap(Some(ref),
+      using (ref.open) { ra =>
         ra.getByte(0) match {
           case SparseId =>
-            using (buf.openView(1)) {
+            using (ref.openView(1, ref.byteSize)) {
               sparse.open
             }
           case DenseId =>
-            using (buf.openView(1)) {
+            using (ref.openView(1, ref.byteSize)) {
               dense.open
            }
         }
@@ -150,10 +159,10 @@ class IoBitsType(val sparse:SparseIoBitsType,
   def write(out:DataOutputStream, data:LBits) = {
     if (LBits.isSparse(data.f, data.n)) {
       out.writeByte(SparseId)
-      sparse.writeAny(out, data)
+      sparse.write(out, data)
     } else {
       out.writeByte(DenseId)
-      dense.writeAny(out, data)
+      dense.write(out, data)
     }
   }
   def writeSeq(out:DataOutputStream, data:LBits) = {
@@ -166,7 +175,7 @@ class IoBitsType(val sparse:SparseIoBitsType,
 
   def unwrap(b:LBits) = {
     b match {
-      case w : WrappedIoBits[_] => w.unwrap
+      case w : WrappedIoBits => w.unwrap
       case _ => b
     }
   }
@@ -176,14 +185,15 @@ class IoBitsType(val sparse:SparseIoBitsType,
   }
 
   def create(bits:LBits)(implicit io: IoContext) : IoBits = {
-    val ref = io.dir.freeRef
-    using( ref.openOutput ) { output =>
-      write(new DataOutputStream(output), bits)
+    using (using( io.allocator.create ) { out =>
+        write(new DataOutputStream(out), bits)
+        out.openDataRef
+      }) { ref =>
+      open(ref)
     }
-    using(ref.open) { open(_) }
   }
 
-  def writeAnd(output: DataOutputStream, b1:LBits, b2:LBits) : IoSeqType[IoId, Boolean, LBits, _ <: IoBits] = {
+  def writeAnd(output: DataOutputStream, b1:LBits, b2:LBits) : IoSeqType[Boolean, LBits, _ <: IoBits] = {
     if (b1.n != b2.n) throw new IllegalArgumentException()
     (b1.isDense, b2.isDense) match {
       case (true, true) =>
@@ -221,17 +231,15 @@ class IoBitsType(val sparse:SparseIoBitsType,
         sparse
     }
   }
-  def createAnd(file: FileRef, b1:LBits, b2:LBits) : IoBits = {
-    val typ = using( file.openOutput) { output =>
-      writeAnd(new DataOutputStream(output), b1, b2)
+  def createAnd(allocator: AllocateOnce, b1:LBits, b2:LBits) : IoBits = {
+    val (typ, openRef) = using( allocator.create ) { output =>
+      val t = writeAnd(new DataOutputStream(output), b1, b2)
+      (t, output.openDataRef)
     }
-    using(file.open) { typ.open(_) }
-  }
-  def createAnd(dir: Dir, b1:LBits, b2:LBits) : IoBits = {
-    createAnd(dir.freeRef, b1, b2)
+    using(openRef) { typ.open(_) }
   }
 
-  def writeAndNot(output: DataOutputStream, b1:LBits, b2:LBits) : IoSeqType[IoId, Boolean, LBits, _ <: IoBits] = {
+  def writeAndNot(output: DataOutputStream, b1:LBits, b2:LBits) : IoSeqType[Boolean, LBits, _ <: IoBits] = {
     if (b1.n != b2.n) throw new IllegalArgumentException()
     (b1.isDense, b2.isDense) match {
       case (true, true) =>
@@ -290,17 +298,15 @@ class IoBitsType(val sparse:SparseIoBitsType,
         sparse
     }
   }
-  def createAndNot(file: FileRef, b1:LBits, b2:LBits) : IoBits = {
-    val typ = using( file.openOutput) { output =>
-      writeAndNot(new DataOutputStream(output), b1, b2)
+  def createAndNot(file: AllocateOnce, b1:LBits, b2:LBits) : IoBits = {
+    val (typ, openRef) = using( file.create ) { output =>
+      val t = writeAndNot(new DataOutputStream(output), b1, b2)
+      (t, output.adoptResult)
     }
-    using(file.open) { typ.open(_) }
-  }
-  def createAndNot(dir: Dir, b1:LBits, b2:LBits) : IoBits = {
-    createAndNot(FileRef(dir, dir.freeId), b1, b2)
+    using(openRef) { ref => typ.open(ref) }
   }
 
-  def writeNot(output: DataOutputStream, b:LBits) : IoSeqType[IoId, Boolean, LBits, _ <: IoBits] = {
+  def writeNot(output: DataOutputStream, b:LBits) : IoSeqType[Boolean, LBits, _ <: IoBits] = {
     dense.write(output, b.size,
       b.leLongs.iterator.zipWithIndex.map { case (l, i) =>
         if ((i+1)*64 > b.lsize) {
@@ -314,15 +320,12 @@ class IoBitsType(val sparse:SparseIoBitsType,
     )
     dense
   }
-  def createNot(ref: DataCreatorRef, b:LBits) : IoBits = {
-    val (typ, res) = using( ref.create ) { out =>
+  def createNot(ref: AllocateOnce, b:LBits) : IoBits = {
+    val (typ, openRef) = using( ref.create ) { out =>
       val t = writeNot(new DataOutputStream(out), b)
       (t, out.adoptResult)
     }
-    using(res) { typ.open(_) }
-  }
-  def createNot(dir: DataLand, b:LBits) : IoBits = {
-    createNot(FileRef(dir, dir.openRef), b)[IoId]
+    using(openRef) { typ.open(_) }
   }
 
   override def writeMerged(out:DataOutputStream, ss:Seq[LBits]) = {
@@ -337,14 +340,13 @@ class IoBitsType(val sparse:SparseIoBitsType,
     }
   }
 
-  def createMerged(refe: DataCreatorRef, bs:Seq[LBits]) : IoBits = {
-    using( res ) { output =>
-      writeMerged(new DataOutputStream(output), bs)
-    }
-    using(file.open) { open(_) }
-  }
-  def createMerged(dir: Dir, bs:Seq[LBits]) : IoBits = {
-    createMerged(dir.freeRef, bs)
+  def createMerged(ref: AllocateOnce, bs:Seq[LBits]) : IoBits = {
+    val openRes =
+      using( ref.create ) { out =>
+        writeMerged(new DataOutputStream(out), bs)
+        out.adoptResult
+      }
+    using(openRes) { open(_) }
   }
 
 }

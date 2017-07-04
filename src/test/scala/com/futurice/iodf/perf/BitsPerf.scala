@@ -20,36 +20,38 @@ class BitsPerf extends TestSuite("perf/bits") {
 
   test("bits-perf") { t =>
     RefCounted.trace {
-      val sizes = Array(16, 256, 4 * 1024, 1024 * 1024)
+      scoped { implicit scope =>
+        val sizes = Array(16, 256, 4 * 1024, 1024 * 1024)
 
-      sizes.foreach { sz =>
-        using(new MMapDir(t.fileDir)) { dir =>
-          val bits = new SparseIoBitsType[String]()
-          val data = (0 until sz).filter(_ % 4 == 0).map(_.toLong)
+        sizes.foreach { sz =>
+          using(new MMapDir(t.fileDir)) { dir =>
+            val bits = new SparseIoBitsType()
+            val data = (0 until sz).filter(_ % 4 == 0).map(_.toLong)
 
-          val n = 32
-          t.t(f"creating $n sparse bits of size $sz...")
-          val (ms, res) =
-            TestTool.ms(
-              (0 until n).foreach { i =>
-                bits.create(dir.ref("bits"), LBits(data, sz)).close()
-              })
+            val n = 32
+            t.t(f"creating $n sparse bits of size $sz...")
+            val (ms, res) =
+              TestTool.ms(
+                (0 until n).foreach { i =>
+                  bits.create(dir.ref("bits"), LBits(data, sz)).close()
+                })
 
-          val old = t.peekDouble
-          val now = ms / n.toDouble
-          t.i(f"$now%.3f ms / op")
-          old match {
-            case Some(oldV) =>
-              t.iln(f", was $oldV%.3f ms")
-              if (Math.abs(Math.log(oldV / now)) > Math.log(2)) {
-                t.fail
-                t.tln("  performance has CHANGED!")
-              } else {
-                t.iln("  ok.")
-              }
-            case None =>
-              t.iln
-              t.iln("  first run.")
+            val old = t.peekDouble
+            val now = ms / n.toDouble
+            t.i(f"$now%.3f ms / op")
+            old match {
+              case Some(oldV) =>
+                t.iln(f", was $oldV%.3f ms")
+                if (Math.abs(Math.log(oldV / now)) > Math.log(2)) {
+                  t.fail
+                  t.tln("  performance has CHANGED!")
+                } else {
+                  t.iln("  ok.")
+                }
+              case None =>
+                t.iln
+                t.iln("  first run.")
+            }
           }
         }
       }
@@ -57,11 +59,11 @@ class BitsPerf extends TestSuite("perf/bits") {
   }
 
   def testBitPerf(t:TestTool, size:Int) = {
-    using(IoScope.open) { bind =>
+    scoped { implicit bind =>
       val dir = bind(new MMapDir(t.fileDir))
 
-      val sparse = new SparseIoBitsType[String]()
-      val dense = new DenseIoBitsType[String]()
+      val sparse = new SparseIoBitsType()
+      val dense = new DenseIoBitsType()
 
       // 1 billion
       val density = 64

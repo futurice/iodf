@@ -6,6 +6,7 @@ import com.futurice.iodf.util._
 import com.futurice.iodf.{DfColTypes, IoScope, Utils}
 
 import scala.collection.mutable.ArrayBuffer
+import scala.reflect.runtime.universe._
 
 object MultiDf {
   def DefaultColIdMemRatio = 16
@@ -15,14 +16,14 @@ object MultiDf {
   }
   def refCounted[ColId](dfs:Seq[_ <: RefCounted[Df[ColId]]], types:DfColTypes[ColId])(
     implicit colIdOrdering:Ordering[ColId]) = {
-    val rv = new MultiDf[IoId, ColId](dfs.map(_.value).toArray, types)
+    val rv = new MultiDf[ColId](dfs.map(_.value).toArray, types)
     dfs.map { rv.scope.bind(_) }
     rv
   }
-  def autoClosing[IoId, ColId](dfs:Seq[_ <: Df[IoId, ColId]],
-                               types:DfColTypes[IoId, ColId], colIdMemRatio:Int = DefaultColIdMemRatio)(
+  def autoClosing[ColId](dfs:Seq[_ <: Df[ColId]],
+                         types:DfColTypes[ColId], colIdMemRatio:Int = DefaultColIdMemRatio)(
     implicit colIdOrdering:Ordering[ColId]) = {
-    val rv = new MultiDf[IoId, ColId](dfs.toArray, types, colIdMemRatio)
+    val rv = new MultiDf[ColId](dfs.toArray, types, colIdMemRatio)
     dfs.map { rv.scope.bind(_) }
     rv
   }
@@ -32,8 +33,8 @@ object MultiDf {
 /**
   * Created by arau on 6.6.2017.
   */
-class MultiDf[IoId, ColId](dfs:Array[_ <: Df[IoId, ColId]], types:DfColTypes[IoId, ColId], val colIdMemRatio: Int = 32)(
-  implicit val colIdOrdering:Ordering[ColId]) extends Df[IoId, ColId] {
+class MultiDf[ColId](dfs:Array[_ <: Df[ColId]], types:DfColTypes[ColId], val colIdMemRatio: Int = 32)(
+  implicit val colIdOrdering:Ordering[ColId]) extends Df[ColId] {
 
   type ColType[T] = MultiSeq[T, LSeq[T]]
 
@@ -115,7 +116,7 @@ class MultiDf[IoId, ColId](dfs:Array[_ <: Df[IoId, ColId]], types:DfColTypes[IoI
       }
       override def lsize: Long = colIdsLsize
       override def iterator =
-        PeekIterator(
+        PeekIterator.apply[ColId](
           if (colIdMemRatio == 1) { // special case optimization
             jumpEntries.map(_.value).iterator
           } else {
@@ -124,9 +125,29 @@ class MultiDf[IoId, ColId](dfs:Array[_ <: Df[IoId, ColId]], types:DfColTypes[IoI
     }
   }
 
+  def entryToType(e:MergeSortEntry[ColId]) = {
+    dfs(e.sources.head).colTypes(e.sourceIndexes.head)
+  }
+
+  override val colTypes: LSeq[Type] = {
+    new LSeq[Type] {
+      override def apply(l: Long): Type = {
+        entryToType(entryOfIndex(l).get)
+      }
+      override def lsize: Long = colIdsLsize
+      override def iterator =
+        PeekIterator.apply[Type](
+          if (colIdMemRatio == 1) { // special case optimization
+            jumpEntries.map( entryToType ).iterator
+          } else {
+            MergeSortIterator[ColId](seqs.map(_.iterator)).map( entryToType )
+          })
+    }
+  }
+
   private def openMultiCol[T](
      entry:Option[MergeSortEntry[ColId]],
-     colType : IoSeqType[IoId, _, _ <: LSeq[_], _ <: IoSeq[IoId, _]]) = {
+     colType : IoSeqType[_, _ <: LSeq[_], _ <: IoSeq[_]]) = {
     val colMap =
       entry match {
         case Some(e) =>
@@ -177,7 +198,7 @@ class MultiDf[IoId, ColId](dfs:Array[_ <: Df[IoId, ColId]], types:DfColTypes[IoI
   }
 
   override def view(from:Long, until:Long) = {
-    new DfView[IoId, ColId](this, from, until)
+    new DfView[ColId](this, from, until)
   }
 
   // size in Long

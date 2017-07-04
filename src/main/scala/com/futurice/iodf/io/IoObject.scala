@@ -2,11 +2,15 @@ package com.futurice.iodf.io
 
 import java.io.Closeable
 
+import com.futurice.iodf.Utils._
+
 /**
  * This object is io-referable
  */
 trait IoObject extends Closeable {
   def openRef : IoRef[_ <: IoObject]
+
+  def ioType : IoOpener[_ <: IoObject] = using (openRef) { _.typ }
 }
 
 /**

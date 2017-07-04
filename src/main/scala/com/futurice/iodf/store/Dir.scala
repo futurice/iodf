@@ -22,7 +22,7 @@ class FileRef[Id](val dir:Dir[Id], val id:Id) extends DataRef {
   def copy = new FileRef(dir, id)
 }
 
-class WritableFileRef[Id](dir:WritableDir[Id], id:Id) extends FileRef(dir, id) with DataCreatorRef {
+class WritableFileRef[Id](dir:WritableDir[Id], id:Id) extends FileRef(dir, id) with AllocateOnce {
   def create = dir.create(id)
   override def copy = new WritableFileRef[Id](dir, id)
 }
@@ -43,16 +43,18 @@ trait Dir[Id] extends Closeable {
 
   def openRef(id:Id) =
     new FileRef(this, id)
+/*  def openRefInt(i:Int) =
+    openRef(id(i))*/
 
   def ref(id:Id)(implicit bind:IoScope) = bind(openRef(id))
+  //def refInt(i:Int)(implicit bind:IoScope) = bind(openRefInt(i))
 
-  def open(id:Id, pos:Long = 0, size:Option[Long] = None) :
-    RandomAccess
+  def open(id:Id) : RandomAccess
 
   def byteSize : Long
 }
 
-trait WritableDir[Id] extends Dir[Id] with DataLand {
+trait WritableDir[Id] extends Dir[Id] {
   def freeId : Id = {
     def find(i:Int) : Id = {
       val rv = id(i)
@@ -64,12 +66,14 @@ trait WritableDir[Id] extends Dir[Id] with DataLand {
     }
     find(0)
   }
-  override def openRef(id:Id) =
-    new WritableFileRef[Id](this, id)
   def freeFileRef = openRef(freeId)
 
+  override def openRef(id:Id) =
+    new WritableFileRef[Id](this, id)
+  override def ref(id:Id)(implicit bind:IoScope) : WritableFileRef[Id] =
+    bind(openRef(id))
+
   def create(id:Id) : DataCreator
-  def create = create(freeId)
 
 }
 

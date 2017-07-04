@@ -2,6 +2,7 @@ package com.futurice.iodf.ioseq
 
 import java.io.DataOutputStream
 
+import com.futurice.iodf.Utils.using
 import com.futurice.iodf.util.LSeq
 import com.futurice.iodf.io.{IoObject, IoType, WithValueTypeTag}
 
@@ -31,4 +32,9 @@ trait IoSeqType[Member, Interface <: LSeq[Member], IoInstance <: IoSeq[Member] w
   }
 }
 
-trait IoSeq[T] extends IoIterable[T] with LSeq[T] {}
+trait IoSeq[T] extends IoIterable[T] with LSeq[T] {
+
+  def ioSeqType : IoSeqType[T, _ <: LSeq[T], _ <: IoSeq[T]] =
+    using (openRef) { _.typ }.asInstanceOf[IoSeqType[T, _ <: LSeq[T], _ <: IoSeq[T]]]
+
+}

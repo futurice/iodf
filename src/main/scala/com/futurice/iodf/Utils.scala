@@ -3,8 +3,9 @@ package com.futurice.iodf
 import java.io.{Closeable, File}
 
 import com.futurice.iodf.ioseq._
-import com.futurice.iodf.store.{Dir, RamDir}
+import com.futurice.iodf.store.{Allocator, Dir, RamAllocator, RamDir}
 import com.futurice.iodf.util.LSeq
+import xerial.larray.buffer.LBufferConfig
 
 import scala.annotation.tailrec
 import scala.collection.mutable.ArrayBuffer
@@ -38,22 +39,23 @@ object IoScope {
   def open : IoScope = new IoScope()
 }
 
-class IoContext[IoId](openedDir:Dir[IoId]) extends Closeable {
-  val dir = openedDir
-
+class IoContext(val allocator:Allocator) extends Closeable {
   val bits =
     new IoBitsType(
-      new SparseIoBitsType[IoId](),
-      new DenseIoBitsType[IoId]())
+      new SparseIoBitsType(),
+      new DenseIoBitsType())
 
   override def close(): Unit = {
-    dir.close()
+    allocator.close()
   }
 }
 
 object IoContext {
+
+  implicit val default = open
+
   def open = {
-    new IoContext[Int](RamDir())
+    new IoContext(new RamAllocator())
   }
   def apply()(implicit scope:IoScope) = {
     scope.bind(open)
