@@ -4,51 +4,7 @@ import java.io.Closeable
 import java.util.logging.{Level, Logger}
 
 import com.futurice.iodf.IoScope
-
-import scala.collection.mutable
-
-object RefCounted {
-  val l = Logger.getLogger("RefCounted")
-  @volatile
-  var openRefs = 0
-  var traces : Option[mutable.Map[RefCounted[_], Exception]] = None
-
-
-  def opened(ref:RefCounted[_ <: java.io.Closeable]) = synchronized {
-    traces match {
-      case Some(tr) => tr += (ref -> new RuntimeException("leaked reference"))
-      case None =>
-    }
-    openRefs += 1
-  }
-
-  def closed(ref:RefCounted[_]) = synchronized {
-    traces match {
-      case Some(tr) =>
-        tr.remove(ref)
-      case None =>
-    }
-    openRefs -= 1
-  }
-
-  def trace[T](f : => T) : T = {
-    // FIXME: not thread safe! Use threadlocal!
-    val tracesBefore = traces
-    traces = Some(new mutable.HashMap[RefCounted[_], Exception]())
-    try {
-      f
-    } finally {
-      if (traces.get.size > 0) {
-        l.log(Level.SEVERE, traces.get.size + " references leaked.")
-        traces.get.take(1).map { t =>
-          l.log(Level.SEVERE, t._1.value + " leaked with count " + t._1.count + "!", t._2)
-        }
-      }
-      traces = tracesBefore
-    }
-  }
-}
-
+/*
 case class RefCounted[V <: Closeable](val value:V, val initCount:Int) extends Ref[V] {
   @volatile var count = initCount
   RefCounted.opened(this)
@@ -100,5 +56,5 @@ case class RefCounted[V <: Closeable](val value:V, val initCount:Int) extends Re
       value.close
     }
   }
-}
+}*/
 

@@ -3,10 +3,10 @@ package com.futurice.iodf
 import java.io.{DataOutputStream, File}
 
 import com.futurice.testtoys.{TestSuite, TestTool}
-import com.futurice.iodf.store.{MMapDir, RamDir, RefCounted}
+import com.futurice.iodf.store.{MMapDir, RamDir}
 import com.futurice.iodf.Utils._
 import com.futurice.iodf.ioseq._
-import com.futurice.iodf.util.{LBits, LSeq, MultiBits}
+import com.futurice.iodf.util.{LBits, LSeq, MultiBits, Tracing}
 
 import scala.reflect.runtime.universe._
 import scala.util.Random
@@ -244,7 +244,7 @@ class BitsTest extends TestSuite("bits") {
   }
 
   test("iobits-dense") { t =>
-    RefCounted.trace {
+    Tracing.trace {
       scoped { implicit scope =>
         implicit val io = IoContext()
         tTestBits(t, toDenseIoBits(_))
@@ -253,7 +253,7 @@ class BitsTest extends TestSuite("bits") {
   }
 
   test("iobits-sparse") { t =>
-    RefCounted.trace {
+    Tracing.trace {
       scoped { implicit scope =>
         implicit val io = IoContext()
         tTestBits(t, toSparseIoBits(_))
@@ -262,7 +262,7 @@ class BitsTest extends TestSuite("bits") {
   }
 
   test("iobits") { t =>
-    RefCounted.trace {
+    Tracing.trace {
       scoped { implicit scope =>
         implicit val io = IoContext()
         tTestBits(t, toIoBits(_))
@@ -271,7 +271,7 @@ class BitsTest extends TestSuite("bits") {
   }
 
   test("multibits") { t =>
-    RefCounted.trace {
+    Tracing.trace {
       scoped { implicit scope =>
         implicit val io = IoContext()
         tTestBits(t, toMultiBits(_), verbose = true)
@@ -287,7 +287,7 @@ class BitsTest extends TestSuite("bits") {
       verbose = true)
   }
 /*  test("lbits-sparseio-ops") { t =>
-    RefCounted.trace {
+    Tracing.trace {
       scoped { implicit scope =>
         implicit val io = IoContext()
           tTestBitSOps(
@@ -323,7 +323,7 @@ class BitsTest extends TestSuite("bits") {
   }
 
   test("all-bits-ops") { t =>
-    RefCounted.trace {
+    Tracing.trace {
       scoped { implicit scope =>
         implicit val io = IoContext()
         tTestBitsOpsWith(t)(

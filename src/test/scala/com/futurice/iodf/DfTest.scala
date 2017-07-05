@@ -4,11 +4,11 @@ import java.io.{DataOutputStream, File}
 import java.util
 
 import com.futurice.testtoys.{TestSuite, TestTool}
-import com.futurice.iodf.store.{MMapDir, RamDir, RefCounted}
+import com.futurice.iodf.store.{MMapDir, RamDir}
 import com.futurice.iodf.Utils._
 import com.futurice.iodf.df.{Df, IndexConf, IndexedDf}
 import com.futurice.iodf.ioseq._
-import com.futurice.iodf.util.{LBits, LSeq, MergeSortIterator}
+import com.futurice.iodf.util.{LBits, LSeq, MergeSortIterator, Tracing}
 
 import scala.reflect.runtime.universe._
 import scala.util.Random
@@ -52,7 +52,7 @@ object ExampleItem {
 class DfTest extends TestSuite("df") {
 
   def tRefCount(t: TestTool) = {
-    t.tln(RefCounted.openRefs + " refs open.")
+    t.tln(Tracing.openItems + " refs open.")
   }
 
   def tDir(t: TestTool, dir: File): Unit = {
@@ -71,7 +71,7 @@ class DfTest extends TestSuite("df") {
     IndexConf[String]().withAnalyzer("text", e => e.asInstanceOf[String].split(" ").toSeq)
 
   test("creation") { t =>
-    RefCounted.trace {
+    Tracing.trace {
       val dfs = Dfs.fs
       using(new MMapDir(t.fileDir)) { dir =>
         using(dfs.createTypedDf[ExampleItem, String](items, dir)) { df =>
@@ -121,7 +121,7 @@ class DfTest extends TestSuite("df") {
 
   test("indexed-df-api") { t =>
 
-    RefCounted.trace {
+    Tracing.trace {
       using(IoScope.open) { implicit bind =>
         implicit val io = IoContext()
         val dfs = Dfs.fs
@@ -151,7 +151,7 @@ class DfTest extends TestSuite("df") {
 
 
   test("index") { t =>
-    RefCounted.trace {
+    Tracing.trace {
 
       def tDb(df: Df[String], index: Df[(String, Any)]) = {
         t.tln
@@ -323,7 +323,7 @@ class DfTest extends TestSuite("df") {
   }
 
   test("1024-entry-index") { t =>
-    RefCounted.trace {
+    Tracing.trace {
       val file = new File(t.fileDir, "df")
       val dfs = Dfs.fs
 
@@ -382,7 +382,7 @@ class DfTest extends TestSuite("df") {
   }
 
   test("merging") { t =>
-    RefCounted.trace {
+    Tracing.trace {
       using(IoScope.open) { implicit bind =>
         val io = IoContext()
         val dfs = Dfs.fs
@@ -502,7 +502,7 @@ class DfTest extends TestSuite("df") {
   }
 
   test("multidf") { t =>
-    RefCounted.trace {
+    Tracing.trace {
       using(IoScope.open) { implicit bind =>
         val io = IoContext()
         val dfs = Dfs.fs
@@ -559,7 +559,7 @@ class DfTest extends TestSuite("df") {
   }
 
   test("empty-indexed-multidf") { t =>
-    RefCounted.trace {
+    Tracing.trace {
       using(IoScope.open) { implicit bind =>
         val io = IoContext()
         val dfs = Dfs.fs
@@ -601,7 +601,7 @@ class DfTest extends TestSuite("df") {
     }
   }
   test("indexed-multidf") { t =>
-    RefCounted.trace {
+    Tracing.trace {
       using(IoScope.open) { implicit bind =>
         val io = IoContext()
         val dfs = Dfs.fs

@@ -1,10 +1,8 @@
 package com.futurice.iodf.io
 
-import java.io.{BufferedOutputStream, DataOutputStream, OutputStream}
-
 import com.futurice.iodf.Utils.using
 import com.futurice.iodf.ioseq._
-import com.futurice.iodf.store.{AllocateOnce, DataRef, RandomAccess}
+import com.futurice.iodf.store.AllocateOnce
 import com.futurice.iodf.util.{LBits, LSeq}
 
 import scala.collection.mutable.ArrayBuffer
@@ -41,34 +39,32 @@ trait IoTypes {
   def ioTypeOf(t : Type)      : IoType[_, _]
   def ioTypeOf[T : TypeTag]() : IoType[_ >: T, _ <: T]
 
-  def write(out:DataOutputStream, t:Any, tpe:Type) : Unit
+  def write(out:DataOutput, t:Any, tpe:Type) : Unit
 
-  def write[Interface](out:DataOutputStream, t:Interface)(
+  def write[Interface](out:DataOutput, t:Interface)(
     implicit tag:TypeTag[Interface]) : Unit
 
   def create[Interface](ref:AllocateOnce, t:Interface)(
     implicit tag:TypeTag[Interface]) : Interface
 
-  def open(ref:DataRef) : Any
-
-  def openAs[Interface](ref:DataRef) = open(ref).asInstanceOf[Interface]
-
-//  def ioTypeOf(ref:DataRef) : (IoType[_, _], Int)
-
-  def write[Interface](out:OutputStream, t:Interface)(
-    implicit tag:TypeTag[Interface]): Unit =  {
-    write[Interface](new DataOutputStream(out), t)
+  def open(ref:DataAccess) : Any
+  def open(ref:DataRef) : Any = {
+    using (ref.openAccess)(open)
   }
+
+  def openAs[Interface](ref:DataAccess) =
+    open(ref).asInstanceOf[Interface]
+  def openAs[Interface](ref:DataRef) =
+    open(ref).asInstanceOf[Interface]
 
   /** note: this returns and opened a data reference */
   def written[Interface](ref:AllocateOnce, t:Interface)(
     implicit tag:TypeTag[Interface]): DataRef = {
     using (ref.create) { out =>
-      write(new DataOutputStream(out), t)
+      write(out, t)
       out.adoptResult
     }
   }
-
 
   def getIoTypeId(t:IoType[_, _]) : Option[Int]
 
@@ -92,19 +88,19 @@ trait IoTypes {
       seqPkg, seqSymbol, List(tpe))
 
   def seqTypeOf[Member](implicit typeTag:TypeTag[LSeq[Member]])
-    : IoSeqType[Member, LSeq[Member],_ <: IoSeq[Member]] = {
-    ioTypeOf[LSeq[Member]].asInstanceOf[IoSeqType[Member, LSeq[Member],_ <: IoSeq[Member]]]
+    : SeqIoType[Member, LSeq[Member],_ <: IoSeq[Member]] = {
+    ioTypeOf[LSeq[Member]].asInstanceOf[SeqIoType[Member, LSeq[Member],_ <: IoSeq[Member]]]
   }
-  def lseqTypeOf(implicit memberTpe:Type)
-  : IoSeqType[_, LSeq[_],_ <: IoSeq[_]] = {
-    ioTypeOf(toLSeqType(memberTpe)).asInstanceOf[IoSeqType[_, LSeq[_],_ <: IoSeq[_]]]
+  def seqTypeOf(implicit memberTpe:Type)
+  : SeqIoType[_, LSeq[_],_ <: IoSeq[_]] = {
+    ioTypeOf(toLSeqType(memberTpe)).asInstanceOf[SeqIoType[_, LSeq[_],_ <: IoSeq[_]]]
   }
 
   def longLSeqType = seqTypeOf[Long]
 //  def idSeqType : IoSeqType[IoId, LSeq[IoId],_ <: IoSeq[IoId, IoId]]
 //  def refSeqType : IoSeqType[IoObject, LSeq[IoObject],_ <: IoSeq[IoObject]]
-  def bitsLSeqType : IoSeqType[Boolean, LBits,_ <: IoSeq[Boolean]] = {
-    ioTypeOf[LBits].asInstanceOf[IoSeqType[Boolean, LBits,_ <: IoSeq[Boolean]]]
+  def bitsLSeqType : SeqIoType[Boolean, LBits,_ <: IoSeq[Boolean]] = {
+    ioTypeOf[LBits].asInstanceOf[SeqIoType[Boolean, LBits,_ <: IoSeq[Boolean]]]
   }
 }
 
@@ -145,28 +141,26 @@ class IoTypesImpl(types:Seq[IoType[_, _]]) extends IoTypes {
   override def ioTypeOf[T : TypeTag]() : IoType[_ >: T, _ <: T] = {
     types(openerEntryOf(typeOf[T])._2).asInstanceOf[IoType[_ >: T, _ <: T]]
   }
-  override def write(out:DataOutputStream, v:Any, tpe:Type) = {
+  override def write(out:DataOutput, v:Any, tpe:Type) = {
     val (typ, id) = writerEntryOf(tpe)
     out.writeInt(id)
     typ.asAnyWriter.write(out, v)
   }
-  override def write[From : TypeTag](out:DataOutputStream, v:From) = {
+  override def write[From : TypeTag](out:DataOutput, v:From) = {
     write(out, v, typeOf[From])
   }
-  override def open(ref : DataRef) = {
+  override def open(data : DataAccess) = {
 //    val (typ, id) = openerEntryOf[From]
-    using (ref.open) { m =>
-      val id = m.getBeInt(0)
-      using (ref.openView(4, ref.byteSize)) { view =>
-        types(id).open(view)
-      }
+    val id = data.getBeInt(0)
+    using (data.openView(4, data.size)) { view =>
+      types(id).open(view)
     }
   }
   override def create[From](ref:AllocateOnce, v:From)(implicit tag:TypeTag[From]) = {
     val (typ, id) = writerEntryOf[From]
     using(
       using(ref.create) { out =>
-        typ.write(new DataOutputStream(out), v)
+        typ.write(out, v)
         out.adoptResult
       }) { typ.open }
   }
@@ -179,10 +173,11 @@ class IoTypesImpl(types:Seq[IoType[_, _]]) extends IoTypes {
 
   override def orderingOf(tpe: Type) = {
     (tpe match {
-      case t if t == typeOf[Boolean] => orderingOf[Boolean]
-      case t if t == typeOf[Int] => orderingOf[Int]
-      case t if t == typeOf[Long] => orderingOf[Long]
-      case t if t == typeOf[String] => orderingOf[String]
+
+      case t if t <:< typeOf[Boolean] => orderingOf[Boolean]
+      case t if t <:< typeOf[Int] => orderingOf[Int]
+      case t if t <:< typeOf[Long] => orderingOf[Long]
+      case t if t <:< typeOf[String] => orderingOf[String]
       case v =>
         throw new IllegalArgumentException(v + " is unknown")
     }).asInstanceOf[Ordering[Any]] // TODO: refactor, there has to be a better way
@@ -226,18 +221,18 @@ object IoTypes {
     val buf = new ArrayBuffer[IoType[_, _]]()
     val self = apply(buf)
     val entryIo = new Serializer[(Int, String, Long)] {
-      override def read(b: RandomAccess, pos: Long): (Int, String, Long) = {
+      override def read(b: DataAccess, pos: Long): (Int, String, Long) = {
         val i = b.getBeInt(pos)
         val l = b.getBeLong(pos+4)
         val s = StringIo.read(b, pos+12)
         (i, s, l)
       }
-      override def write(o: DataOutputStream, v: (Int, String, Long)): Unit = {
+      override def write(o: DataOutput, v: (Int, String, Long)): Unit = {
         o.writeInt(v._1)
         o.writeLong(v._3)
         StringIo.write(o, v._2)
       }
-      override def size(o: RandomAccess, pos: Long): Long = {
+      override def size(o: DataAccess, pos: Long): Long = {
         4+8+StringIo.size(o, pos+4+8)
       }
     }
@@ -253,12 +248,9 @@ object IoTypes {
         str,
         new IntIoArrayType,
         new LongIoArrayType,
-        IoBitsType.booleanSeqIoType(bitsIoType),// new BooleanIoSeqType[String](),  // converts Seq[Boolean]
-        bitsIoType,
-        //        new SparseToDenseIoBitsType[String](),
+        bitsIoType, // prefer lbits type seq[boolean] type
+        IoBitsType.booleanSeqIoType(bitsIoType),
         new IntIoArrayType,
-/*        new RefIoSeqType[IoObject](self,
-          new ObjectIoSeqType[(Int, String, Long)](entryIo, entryIo)),*/
         new ObjectIoSeqType[(String, Any)](tupleIo, tupleIo),
         new ObjectIoSeqType[Any](javaIo, javaIo))
     self

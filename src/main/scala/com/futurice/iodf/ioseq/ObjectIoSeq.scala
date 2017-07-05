@@ -2,10 +2,8 @@ package com.futurice.iodf.ioseq
 
 import java.io._
 
-import com.futurice.iodf.store.{DataRef, Dir, RandomAccess}
 import com.futurice.iodf.Utils._
-import com.futurice.iodf._
-import com.futurice.iodf.io.{IoObject, IoRef}
+import com.futurice.iodf.io.{DataAccess, DataOutput, DataRef, IoRef}
 import com.futurice.iodf.util.{LSeq, MultiSeq}
 
 import scala.collection.mutable.ArrayBuffer
@@ -13,12 +11,12 @@ import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 
 trait OutputWriting[T] {
-  def write(o:DataOutputStream, v:T)
+  def write(o:DataOutput, v:T)
 }
 
 trait RandomAccessReading[T] {
-  def read(o:RandomAccess, pos:Long) : T
-  def size(o:RandomAccess, pos:Long) : Long
+  def read(o:DataAccess, pos:Long) : T
+  def size(o:DataAccess, pos:Long) : Long
 }
 
 trait Serializer[T] extends OutputWriting[T] with RandomAccessReading[T] {
@@ -26,22 +24,22 @@ trait Serializer[T] extends OutputWriting[T] with RandomAccessReading[T] {
 }
 trait TypedSerializer[T] extends Serializer[T] {
   def clazz : Class[T]
-  def tryWrite(o:DataOutputStream, t:Any) = write(o, t.asInstanceOf[T])
+  def tryWrite(o:DataOutput, t:Any) = write(o, t.asInstanceOf[T])
 }
 
 class ObjectIoSeqType[T](i:RandomAccessReading[T], o:OutputWriting[T])(
   implicit ifaceTag: TypeTag[LSeq[T]], vTag:TypeTag[T])
-  extends IoSeqType[T, LSeq[T], ObjectIoSeq[T]] {
+  extends SeqIoType[T, LSeq[T], ObjectIoSeq[T]] {
 
   override def interfaceType: universe.Type = ifaceTag.tpe
   override def ioInstanceType: universe.Type = typeOf[ObjectIoSeq[T]]
 
-  override def write(output: DataOutputStream, v: LSeq[T]): Unit = {
+  override def write(output: DataOutput, v: LSeq[T]): Unit = {
     val w = new ObjectIoSeqWriter[T](output, o)
     v.foreach { w.write(_) }
     w.writeIndex
   }
-  override def writeMerged(out: DataOutputStream, seqs: Seq[LSeq[T]]): Unit = {
+  override def writeMerged(out: DataOutput, seqs: Seq[LSeq[T]]): Unit = {
     seqs.exists(!_.isInstanceOf[ObjectIoSeq[T]]) match {
       case true => // there is at least one sequence, which cannot be white box merged
         super.writeMerged(out, seqs) // go generic
@@ -50,8 +48,8 @@ class ObjectIoSeqType[T](i:RandomAccessReading[T], o:OutputWriting[T])(
     }
   }
 
-  override def open(buf: DataRef) = {
-    new ObjectIoSeq[T](new IoRef(this, buf), buf.open, i)
+  override def open(buf: DataAccess) = {
+    new ObjectIoSeq[T](new IoRef(this, buf.dataRef), buf, i)
   }
 
   override def valueTypeTag = vTag
@@ -62,7 +60,7 @@ class ObjectIoSeqType[T](i:RandomAccessReading[T], o:OutputWriting[T])(
 }
 
 
-class ObjectIoSeqWriter[T](out:OutputStream, io:OutputWriting[T]) extends Closeable {
+class ObjectIoSeqWriter[T](out:DataOutput, io:OutputWriting[T]) extends Closeable {
   val pos = new ArrayBuffer[Long]()
   var at = 0L
   def close = {
@@ -71,30 +69,28 @@ class ObjectIoSeqWriter[T](out:OutputStream, io:OutputWriting[T]) extends Closea
   }
   def write(v:T) : Unit = {
     pos += at
-    val o = new DataOutputStream(out)
-    io.write(o, v)
-    at += o.size()
+    val before = out.pos
+    io.write(out, v)
+    at += (out.pos - before)
   }
   def writeIndex : Unit = {
     val indexPos = at
-    val o = new DataOutputStream(out)
     pos.foreach { p =>
-      o.writeLong(p)
+      out.writeLong(p)
     }
-    o.writeLong(indexPos)
+    out.writeLong(indexPos)
   }
 }
 
 object ObjectIoSeqWriter {
-  def writeMerged(out: DataOutputStream, seqs: Seq[ObjectIoSeq[_]]): Unit = {
-    val o = new DataOutputStream(out)
+  def writeMerged(out: DataOutput, seqs: Seq[ObjectIoSeq[_]]): Unit = {
 
     // 1. write copy data areas, avoiding deserialization & serialization
     var at = 0L
     val offsets =
       seqs.map { seq =>
         var begin = at
-        seq.buf.writeTo(0, o, seq.indexPos)
+        seq.buf.writeTo(0, out, seq.indexPos)
         at += seq.indexPos
         begin
       }
@@ -103,17 +99,17 @@ object ObjectIoSeqWriter {
     // 2. then, write indexes
     (offsets zip seqs).foreach { case (offset, seq) =>
       (0L until seq.lsize).foreach { i =>
-        o.writeLong(offset + seq.objectPos(i))
+        out.writeLong(offset + seq.objectPos(i))
       }
     }
     // 3. last, write the index position
-    o.writeLong(indexPos)
-    o.close
+    out.writeLong(indexPos)
+    out.close
   }
 }
 
 class ObjectIoSeq[T](val openRef:IoRef[ObjectIoSeq[T]],
-                     val buf:RandomAccess,
+                     val buf:DataAccess,
                      val i:RandomAccessReading[T]) extends IoSeq[T] {
 
   val indexPos = buf.getBeLong(buf.size - 8)
@@ -137,7 +133,7 @@ class ObjectIoSeq[T](val openRef:IoRef[ObjectIoSeq[T]],
 }
 
 class JavaObjectIo[T] extends Serializer[T] {
-  override def write(o: DataOutputStream, v: T) : Unit = {
+  override def write(o: DataOutput, v: T) : Unit = {
     val buf = new ByteArrayOutputStream()
     using(new ObjectOutputStream(buf)) { oo =>
       oo.writeObject(v)
@@ -146,7 +142,7 @@ class JavaObjectIo[T] extends Serializer[T] {
     o.writeInt(bytes.size)
     o.write(bytes)
   }
-  override def read(o: RandomAccess, pos: Long): T = {
+  override def read(o: DataAccess, pos: Long): T = {
 //    System.out.println("reading from pos " + pos)
     val size = o.getBeInt(pos)
     val buf = new Array[Byte](size)
@@ -168,7 +164,7 @@ class JavaObjectIo[T] extends Serializer[T] {
       in.readObject().asInstanceOf[T]
     }
   }
-  override def size(o: RandomAccess, pos: Long): Long = {
+  override def size(o: DataAccess, pos: Long): Long = {
     o.getBeInt(pos) + 4
   }
 }
@@ -178,7 +174,7 @@ class VariantIo(tpes:Array[TypedSerializer[_]], fallback:Serializer[Any]) extend
     tpes.zipWithIndex.map(e => (e._1.clazz, (e._2, e._1))).toMap
       : Map[Class[_], (Int, TypedSerializer[_])]
 
-  override def write(o: DataOutputStream, v: Any): Unit = {
+  override def write(o: DataOutput, v: Any): Unit = {
     lookup.get(v.getClass) match {
       case Some(e) =>
         o.write(e._1)
@@ -194,70 +190,70 @@ class VariantIo(tpes:Array[TypedSerializer[_]], fallback:Serializer[Any]) extend
       case v => tpes(v)
     }
   }
-  override def read(o: RandomAccess, pos: Long): Any = {
+  override def read(o: DataAccess, pos: Long): Any = {
     tpe(o.getByte(pos)).read(o, pos+1)
   }
-  override def size(o: RandomAccess, pos: Long): Long = {
+  override def size(o: DataAccess, pos: Long): Long = {
     val t = tpes(o.getByte(pos))
     tpe(o.getBeInt(pos)).size(o,pos+1)
   }
 }
 
 class Tuple2Io[F, S](first:Serializer[F], second:Serializer[S]) extends Serializer[(F, S)] {
-  override def write(o: DataOutputStream, v: (F, S)) : Unit = {
+  override def write(o: DataOutput, v: (F, S)) : Unit = {
     first.write(o, v._1)
     second.write(o, v._2)
   }
-  override def read(o: RandomAccess, pos: Long): (F, S) = {
+  override def read(o: DataAccess, pos: Long): (F, S) = {
     val f = first.read(o, pos)
     val fsz = first.size(o, pos)
     val s = second.read(o, pos + fsz)
     (f, s)
   }
-  override def size(o: RandomAccess, pos: Long): Long = {
+  override def size(o: DataAccess, pos: Long): Long = {
     val fsz = first.size(o, pos)
     fsz + second.size(o, pos + fsz)
   }
 }
 object BooleanIo extends TypedSerializer[Boolean] {
-  override def read(o: RandomAccess, pos: Long): Boolean = {
+  override def read(o: DataAccess, pos: Long): Boolean = {
     o.getByte(pos) != 0
   }
-  override def size(o: RandomAccess, pos: Long): Long = {
+  override def size(o: DataAccess, pos: Long): Long = {
     1
   }
-  override def write(o: DataOutputStream, v: Boolean): Unit = {
+  override def write(o: DataOutput, v: Boolean): Unit = {
     o.writeByte(if (v) 1 else 0)
   }
   override def clazz = classOf[Boolean]
 }
 object IntIo extends TypedSerializer[Int] {
-  override def read(o: RandomAccess, pos: Long): Int = {
+  override def read(o: DataAccess, pos: Long): Int = {
     o.getBeInt(pos)
   }
-  override def size(o: RandomAccess, pos: Long): Long = {
+  override def size(o: DataAccess, pos: Long): Long = {
     4
   }
-  override def write(o: DataOutputStream, v: Int): Unit = {
+  override def write(o: DataOutput, v: Int): Unit = {
     o.writeInt(v)
   }
   override def clazz = classOf[Int]
 }
 object LongIo extends TypedSerializer[Long] {
-  override def read(o: RandomAccess, pos: Long): Long = {
+  override def read(o: DataAccess, pos: Long): Long = {
     o.getBeLong(pos)
   }
-  override def size(o: RandomAccess, pos: Long): Long = {
+  override def size(o: DataAccess, pos: Long): Long = {
     8
   }
-  override def write(o: DataOutputStream, v: Long): Unit = {
+  override def write(o: DataOutput, v: Long): Unit = {
     o.writeLong(v)
   }
   override def clazz = classOf[Long]
 }
 
 object StringIo extends TypedSerializer[String] {
-  override def read(o: RandomAccess, pos: Long): String = {
+  override def read(o: DataAccess, pos: Long): String = {
     val sz = o.getBeInt(pos)
 //    System.out.println("sz " + sz + " at pos " + pos)
     val buf = new Array[Byte](sz)
@@ -265,12 +261,12 @@ object StringIo extends TypedSerializer[String] {
     new String(buf)
   }
 
-  override def write(o: DataOutputStream, v: String): Unit = {
+  override def write(o: DataOutput, v: String): Unit = {
     val bytes = v.getBytes
     o.writeInt(bytes.size)
     o.write(bytes)
   }
-  override def size(o: RandomAccess, pos: Long): Long = {
+  override def size(o: DataAccess, pos: Long): Long = {
     o.getBeInt(pos) + 4
   }
   override def clazz = classOf[String]

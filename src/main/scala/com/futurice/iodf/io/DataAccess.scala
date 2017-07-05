@@ -1,27 +1,38 @@
-package com.futurice.iodf.store
+package com.futurice.iodf.io
 
-import xerial.larray.buffer.{LBufferAPI, Memory, UnsafeUtil}
+import java.io.OutputStream
 
-import java.io.{Closeable, OutputStream}
-/*
-case class MemoryResource(memory:Memory, resource:Closeable) extends Closeable {
-  /*  val l = Logger.getLogger("MemoryResource")
-    l.info(memory.address() + " opened:\n" + new RuntimeException().getStackTrace.mkString("\n"))*/
-  var isClosed = false
-  def close = {
-    //    l.info(memory.address() + " closed")
-    isClosed = true
-    resource.close
+import com.futurice.iodf.util.{Handle, Ref, Tracing}
+import xerial.larray.buffer.{Memory, UnsafeUtil}
+
+/**
+  * Random Access to some data.
+  *
+  * This is now a rather raw access operating now the memory. The rawness of the access
+  * is there to guarantee good performance, as this class can become easily the performance bottle
+  *
+  * Some day, we could possibly abstract this, and provide access to some remote resources
+  * using the same interface? (maybe by operating on pages)
+  */
+class DataAccess(val _dataRef:DataRef,
+                 val _memRef:Ref[Memory],
+                 val from:Long = 0,
+                 val until:Option[Long] = None)
+  extends Handle {
+
+  val dataRef = _dataRef.copy
+  val ref = _memRef.copy
+  Tracing.opened(this)
+
+  override def close(): Unit = {
+    dataRef.close()
+    ref.close
+    Tracing.closed(this)
   }
-}*/
 
-class RandomAccess(val countedM:Ref[Memory],
-                   val from:Long = 0,
-                   val until:Option[Long] = None)
-  extends Closeable {
-  val ref = countedM.copy
+  override def copy = new DataAccess(dataRef, ref, from, until)
+
   val m = ref.get
-  override def close(): Unit = ref.close
 
   val address = m.address() + from
   val size    = until.getOrElse(m.dataSize()) - from
@@ -29,16 +40,16 @@ class RandomAccess(val countedM:Ref[Memory],
   val unsafe = UnsafeUtil.getUnsafe
 
   if (address < m.address() || address + size > m.address() + m.size())
-    throw new RuntimeException("slice out of bounds")
+    throw new RuntimeException(f"slice [$from, ${from+size}] ouf of bounds [0, ${m.size}]")
 
   def unsafeGetMemoryByte(memory:Long) = {
     unsafe.getByte(memory)
   }
 
   def safeGetMemoryByte(memory:Long) = {
-/*    if (countedM.get.isClosed) {
+    if (ref.isClosed) {
       throw new RuntimeException("closed")
-    }*/
+    }
     if (memory < address || memory >= address + size) {
       throw new RuntimeException(memory + s" is outside the range [$address, ${address+size}]")
     }
@@ -60,9 +71,9 @@ class RandomAccess(val countedM:Ref[Memory],
     if (offset < 0 || offset + sz > size) {
       throw new RuntimeException(offset + s" is outside the range [0, $size]")
     }
-/*    if (countedM.get.isClosed) {
-      throw new RuntimeException("memory resource " + countedM.get.memory.address + " is closed")
-    }*/
+    if (ref.isClosed) {
+      throw new RuntimeException("memory resource " + m.address + " is closed")
+    }
   }
 
   def getByte(offset:Long) = {
@@ -162,5 +173,5 @@ class RandomAccess(val countedM:Ref[Memory],
   }
 
   def openView(from:Long, until:Long) =
-    new RandomAccess(countedM, this.from + from, Some(this.from + until))
+    new DataAccess(dataRef, ref, this.from + from, Some(this.from + until))
 }

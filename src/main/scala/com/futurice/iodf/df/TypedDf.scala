@@ -1,9 +1,10 @@
 package com.futurice.iodf.df
 
 import com.futurice.iodf.util.LSeq
-import com.futurice.iodf.io.{IoObject, IoType}
-import com.futurice.iodf.ioseq.{IoSeq, IoSeqType}
+import com.futurice.iodf.io._
+import com.futurice.iodf.ioseq.{IoSeq, SeqIoType}
 
+import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 import scala.reflect.{ClassTag, classTag}
 
@@ -45,6 +46,28 @@ trait TypedDf[T] extends Df[String] {
 }
 
 object TypedDf {
+
+  def typeMerging[T : ClassTag: TypeTag](implicit types: IoTypes) = {
+    val schema = TypedDf.typeSchema[T]
+
+    new DfMerging[String] {
+
+      val colTypes =
+        schema
+          .fields
+          .map { case (tpe, id) =>
+            (id, types.seqTypeOf(tpe) : Any)
+          }
+
+      def colMerging(col: String) : SizedMerging[_ <: LSeq[_]]= {
+        colTypes.find(_._1 == col).map(_._2).get.asInstanceOf[SeqIoType[_, _ <: LSeq[_], _ <: IoSeq[_]]]
+      }
+      def colMerging(index: Long) : SizedMerging[_ <: LSeq[_]] = {
+        colTypes(index.toInt)._2.asInstanceOf[SeqIoType[_, _ <: LSeq[_], _ <: IoSeq[_]]]
+      }
+    }
+  }
+
 
   val TypeRef(seqPkg, seqSymbol, anyArgs) = typeOf[scala.Seq[Any]]
 
@@ -147,3 +170,21 @@ object TypedDf {
     apply(LSeq(items))
   }
 }
+
+class TypedDfIoType[T : ClassTag:TypeTag](dfType:DfIoType[String]) extends MergeableIoType[TypedDf[T], TypedDf[T]] {
+  override def interfaceType: universe.Type = typeOf[TypedDf[T]]
+  override def ioInstanceType: universe.Type = typeOf[TypedDf[T]]
+  override def open(data: DataAccess): TypedDf[T] = {
+    val df = dfType.open(data)
+    TypedDf[T](df)
+  }
+  override def write(out: DataOutput, df: TypedDf[T]): Unit = {
+    dfType.write(out, df)
+  }
+  override def viewMerged(dfs: Seq[TypedDf[T]]): TypedDf[T] = {
+    implicit val types = dfType.types
+    val merging = TypedDf.typeMerging[T]
+    TypedDf[T](MultiDf[String](dfs, merging))
+  }
+}
+

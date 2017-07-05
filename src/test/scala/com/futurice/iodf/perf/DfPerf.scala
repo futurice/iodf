@@ -5,8 +5,8 @@ import java.io.File
 import com.futurice.iodf.Utils._
 import com.futurice.iodf._
 import com.futurice.iodf.df.{IndexConf, IndexedDf}
-import com.futurice.iodf.store.{MMapDir, RefCounted}
-import com.futurice.iodf.util.LBits
+import com.futurice.iodf.store.{MMapDir}
+import com.futurice.iodf.util.{LBits, Tracing}
 import com.futurice.testtoys.{TestSuite, TestTool}
 
 import scala.concurrent.Await
@@ -134,7 +134,7 @@ class DfPerf extends TestSuite("perf/df") {
 
   test("multidf-colidmemratio") { t =>
     t.t(f"  creating items..")
-    RefCounted.trace {
+    Tracing.trace {
       using(IoScope.open) { implicit bind =>
         implicit val io = IoContext()
         val dfs = Dfs.fs
@@ -190,7 +190,7 @@ class DfPerf extends TestSuite("perf/df") {
 
   def testWritingPerf(testName:String, writer:(Seq[ExampleItem], File, IndexConf[String])=>Unit) =
     test(testName) { t =>
-      RefCounted.trace {
+      Tracing.trace {
         using(IoScope.open) { implicit bind =>
           implicit val io = IoContext()
 

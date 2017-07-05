@@ -4,7 +4,7 @@ import java.util
 
 import com.futurice.iodf.Utils._
 import com.futurice.iodf.ioseq._
-import com.futurice.iodf.store.{MMapDir, RefCounted}
+import com.futurice.iodf.store.{MMapDir}
 import com.futurice.iodf.util._
 import com.futurice.iodf.{IoContext, IoScope}
 import com.futurice.testtoys.{TestSuite, TestTool}
@@ -19,7 +19,7 @@ import scala.util.Random
 class BitsPerf extends TestSuite("perf/bits") {
 
   test("bits-perf") { t =>
-    RefCounted.trace {
+    Tracing.trace {
       scoped { implicit scope =>
         val sizes = Array(16, 256, 4 * 1024, 1024 * 1024)
 
@@ -216,7 +216,7 @@ class BitsPerf extends TestSuite("perf/bits") {
   }
 
   test("perf-by-sparsity") { t =>
-    RefCounted.trace {
+    Tracing.trace {
       using(IoScope.open) { implicit scope =>
         val rnd = new Random(0)
         implicit val io = IoContext()
@@ -242,7 +242,7 @@ class BitsPerf extends TestSuite("perf/bits") {
   }
 
   test("multi-bits") { t =>
-    RefCounted.trace {
+    Tracing.trace {
       using (IoScope.open) { implicit scope =>
         val rnd = new Random(0)
         implicit val io = IoContext()

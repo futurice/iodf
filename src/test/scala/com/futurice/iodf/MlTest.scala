@@ -6,8 +6,8 @@ import com.futurice.iodf.Utils._
 import com.futurice.iodf.df.IndexConf
 import com.futurice.iodf.ioseq.DenseIoBits
 import com.futurice.iodf.ml.Knn
-import com.futurice.iodf.store.{MMapDir, RefCounted}
-import com.futurice.iodf.util.LBits
+import com.futurice.iodf.store.{MMapDir}
+import com.futurice.iodf.util.{LBits, Tracing}
 import com.futurice.testtoys.TestSuite
 
 case class Animal(legs:Int, features:String, noise:Boolean, isDuck:Boolean)
@@ -56,7 +56,7 @@ class MlTest extends TestSuite("ml") {
     IndexConf[String]().withAnalyzer("features", e => e.asInstanceOf[String].split(" ").toSeq)
 
   test("knn") { t =>
-    RefCounted.trace {
+    Tracing.trace {
       val dfs = Dfs.fs
       scoped { implicit bind =>
         implicit val io = IoContext()
@@ -83,7 +83,7 @@ class MlTest extends TestSuite("ml") {
   }
 
   test("knn-weights") { t =>
-    RefCounted.trace {
+    Tracing.trace {
       val dfs = Dfs.fs
       scoped { implicit bind =>
         implicit val io = IoContext()

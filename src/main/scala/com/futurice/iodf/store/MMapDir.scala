@@ -2,7 +2,10 @@ package com.futurice.iodf.store
 
 import java.io._
 
-import com.futurice.iodf.IoScope
+import com.futurice.iodf.{IoScope, io}
+import com.futurice.iodf.util.{LSeq, Ref}
+import com.futurice.iodf.Utils._
+import com.futurice.iodf.io.{DataAccess, DataOutputMixin, DataRef}
 import xerial.larray.buffer.{LBufferAPI, Memory}
 import xerial.larray.mmap.{MMapBuffer, MMapMode}
 
@@ -24,7 +27,7 @@ class MMapDir(dir:File) extends MutableDir[String] {
     new MMapBuffer(file(name), 0, length, MMapMode.READ_WRITE)
   }*/
   override def create(name: String) =
-    new DataCreator {
+    new io.DataOutput with DataOutputMixin {
       val out =
         new BufferedOutputStream(new FileOutputStream(file(name)))
       var pos = 0L
@@ -49,24 +52,24 @@ class MMapDir(dir:File) extends MutableDir[String] {
         out.write(b, off, len)
         pos += len
       }
+      override def flush = out.flush
     }
   override def delete(name:String) =
     file(name).delete()
-  override def open(name: String): RandomAccess = {
+  override def openAccess(name: String): DataAccess = {
     val f = file(name)
     val m = new MMapBuffer(f, 0, f.length(), MMapMode.READ_ONLY)
-    new RandomAccess(Ref[Memory](m.m, () => m.m.release()))
+    using (Ref.open[Memory](m.m, () => m.m.release())) { mem =>
+      using (openRef(name)) { dataRef =>
+        new DataAccess(dataRef, mem)
+      }
+    }
   }
 
-  override def list: Array[String] = {
-    dir.list
-  }
+  override def list = LSeq(dir.list.sorted)
   override def byteSize(id:String) = new File(dir, id).length()
 
   override def close(): Unit = {}
 
-  override def id(i:Int) : String = {
-    "_" + i.toString
-  }
   def byteSize = dir.listFiles.map(_.length()).sum
 }

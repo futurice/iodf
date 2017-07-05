@@ -3,8 +3,10 @@ package com.futurice.iodf.store
 import java.io.{Closeable, InputStream, OutputStream}
 import java.util.logging.{Level, Logger}
 
-import com.futurice.iodf.IoScope
+import com.futurice.iodf.{IoScope, Utils}
 import com.futurice.iodf.Utils._
+import com.futurice.iodf.io.{DataAccess, DataOutput, DataRef, DataRefView}
+import com.futurice.iodf.util.LSeq
 
 import scala.collection.mutable
 
@@ -16,7 +18,7 @@ import scala.collection.mutable
 class FileRef[Id](val dir:Dir[Id], val id:Id) extends DataRef {
   def close = {}
   def byteSize = dir.byteSize(id)
-  def open : RandomAccess = dir.open(id)
+  def openAccess : DataAccess = dir.openAccess(id)
   def openView(from:Long, until:Long) =
     new DataRefView(this, from, until)
   def copy = new FileRef(dir, id)
@@ -34,46 +36,35 @@ class MutableFileRef[Id](dir:MutableDir[Id], id:Id) extends WritableFileRef(dir,
 
 trait Dir[Id] extends Closeable {
 
-  // select i:th id in order
-  def id(i:Int) : Id
-
-  def list : Array[Id]
-  def exists(id:Id) = list.contains(id)
+  /* this list must be sorted */
+  def list : LSeq[Id]
   def byteSize(id:Id) : Long
 
-  def openRef(id:Id) =
-    new FileRef(this, id)
-/*  def openRefInt(i:Int) =
-    openRef(id(i))*/
+  def exists(id:Id)(implicit ord:Ordering[Id]) = Utils.binarySearch(list, id)._1 != -1
 
+  def openRef(id:Id) = new FileRef(this, id)
   def ref(id:Id)(implicit bind:IoScope) = bind(openRef(id))
-  //def refInt(i:Int)(implicit bind:IoScope) = bind(openRefInt(i))
 
-  def open(id:Id) : RandomAccess
+  def openAccess(id:Id) : DataAccess
 
   def byteSize : Long
 }
 
-trait WritableDir[Id] extends Dir[Id] {
-  def freeId : Id = {
-    def find(i:Int) : Id = {
-      val rv = id(i)
-      if (exists(rv)) {
-        find(i+1)
-      } else {
-        rv
-      }
-    }
-    find(0)
-  }
-  def freeFileRef = openRef(freeId)
+trait IndexReferableDir[Id] extends Dir[Id] {
+  def indexOf(id:Id)(implicit ord:Ordering[Id]) = binarySearch[Id](list, id)._1
 
+  def indexRef(index:Long) : DataRef
+  def indexByteSize(index:Long) : Long
+  def openIndex(index:Long) : DataAccess
+}
+
+trait WritableDir[Id] extends Dir[Id] {
   override def openRef(id:Id) =
     new WritableFileRef[Id](this, id)
   override def ref(id:Id)(implicit bind:IoScope) : WritableFileRef[Id] =
     bind(openRef(id))
 
-  def create(id:Id) : DataCreator
+  def create(id:Id) : DataOutput
 
 }
 

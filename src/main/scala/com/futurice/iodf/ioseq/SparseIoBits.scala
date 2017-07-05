@@ -5,27 +5,27 @@ import java.util
 
 import com.futurice.iodf.Utils._
 import com.futurice.iodf._
-import com.futurice.iodf.io.IoRef
-import com.futurice.iodf.store.{DataRef, FileRef}
+import com.futurice.iodf.io.{DataAccess, DataOutput, DataRef, IoRef}
+import com.futurice.iodf.store.FileRef
 import com.futurice.iodf.util._
 
 import scala.reflect.runtime.universe._
 
 class SparseIoBitsType
-  extends IoSeqType[Boolean, LBits, SparseIoBits] {
+  extends SeqIoType[Boolean, LBits, SparseIoBits] {
   val longs = new LongIoArrayType()
 
   override def interfaceType = typeOf[LBits]
   override def ioInstanceType = typeOf[SparseIoBits]
   override def valueTypeTag = implicitly[TypeTag[Boolean]]
 
-  override def defaultSeq(lsize:Long) = Some(LBits.empty(lsize))
+  override def defaultInstance(lsize:Long) = Some(LBits.empty(lsize))
 
-  def write(output: DataOutputStream, f:Long, n:Long, trues: Iterator[Long]) : Unit = {
+  def write(output: DataOutput, f:Long, n:Long, trues: Iterator[Long]) : Unit = {
     output.writeLong(n)
     longs.write(output, f, trues)
   }
-  override def write(output: DataOutputStream, v: LBits) : Unit = {
+  override def write(output: DataOutput, v: LBits) : Unit = {
     write(output, v.f, v.n, v.trues.iterator)
   }
   def viewMerged(seqs:Seq[LBits]) : LBits = {
@@ -48,15 +48,13 @@ class SparseIoBitsType
       })
   }*/
 
-  override def open(ref: DataRef) = {
-    using(ref.open) { ra =>
-      val sz = ra.getBeLong(0)
-      using (ref.openView(8, ra.size)) { view =>
-        new SparseIoBits(
-          IoRef(this, ref),
-          longs.open(view).asInstanceOf[LongIoArray],
-          sz)
-      }
+  override def open(data: DataAccess) = {
+    val sz = data.getBeLong(0)
+    using (data.openView(8, data.size)) { view =>
+      new SparseIoBits(
+        IoRef.open(this, data.dataRef),
+        longs.open(view).asInstanceOf[LongIoArray],
+        sz)
     }
   }
 
@@ -65,14 +63,16 @@ class SparseIoBitsType
 /**
   * Created by arau on 15.12.2016.
   */
-class SparseIoBits(val openRef:IoRef[SparseIoBits],
+class SparseIoBits(val _openRef:IoRef[SparseIoBits],
                    val indexes:LongIoArray,
                    val lsize : Long) extends IoBits {
+  override def openRef = _openRef.copy
   override def apply(l: Long): Boolean = {
     val e = Utils.binarySearch(indexes, l, 0, l+1)
     e._1 != -1
   }
   override def close(): Unit = {
+    _openRef.close
     indexes.close
   }
   override def f: Long = {

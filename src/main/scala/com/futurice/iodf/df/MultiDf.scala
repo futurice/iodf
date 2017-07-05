@@ -1,27 +1,27 @@
 package com.futurice.iodf.df
 
-import com.futurice.iodf.ioseq.{IoSeq, IoSeqType}
-import com.futurice.iodf.store.RefCounted
+import com.futurice.iodf.io.SizedMerging
+import com.futurice.iodf.ioseq.{IoSeq, SeqIoType}
 import com.futurice.iodf.util._
-import com.futurice.iodf.{DfColTypes, IoScope, Utils}
+import com.futurice.iodf.{IoScope, Utils}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.runtime.universe._
 
 object MultiDf {
   def DefaultColIdMemRatio = 16
-  def apply[ColId](dfs:Seq[_ <: Df[ColId]], types:DfColTypes[ColId])(
+  def apply[ColId](dfs:Seq[_ <: Df[ColId]], types:DfMerging[ColId])(
     implicit colIdOrdering:Ordering[ColId]) = {
     new MultiDf[ColId](dfs.toArray, types)
   }
-  def refCounted[ColId](dfs:Seq[_ <: RefCounted[Df[ColId]]], types:DfColTypes[ColId])(
+  def refCounted[ColId](dfs:Seq[_ <: Ref[Df[ColId]]], types:DfMerging[ColId])(
     implicit colIdOrdering:Ordering[ColId]) = {
-    val rv = new MultiDf[ColId](dfs.map(_.value).toArray, types)
+    val rv = new MultiDf[ColId](dfs.map(_.get).toArray, types)
     dfs.map { rv.scope.bind(_) }
     rv
   }
   def autoClosing[ColId](dfs:Seq[_ <: Df[ColId]],
-                         types:DfColTypes[ColId], colIdMemRatio:Int = DefaultColIdMemRatio)(
+                         types:DfMerging[ColId], colIdMemRatio:Int = DefaultColIdMemRatio)(
     implicit colIdOrdering:Ordering[ColId]) = {
     val rv = new MultiDf[ColId](dfs.toArray, types, colIdMemRatio)
     dfs.map { rv.scope.bind(_) }
@@ -33,7 +33,7 @@ object MultiDf {
 /**
   * Created by arau on 6.6.2017.
   */
-class MultiDf[ColId](dfs:Array[_ <: Df[ColId]], types:DfColTypes[ColId], val colIdMemRatio: Int = 32)(
+class MultiDf[ColId](dfs:Array[_ <: Df[ColId]], types:DfMerging[ColId], val colIdMemRatio: Int = 32)(
   implicit val colIdOrdering:Ordering[ColId]) extends Df[ColId] {
 
   type ColType[T] = MultiSeq[T, LSeq[T]]
@@ -147,7 +147,7 @@ class MultiDf[ColId](dfs:Array[_ <: Df[ColId]], types:DfColTypes[ColId], val col
 
   private def openMultiCol[T](
      entry:Option[MergeSortEntry[ColId]],
-     colType : IoSeqType[_, _ <: LSeq[_], _ <: IoSeq[_]]) = {
+     colMerging : SizedMerging[LSeq[T]]) = {
     val colMap =
       entry match {
         case Some(e) =>
@@ -158,9 +158,12 @@ class MultiDf[ColId](dfs:Array[_ <: Df[ColId]], types:DfColTypes[ColId], val col
         case None =>
           Map.empty[Int, LSeq[T]]
       }
-    colType.viewAnyMerged(
+    colMerging.viewMerged(
       (0 until dfs.size).map { i =>
-        colMap.getOrElse(i, colType.defaultSeq(dfs(i).lsize).get).asInstanceOf[LSeq[T]]
+        colMap.getOrElse(i,
+          colMerging.defaultInstance(dfs(i).lsize).getOrElse {
+            throw new RuntimeException(f"${entry} part $i is missing the data, while type $colMerging doesn't support it")
+          }).asInstanceOf[LSeq[T]]
       }).asInstanceOf[ColType[T]]
   }
 
@@ -169,7 +172,7 @@ class MultiDf[ColId](dfs:Array[_ <: Df[ColId]], types:DfColTypes[ColId], val col
       // this will open the column
       override def apply(l: Long): ColType[Any] = {
         openMultiCol[Any](entryOfIndex(l),
-                          types.colType(l))
+                          types.colMerging(l).asInstanceOf[SizedMerging[LSeq[Any]]])
       }
       override def lsize: Long = colIdsLsize
       override def iterator =
@@ -180,7 +183,7 @@ class MultiDf[ColId](dfs:Array[_ <: Df[ColId]], types:DfColTypes[ColId], val col
           def head = { // dangerous, as this opens the column
             openMultiCol[Any](
               i.headOption,
-              types.colType(at))
+              types.colMerging(at).asInstanceOf[SizedMerging[LSeq[Any]]])
           }
           def hasNext = at < colIdsLsize
           def next = {
@@ -194,7 +197,7 @@ class MultiDf[ColId](dfs:Array[_ <: Df[ColId]], types:DfColTypes[ColId], val col
 
   override def openCol[T <: Any](id:ColId) : ColType[T] = {
     openMultiCol[T](entryOfId(id),
-                    types.colType(id))
+                    types.colMerging(id).asInstanceOf[SizedMerging[LSeq[T]]])
   }
 
   override def view(from:Long, until:Long) = {

@@ -3,14 +3,15 @@ package com.futurice.iodf.io
 import java.io.{DataOutputStream, OutputStream, Writer}
 
 import com.futurice.iodf.Utils.using
-import com.futurice.iodf.store.{AllocateOnce, DataRef}
+import com.futurice.iodf.store.AllocateOnce
+import com.futurice.iodf.util.Ref
 
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 
 trait IoWriter[T] {
   def writingType : Type
-  def write(out:DataOutputStream, iface:T) : Unit
+  def write(out:DataOutput, iface:T) : Unit
 
   def castToWriter[To](implicit to:TypeTag[To]) : Option[IoWriter[To]] = {
     castToWriter(to.tpe).map(_.asInstanceOf[IoWriter[To]])
@@ -25,7 +26,7 @@ trait IoWriter[T] {
     val self = this
     new IoWriter[Any] {
       override def writingType: universe.Type = self.writingType
-      override def write(out: DataOutputStream, iface: Any): Unit =
+      override def write(out: DataOutput, iface: Any): Unit =
         self.write(out, iface.asInstanceOf[T])
     }
   }
@@ -33,7 +34,11 @@ trait IoWriter[T] {
 
 trait IoOpener[T] {
   def openingType : Type
-  def open(ref:DataRef) : T
+  def open(ref:DataAccess) : T
+
+  def open(dataRef: DataRef) : T = {
+    using (dataRef.openAccess)(open)
+  }
 
   def openRef(ref:DataRef) = new IoRef[T](this, ref)
 
@@ -59,8 +64,10 @@ trait IoType[Interface, IoInstance <: Interface] extends IoWriter[Interface] wit
 
   def create(ref:AllocateOnce, iface:Interface) : IoInstance = {
     using (ref.create) { out =>
-      write(new DataOutputStream(out), iface)
-      open(out.adoptResult)
+      write(out, iface)
+      using (out.adoptResult) { ref =>
+        open(ref.openAccess)
+      }
     }
   }
 
@@ -83,6 +90,20 @@ trait IoType[Interface, IoInstance <: Interface] extends IoWriter[Interface] wit
   }*/
 }
 
+trait Merging[Interface] {
+  def viewMerged(seqs:Seq[Interface]) : Interface
+}
+
+trait SizedMerging[Interface] extends Merging[Interface] {
+  def defaultInstance(size:Long) : Option[Interface]
+}
+
+trait MergeableIoType[Interface, IoInstance <: Interface] extends IoType[Interface, IoInstance] with Merging[Interface] {
+  def writeMerged(out:DataOutput, ss:Seq[Interface]) = {
+    write(out, viewMerged(ss))
+  }
+}
+
 /**
   * Makes it possible to convert LSeq[Boolean] into LBits automatically
   */
@@ -94,10 +115,10 @@ class SuperIoType[SuperIface : TypeTag, DerivedIface <: SuperIface, IoInstance <
   override def interfaceType = typ.tpe
   override def ioInstanceType = derivedType.ioInstanceType
 
-  override def write(out: DataOutputStream, iface: SuperIface): Unit =
+  override def write(out: DataOutput, iface: SuperIface): Unit =
     derivedType.write(out, conversion(iface))
 
-  override def open(ref: DataRef): IoInstance = {
+  override def open(ref: DataAccess): IoInstance = {
     derivedType.open(ref)
   }
 }

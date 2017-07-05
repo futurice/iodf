@@ -5,10 +5,11 @@ import java.io.{DataOutputStream, File, FileOutputStream}
 import com.futurice.iodf.Utils._
 import com.futurice.iodf.df._
 import com.futurice.iodf.io._
-import com.futurice.iodf.ioseq.{IoSeq, IoSeqType}
+import com.futurice.iodf.ioseq.{IoSeq, SeqIoType}
 import com.futurice.iodf.util._
 import com.futurice.iodf.store._
 import org.slf4j.LoggerFactory
+import scala.reflect.runtime.universe._
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -16,10 +17,6 @@ import scala.reflect.runtime.universe
 import scala.reflect.{ClassTag, classTag}
 import scala.reflect.runtime.universe._
 
-trait DfColTypes[ColId] {
-  def colType(col:ColId) : IoSeqType[_, _ <: LSeq[_], _ <: IoSeq[_]]
-  def colType(index:Long) : IoSeqType[_, _ <: LSeq[_], _ <: IoSeq[_]]
-}
 
 /**
   * TODO: create IoType entries for various data frames
@@ -34,79 +31,11 @@ trait DfColTypes[ColId] {
   *           dir.listRefs.map { io.open[IndexedTypeDf[Event]] _ }
   *
   */
+/*
 
 class Dfs(val types:IoTypes) {
 
   val l = LoggerFactory.getLogger(this.getClass)
-
-  def typeColTypes[T : ClassTag](implicit tag: TypeTag[T]) = {
-    val schema = TypedDf.typeSchema[T]
-
-    new DfColTypes[String] {
-
-      val colTypes =
-        schema
-          .fields
-          .map { case (tpe, id) =>
-            (id, types.lseqTypeOf(tpe) : Any)
-          }
-
-      def colType(col: String) : IoSeqType[_, _ <: LSeq[_], _ <: IoSeq[_]] = {
-        colTypes.find(_._1 == col).map(_._2).get.asInstanceOf[IoSeqType[_, _ <: LSeq[_], _ <: IoSeq[_]]]
-      }
-      def colType(index: Long) : IoSeqType[_, _ <: LSeq[_], _ <: IoSeq[_]] = {
-        colTypes(index.toInt)._2.asInstanceOf[IoSeqType[_, _ <: LSeq[_], _ <: IoSeq[_]]]
-      }
-    }
-  }
-
-  def indexDfColTypes() = {
-    new DfColTypes[(String, Any)] {
-      def colType(col: (String, Any)) : IoSeqType[_, _ <: LSeq[_], _ <: IoSeq[_]] =
-        types.bitsLSeqType
-      def colType(index:Long) : IoSeqType[_, _ <: LSeq[_], _ <: IoSeq[_]] =
-        types.bitsLSeqType
-    }
-  }
-
-
-    /*  def writeDf[ColId, FileId](t: Seq[(ColId, _ <: IoType[_ <: IoObject])],
-                                 cols: Seq[LSeq[_ <: Any]],
-                                 dir: Dir[FileId])(
-                                 implicit colIdSeqTag: TypeTag[LSeq[ColId]],
-                                 ordering: Ordering[ColId]): Unit = {
-
-        val order = t.map(_._1).zipWithIndex.sortBy(_._1).map(_._2)
-
-        val sz = cols.map(_.size)
-        if (sz.min != sz.max) throw new RuntimeException
-
-        val orderedT = order.map(t(_))
-        val orderedCols = order.map(cols(_))
-
-        val vd =
-          orderedT.zipWithIndex.map(e => (e._2, e._1._2)).zip(orderedCols).map {
-            case ((index, vt), data) =>
-              val fileRef = FileRef(dir, dir.id(index + 2))
-              using(new DataOutputStream(fileRef.openOutput)) { out =>
-                vt.writeAny(out, data)
-              }
-              new IoRefObject[IoSeq[Any]](
-                IoRef(vt, fileRef.toDataRef)): IoObject
-          }
-        try {
-          types.writeIoObject(
-            orderedT.map(_._1),
-            FileRef(dir, dir.id(0)))
-          types.writeIoObject(
-            vd,
-            FileRef(dir, dir.id(1)))
-        } finally {
-          vd.foreach {
-            _.close
-          }
-        }
-      }*/
 
   def writeDf[ColId, FileId](df:Df[ColId],
                              dir: WritableDir[FileId])(
@@ -134,7 +63,7 @@ class Dfs(val types:IoTypes) {
   }
 
   def writeMergedDf[ColId, FileId](
-    dfs: Seq[Df[ColId]], dir: WritableDir[FileId], colTypes:DfColTypes[ColId])(
+    dfs: Seq[Df[ColId]], dir: WritableDir[FileId], colTypes:DfMerging[ColId])(
     implicit colIdSeqTag: TypeTag[LSeq[ColId]],
     ordering: Ordering[ColId]): Unit = {
     using (MultiDf.apply[ColId](dfs, colTypes)) { df =>
@@ -143,13 +72,14 @@ class Dfs(val types:IoTypes) {
   }
 
 
-  def write[T:TypeTag](out: DataOutputStream, v:T) = {
+  def write[T:TypeTag](out: DataOutput, v:T) = {
     types.write[T](out, v)
   }
 
   def open[T:TypeTag](ref:DataRef) : T = {
     types.openAs[T](ref)
   }
+/*
   def createDf[ColId : TypeTag, FileId](df : Df[ColId],
                               dir: WritableDir[FileId])(
                        implicit colIdSeqTag: TypeTag[LSeq[ColId]],
@@ -157,6 +87,7 @@ class Dfs(val types:IoTypes) {
     writeDf[ColId, FileId](df, dir)
     openDf[ColId, FileId](dir)(colIdSeqTag, colIdOrdering)
   }
+
 
   def openDf[ColId, FileId](dir: Dir[FileId])(implicit colIdSeqTag: TypeTag[LSeq[ColId]],
                                               colIdOrdering: Ordering[ColId])
@@ -183,7 +114,7 @@ class Dfs(val types:IoTypes) {
               ioCols,
               sz)
   }
-
+*/
   def indexColIdOrdering[ColId](implicit colOrd: Ordering[ColId]) = {
     new Ordering[(ColId, Any)] {
       val anyOrdering = types.anyOrdering
@@ -216,12 +147,12 @@ class Dfs(val types:IoTypes) {
   }
 
   def writeIndex[ColId, FileId](
-                       df: Df[ColId],
-                       dir: WritableDir[FileId],
-                       conf: IndexConf[ColId] = IndexConf[ColId]())
-                       (implicit colIdSeqTag: TypeTag[LSeq[(ColId, Any)]],
-                        boolSeqTag: TypeTag[LSeq[Boolean]],
-                        ord: Ordering[ColId]) = {
+                     df: Df[ColId],
+                     dir: WritableDir[FileId],
+                     conf: IndexConf[ColId] = IndexConf[ColId]())
+                     (implicit colIdSeqTag: TypeTag[LSeq[(ColId, Any)]],
+                      boolSeqTag: TypeTag[LSeq[Boolean]],
+                      ord: Ordering[ColId]) = {
     val ids = ArrayBuffer[(ColId, Any)]()
     for (i <- (0 until df.colIds.size)) {
       val id = df.colIds(i)
@@ -251,7 +182,7 @@ class Dfs(val types:IoTypes) {
 
             scoped { implicit bind =>
               types.written(
-                dir.ref(dir.id(i + 1)),
+                dir.ref(dir.id(ids.size)),
                 LBits(data, df.lsize)).close
             }
           }
@@ -272,16 +203,19 @@ class Dfs(val types:IoTypes) {
       val ioIds =
         types.openAs[LSeq[(ColId, Any)]](
           bind(dir.openRef(dir.id(0))))
-      val ioCols =
-        types.openAs[LSeq[LSeq[Any]]](
-          bind(dir.openRef(dir.id(1))))
       Df(ioIds,
          new LSeq[Type] {
-           override def apply(l: Long): universe.Type = typeOf[LBits]
+           override def apply(l: Long): universe.Type = typeOf[Boolean]
            override def lsize: Long = ioIds.lsize
          },
-         ioCols,
-         df.lsize)(indexColIdOrdering)
+        new LSeq[LSeq[_]] {
+          override def apply(l: Long): LSeq[_] =
+            using (dir.openRef(dir.id(l.toInt+1))) { ref =>
+              types.openAs[LSeq[_]](ref)
+            }
+          override def lsize: Long = ioIds.lsize
+        },
+        df.lsize)(indexColIdOrdering)
     }
   }
 
@@ -306,7 +240,7 @@ class Dfs(val types:IoTypes) {
                                             ord:Ordering[CfsFileId]) = {
       val fileSeqType  = types.seqTypeOf[CfsFileId]
       val longSeqType = types.longLSeqType
-      val intToId = types.intToId[CfsFileId](ttag) //)(ctag, ord)*/
+      val intToId = types.intToId[CfsFileId](ttag) //)(ctag, ord)
 
       new CfsDir[CfsFileId](dataRef, fileSeqType, longSeqType, intToId)(ctag, ord)
     }
@@ -610,3 +544,4 @@ object Dfs {
   val fs = makeFs
 
 }
+*/

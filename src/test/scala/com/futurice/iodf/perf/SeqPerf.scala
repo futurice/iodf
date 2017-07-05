@@ -6,7 +6,7 @@ import com.futurice.iodf.store.MMapDir
 import com.futurice.iodf.{Dfs}
 import com.futurice.testtoys.{TestSuite, TestTool}
 import com.futurice.iodf.Utils._
-import com.futurice.iodf.ioseq.{IoSeq, IoSeqType}
+import com.futurice.iodf.ioseq.{IoSeq, SeqIoType}
 import com.futurice.iodf.util.LSeq
 
 import scala.util.Random
@@ -19,7 +19,7 @@ class SeqPerf extends TestSuite("perf/seq") {
   def tWritePerf[T](t:TestTool,
                     scale:Int,
                     source:Iterable[T],
-                    ty:IoSeqType[T, LSeq[T],  _ <: IoSeq[T]]): Unit =
+                    ty:SeqIoType[T, LSeq[T],  _ <: IoSeq[T]]): Unit =
     scoped { implicit bind =>
     val dirFile = t.file("files")
 

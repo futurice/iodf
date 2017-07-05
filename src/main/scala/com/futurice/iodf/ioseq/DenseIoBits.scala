@@ -1,12 +1,11 @@
 package com.futurice.iodf.ioseq
 
-import java.io.DataOutputStream
 import java.util
 
 import com.futurice.iodf.store._
 import com.futurice.iodf.util._
 import com.futurice.iodf._
-import com.futurice.iodf.io.IoRef
+import com.futurice.iodf.io.{DataAccess, DataOutput, DataRef, IoRef}
 
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
@@ -23,7 +22,7 @@ object DenseIoBits {
 
 
 class DenseIoBitsType
-  extends IoSeqType[Boolean, LBits, DenseIoBits] {
+  extends SeqIoType[Boolean, LBits, DenseIoBits] {
 
   def interfaceType = typeOf[LBits]
   def ioInstanceType = typeOf[DenseIoBits]
@@ -32,18 +31,7 @@ class DenseIoBitsType
   def defaultSeq[Id](lsize:Long) = {
     LBits.empty(lsize)
   }
-  def writeLeLong(out:DataOutputStream, long:Long) = {
-    out.writeByte((long & 0xFF).toInt)
-    out.writeByte((long >>> (8*1)).toInt & 0xFF)
-    out.writeByte((long >>> (8*2)).toInt & 0xFF)
-    out.writeByte((long >>> (8*3)).toInt & 0xFF)
-    out.writeByte((long >>> (8*4)).toInt & 0xFF)
-    out.writeByte((long >>> (8*5)).toInt & 0xFF)
-    out.writeByte((long >>> (8*6)).toInt & 0xFF)
-    out.writeByte((long >>> (8*7)).toInt & 0xFF)
-  }
-
-  def writeMerged2(out: DataOutputStream,
+  def writeMerged2(out: DataOutput,
                    sizeLeLongs:Seq[(Long, Iterator[Long])]) = {
     out.writeLong(sizeLeLongs.map(_._1).sum)
 
@@ -51,7 +39,7 @@ class DenseIoBitsType
     var overflow = 0L
 
     def writeLong(v:Long) = {
-      writeLeLong(out, (v << overbits) | overflow)
+      out.writeLeLong((v << overbits) | overflow)
       overflow = (v >>> (64 - overbits)).toLong
     }
 
@@ -63,26 +51,26 @@ class DenseIoBitsType
         }
       } else {
         (0L until readLongs).foreach { l =>
-          writeLeLong(out, les.next)
+          out.writeLeLong(les.next)
         }
       }
       var extra = lsize % 64
       val left = overbits + extra
       if (left >= 64) { // there is one word full of content
-        writeLeLong(out, les.next)
+        out.writeLeLong(les.next)
       } else if (les.hasNext) { // pad the extra bits to overflow
         overflow = ((les.next() << overbits) | overflow)
       }
       overbits = (left % 64).toInt
     }
     if (overbits > 0) {
-      writeLeLong(out, overflow)
+      out.writeLeLong(overflow)
     }
   }
-  override def writeMerged(out: DataOutputStream, bs:Seq[LBits]): Unit = {
+  override def writeMerged(out: DataOutput, bs:Seq[LBits]): Unit = {
     writeMerged2(out, bs.map(e => (e.n, e.leLongs.iterator)))
   }
-  def writeLSeq(output: DataOutputStream, v:LSeq[Boolean]): Unit = {
+  def writeLSeq(output: DataOutput, v:LSeq[Boolean]): Unit = {
     output.writeLong(v.size)
     var i = 0
     var written = 0
@@ -104,19 +92,19 @@ class DenseIoBitsType
     val byteSize = DenseIoBits.bitsToByteSize(sz)
     (written until byteSize.toInt).foreach { i => output.writeByte(0) }
   }
-  def write(output: DataOutputStream, bitN:Long, leLongs:Iterator[Long]): Unit = {
+  def write(output: DataOutput, bitN:Long, leLongs:Iterator[Long]): Unit = {
     output.writeLong(bitN)
-    for (l <- leLongs) writeLeLong( output,  l )
+    for (l <- leLongs) output.writeLeLong( l )
   }
-  def writeSeq(output:DataOutputStream, v:LBits) : Unit = {
+  def writeSeq(output:DataOutput, v:LBits) : Unit = {
     write(output, v.lsize, v.leLongs.iterator)
   }
-  override def write(output: DataOutputStream, v:LBits): Unit = {
+  override def write(output: DataOutput, v:LBits): Unit = {
     writeSeq(output, v)
   }
 
-  override def open(buf: DataRef): DenseIoBits = {
-    new DenseIoBits(new IoRef(this, buf), buf.open)
+  override def open(buf: DataAccess): DenseIoBits = {
+    new DenseIoBits(IoRef.open(this, buf.dataRef), buf)
   }
 
   override def viewMerged(seqs: Seq[LBits]): LBits = MultiBits(seqs)
@@ -127,10 +115,10 @@ class BooleanIoSeqType[Id](implicit val t:TypeTag[Seq[Boolean]])
   extends IoTypeOf[Id, DenseIoBits[Id], Seq[Boolean]]()(t)
     with IoSeqType[Id, LBits, DenseIoBits[Id], Boolean] {
 
-  override def write(output: DataOutputStream, v:Seq[Boolean]): Unit = {
+  override def write(output: DataOutput, v:Seq[Boolean]): Unit = {
     DenseIoBits.write(output, v)
   }
-  override def writeMerged(output: DataOutputStream, a:DenseIoBits[Id], b:DenseIoBits[Id]) =
+  override def writeMerged(output: DataOutput, a:DenseIoBits[Id], b:DenseIoBits[Id]) =
     DenseIoBits.writeMerged(output, a, b)
   override def defaultSeq(lsize: Long) = DenseIoBits.defaultSeq(lsize)
  override def open(buf: IoData[Id]): DenseIoBits[Id] = {
@@ -145,18 +133,19 @@ class BooleanIoSeqType[Id](implicit val t:TypeTag[Seq[Boolean]])
 /**
   * Created by arau on 24.11.2016.
   */
-class DenseIoBits(ref:IoRef[DenseIoBits], val origBuf:RandomAccess)
+class DenseIoBits(_openRef:IoRef[DenseIoBits], _origBuf:DataAccess)
   extends IoBits with java.io.Closeable {
-  ref.copy // let's inc
 
-  def openRef = ref.copy
+  val origBuf = _origBuf.copy
 
   val bitSize = origBuf.getBeLong(0)
   override val longCount = DenseIoBits.bitsToLongCount(bitSize)
 
   val buf = origBuf.openView(8, 8 + longCount*8)
 
-  override def close = { ref.close; origBuf.close; buf.close } //close both handles
+  override def close = { _openRef.close; origBuf.close; buf.close } //close both handles
+
+  def openRef = _openRef.copy
 
   def byteSize = buf.size
 
