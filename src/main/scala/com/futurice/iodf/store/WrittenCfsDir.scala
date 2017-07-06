@@ -22,11 +22,13 @@ object WrittenCfsDir {
 /**
   * Created by arau on 14.12.2016.
   */
-class WrittenCfsDir[MyFileId](val out:DataOutput,
+class WrittenCfsDir[MyFileId](_out:DataOutput,
                               idSeqType:SeqIoType[MyFileId, _ >: LSeq[MyFileId], _ <: IoSeq[MyFileId]],
                               longSeqType:SeqIoType[Long, _ >: LSeq[Long], _ <: IoSeq[Long]])(
    implicit tag:ClassTag[MyFileId],
    idOrdering:Ordering[MyFileId]) extends WritableDir[MyFileId] {
+
+  val out = _out.subOutput
 
   val ids = new ArrayBuffer[MyFileId];
   val pos = new ArrayBuffer[Long];
@@ -62,10 +64,6 @@ class WrittenCfsDir[MyFileId](val out:DataOutput,
         using(out.openDataRef) { ref =>
           ref.openView(begin, out.pos)
         }
-      }
-      override def adoptResult: DataRef = {
-        close
-        openRef(id)
       }
     }
   }
@@ -128,13 +126,15 @@ class WrittenCfsDir[MyFileId](val out:DataOutput,
   */
 class CfsDir[FileId](_data:DataAccess,
                      idSeqType:SeqIoType[FileId, _ <: LSeq[FileId], _ <: IoSeq[FileId]],
-                     longSeqType:SeqIoType[Long, _ <: LSeq[Long], _ <: IoSeq[Long]],
-                     fromInt: Int => FileId)(
+                     longSeqType:SeqIoType[Long, _ <: LSeq[Long], _ <: IoSeq[Long]])(
                      implicit tag:ClassTag[FileId],
                      idOrdering:Ordering[FileId]) extends IndexReferableDir[FileId] {
 
   val bind = IoScope.open
-  val data = bind(_data.copy)
+  val data = bind(_data.openCopy)
+  override def close(): Unit = {
+    bind.close
+  }
 
   val (dataSize, idSeq, ordSeq, posSeq) = {
     val idSeqPos = data.getBeLong(data.size-24)
@@ -152,7 +152,7 @@ class CfsDir[FileId](_data:DataAccess,
     new DataRef {
       override def openAccess: DataAccess = openIndex(i)
       override def byteSize: Long = indexByteSize(i)
-      override def copy: DataRef = this
+      override def openCopy: DataRef = this
       override def openView(from: Long, until: Long): DataRef = new DataRefView(this, from, until)
       override def close(): Unit = Unit
     }
@@ -185,9 +185,6 @@ class CfsDir[FileId](_data:DataAccess,
     }
   }
   override def list = idSeq
-  override def close(): Unit = {
-    bind.close
-  }
   def byteSize = data.size
 }
 
@@ -195,8 +192,7 @@ object CfsDir {
   def open[CfsFileId:TypeTag:ClassTag:Ordering](data:DataAccess)(implicit types:IoTypes) = {
     val fileSeqType  = types.seqTypeOf[CfsFileId]
     val longSeqType = types.longLSeqType
-    val intToId = types.intToId[CfsFileId]
-    new CfsDir[CfsFileId](data, fileSeqType, longSeqType, intToId)
+    new CfsDir[CfsFileId](data, fileSeqType, longSeqType)
   }
 
 }

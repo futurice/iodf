@@ -32,10 +32,10 @@ import scala.reflect.runtime.universe._
   *
   */
 /*
-
 class Dfs(val types:IoTypes) {
 
   val l = LoggerFactory.getLogger(this.getClass)
+
 
   def writeDf[ColId, FileId](df:Df[ColId],
                              dir: WritableDir[FileId])(

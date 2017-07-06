@@ -2,6 +2,7 @@ package com.futurice.iodf.io
 
 import java.io.{DataOutputStream, OutputStream, Writer}
 
+import com.futurice.iodf.IoScope
 import com.futurice.iodf.Utils.using
 import com.futurice.iodf.store.AllocateOnce
 import com.futurice.iodf.util.Ref
@@ -9,14 +10,62 @@ import com.futurice.iodf.util.Ref
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 
-trait IoWriter[T] {
-  def writingType : Type
-  def write(out:DataOutput, iface:T) : Unit
-
-  def castToWriter[To](implicit to:TypeTag[To]) : Option[IoWriter[To]] = {
-    castToWriter(to.tpe).map(_.asInstanceOf[IoWriter[To]])
+trait TypeSupportProvider {
+  def support(supported:Type, support:Type) : Any
+  def supportAs[Supported:TypeTag,Support:TypeTag] = {
+    support(typeOf[Supported], typeOf[Support]).asInstanceOf[Support]
   }
-  def castToWriter(to:Type) : Option[IoWriter[_]] = {
+}
+
+trait IoWriterProvider {
+  def provideWriter(to: Type): Option[IoWriter[_]]
+  def castToWriter[To](implicit to:TypeTag[To]) : Option[IoWriter[To]] = {
+    provideWriter(to.tpe).map(_.asInstanceOf[IoWriter[To]])
+  }
+}
+
+trait IoOpenerProvider {
+  def provideOpener(to: Type): Option[IoOpener[_]]
+  def castToOpener[To](implicit to:TypeTag[To]) : Option[IoOpener[To]] = {
+    provideOpener(to.tpe).map(_.asInstanceOf[IoOpener[To]])
+  }
+}
+
+trait TypeIoProvider extends IoWriterProvider with IoOpenerProvider {
+  def +(second:TypeIoProvider) = {
+    val first = this
+    new TypeIoProvider {
+      override def provideWriter(to: universe.Type): Option[IoWriter[_]] =
+        first.provideWriter(to).orElse(second.provideWriter(to))
+      override def provideOpener(to: universe.Type): Option[IoOpener[_]] =
+        first.provideOpener(to).orElse(second.provideOpener(to))
+    }
+  }
+}
+
+object TypeIoProvider {
+  def apply(first:TypeIoProvider, second:TypeIoProvider) = {
+
+  }
+}
+
+
+trait IoWriter[T] extends IoWriterProvider {
+  def write(out: DataOutput, iface: T): Unit
+
+  def openSave(alloc:AllocateOnce, iface:T) = {
+    using (alloc.create) { out =>
+      write(out, iface)
+      out.openDataRef
+    }
+  }
+  def save(alloc:AllocateOnce, iface:T)(implicit bind:IoScope) = {
+    bind(openSave(alloc, iface))
+  }
+
+  def writingType : Type
+
+  def provideWriter(to:Type) : Option[IoWriter[_]] = {
     to <:< writingType match {
       case true => Some(this)
       case false => None
@@ -32,20 +81,18 @@ trait IoWriter[T] {
   }
 }
 
-trait IoOpener[T] {
-  def openingType : Type
+trait IoOpener[T] extends IoOpenerProvider {
   def open(ref:DataAccess) : T
 
   def open(dataRef: DataRef) : T = {
     using (dataRef.openAccess)(open)
   }
 
+  def openingType : Type
+
   def openRef(ref:DataRef) = new IoRef[T](this, ref)
 
-  def castToOpener[To](implicit to:TypeTag[To]) : Option[IoOpener[To]] = {
-    castToOpener(to.tpe).map(_.asInstanceOf[IoOpener[To]])
-  }
-  def castToOpener(to:Type) : Option[IoOpener[_]] = {
+  def provideOpener(to:Type) : Option[IoOpener[_]] = {
     openingType <:< to match {
       case true => Some(this)
       case false => None
@@ -62,32 +109,12 @@ trait IoType[Interface, IoInstance <: Interface] extends IoWriter[Interface] wit
   def writingType = interfaceType
   def openingType = ioInstanceType
 
-  def create(ref:AllocateOnce, iface:Interface) : IoInstance = {
-    using (ref.create) { out =>
-      write(out, iface)
-      using (out.adoptResult) { ref =>
-        open(ref.openAccess)
-      }
+  def openCreated(ref:AllocateOnce, iface:Interface) : IoInstance = {
+    using (openSave(ref, iface)) { data =>
+      using (data.openAccess) { open }
     }
   }
 
-/*
-  def as[Super >: Interface] = {
-    val self = this
-    new IoType[Super] {
-      def valueType = self.valueType
-      override def open(data: DataRef): Super =
-        self.open(data)
-      override def write(out: DataOutputStream, iface: Super): Unit = {
-        iface match {
-          case i: Interface =>
-            self.write(out, i)
-          case _ =>
-            throw new IllegalArgumentException()
-        }
-      }
-    }
-  }*/
 }
 
 trait Merging[Interface] {

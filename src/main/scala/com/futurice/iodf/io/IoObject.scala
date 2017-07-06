@@ -19,6 +19,6 @@ trait IoObject extends Closeable {
   */
 case class IoRefObject[T <: IoObject](ref:IoRef[_ <: T])
   extends IoObject {
-  def openRef = ref.copy
+  def openRef = ref.openCopy
   override def close(): Unit = {}
 }

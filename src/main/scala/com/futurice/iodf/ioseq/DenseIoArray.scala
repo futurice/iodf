@@ -16,7 +16,7 @@ abstract class IoArray[T](ref:IoRef[IoArray[T]],
                           val _buf:DataAccess)
   extends IoSeq[T] with PeekIterable[T] {
 
-  val buf = _buf.copy
+  val buf = _buf.openCopy
 
   def offset = 8L
   val lsize = buf.getBeLong(0)
@@ -24,7 +24,7 @@ abstract class IoArray[T](ref:IoRef[IoArray[T]],
     ref.close
     buf.close()
   }
-  override def openRef = ref.copy
+  override def openRef = ref.openCopy
   override def iterator : PeekIterator[T] =
     new PeekIterator[T] {
       var at = 0L
@@ -61,7 +61,9 @@ abstract class IoArrayType[T]()(implicit ifaceTag:TypeTag[LSeq[T]], instanceTag:
       writeUnit(output, i)
       written += 1
     }
-    if (written != size) throw new IllegalArgumentException("size was " + size + " yet " + written + " entries was written.")
+    if (written != size) {
+      throw new IllegalArgumentException("size was " + size + " yet " + written + " entries was written.")
+    }
   }
   def write(output:DataOutput, data:LSeq[T]) = {
     write(output, data.size, data.iterator)
@@ -74,8 +76,8 @@ abstract class IoArrayType[T]()(implicit ifaceTag:TypeTag[LSeq[T]], instanceTag:
   }
 }
 
-class IntIoArray(ref:IoRef[IoArray[Int]], buf:DataAccess)
-  extends IoArray[Int](ref, buf) {
+class IntIoArray(ref:IoRef[IoArray[Int]], _buf:DataAccess)
+  extends IoArray[Int](ref, _buf) {
   override def apply(l: Long) : Int = {
     buf.getBeInt(offset + l*4)
   }
@@ -89,8 +91,8 @@ class IntIoArrayType(implicit ifaceTag:TypeTag[LSeq[Int]], instanceTag: TypeTag[
     new IntIoArray(ref, buf)
 }
 
-class LongIoArray(ref:IoRef[IoArray[Long]], buf:DataAccess)
-  extends IoArray[Long](ref, buf) {
+class LongIoArray(ref:IoRef[IoArray[Long]], _buf:DataAccess)
+  extends IoArray[Long](ref, _buf) {
   override def apply(l: Long) : Long= {
     buf.getBeLong(offset + l*8)
   }

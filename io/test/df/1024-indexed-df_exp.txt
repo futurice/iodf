@@ -1,0 +1,79 @@
+creating heap df..55 ms (was 69 ms)
+
+creating io df219 ms 
+
+testing heap df:
+
+
+  property frequencies: original 2 vs index 498
+  name=h frequencies: original 0 vs index 43
+
+  searching 1024 ids...8 ms.
+
+    checksum:    283674
+    time/lookup: 7 us
+
+  making 1024 cofreq calculations...35 ms.
+
+    checksums:    11148/11148/93
+    time/freq:    34 us
+
+  opening bitsets (no id lookup)...2 ms (was 1 ms)
+
+  counting freqs...0 ms.
+
+    checksum:     10694
+    time/freq:    0 us
+
+  comparing bits...3 ms.
+
+    checksums:    10694/10372/135
+    time/freq:    2 us
+
+  making three way bit and comparisons...86 ms.
+
+    checksums:    60/1
+    time/freq:    83 us
+
+
+testing io df:
+
+
+  property frequencies: original 2 vs index 498
+  name=h frequencies: original 0 vs index 43
+
+  searching 1024 ids...47 ms.
+
+    checksum:    283674
+    time/lookup: 45 us
+
+  making 1024 cofreq calculations...91 ms.
+
+    checksums:    11129/11129/93
+    time/freq:    88 us
+
+  opening bitsets (no id lookup)...10 ms (was 111 ms)
+
+  counting freqs...1 ms.
+
+    checksum:     10676
+    time/freq:    0 us
+
+  comparing bits...3 ms.
+
+    checksums:    10676/10354/135
+    time/freq:    2 us
+
+  making three way bit and comparisons...40 ms.
+
+    checksums:    60/1
+    time/freq:    39 us
+
+comparing main dfs:
+
+  0 differences found.
+
+comparing index dfs:
+
+  0 differences found.
+

@@ -1,5 +1,6 @@
 package com.futurice.iodf.io
 
+import com.futurice.iodf.{IoContext, IoScope}
 import com.futurice.iodf.util.{Handle, Ref}
 import com.futurice.iodf.Utils.using
 import xerial.larray.buffer.Memory
@@ -14,30 +15,42 @@ import xerial.larray.buffer.Memory
   *
   */
 trait DataRef extends Handle {
+
   def openAccess : DataAccess
+
   def byteSize   : Long
-  def copy       : DataRef
+  def openCopy   : DataRef
 
   def openView(from:Long, until:Long) : DataRef
+
+  // Helper methods, should these be provided by implicit monads?
+
+  def access(implicit bind:IoScope) = bind(openAccess)
+  def openAs[T](implicit io:IoContext): T = {
+    io.openAs[T](this)
+  }
+  def as[T](implicit io:IoContext, scope:IoScope): T = {
+    io.as[T](this)
+  }
 }
 
 object DataRef {
   def open(memRef:Ref[Memory], from:Long = 0, sz:Option[Long] = None) : DataRef = {
     new DataRef {
-      val ref = memRef.copy
+      val ref = memRef.openCopy
       val f = from
       override def openAccess: DataAccess =
         using (new DataAccess(this, ref)) { ref =>
           ref.openView(from, from + sz.getOrElse(ref.size - from))
         }
-      def copy = DataRef.open(memRef, from, sz)
+      def openCopy = DataRef.open(ref, from, sz)
       override def byteSize: Long =
         sz.getOrElse(ref.get.size())
 
       override def openView(from: Long, until: Long): DataRef =
-        DataRef.open(memRef, f + from, Some(until))
+        DataRef.open(ref, f + from, Some(until))
 
-      override def close(): Unit = memRef.close
+      override def close(): Unit = ref.close
     }
   }
 

@@ -1,37 +1,41 @@
 testing, how writing index behaves time & memory wise
 
 indexing 32768 random items:
-  creating items..73 ms (was 53 ms)
-  indexing items..6664 ms
-  mem base: 39.6 MB
-  mem MB:   1.8<6.8<11.2 (n:28)
-  disk:     3451 KB
+  creating items..26 ms (was 28 ms)
+  creating dataframe..133 ms 
+  indexing items..4598 ms
+  mem base: 43.7 MB
+  mem MB:   12.1<39.0<46.0 (n:24)
+  disk:     1935 KB
 
 indexing 65536 random items:
-  creating items..77 ms (was 72 ms)
-  indexing items..8262 ms
-  mem base: 37.0 MB
-  mem MB:   8.6<20.6<24.8 (n:34)
-  disk:     6732 KB
+  creating items..49 ms 
+  creating dataframe..246 ms 
+  indexing items..9174 ms (was 99)
+  mem base: 43.7 MB
+  mem MB:   24.1<51.4<58.0 (n:51)
+  disk:     3820 KB
 
 indexing 131072 random items:
-  creating items..170 ms (was 152 ms)
-  indexing items..16622 ms
-  mem base: 37.0 MB
-  mem MB:   17.1<38.7<46.0 (n:65)
-  disk:     13104 KB
+  creating items..98 ms 
+  creating dataframe..484 ms (was 82752 ms)
+  indexing items..23172 ms
+  mem base: 43.7 MB
+  mem MB:   48.2<77.9<84.5 (n:112)
+  disk:     7572 KB
 
 indexing 262144 random items:
-  creating items..297 ms (was 301 ms)
-  indexing items..33683 ms
-  mem base: 37.0 MB
-  mem MB:   34.3<73.1<86.7 (n:120)
-  disk:     25388 KB
+  creating items..194 ms 
+  creating dataframe..974 ms (was 1935 ms)
+  indexing items..60789 ms
+  mem base: 43.7 MB
+  mem MB:   96.3<124.2<129.7 (n:250)
+  disk:     15087 KB
 
 scaling:
 
-  time ms:     6664,8262,16622,33683
-  mem MB mean: 6.8,20.6,38.7,73.1
-  mem MB max:  11.2,24.8,46.0,86.7
-  disk KB:     3451,6732,13104,25388
+  time ms:     4598,9174,23172,60789
+  mem MB mean: 39.0,51.4,77.9,124.2
+  mem MB max:  46.0,58.0,84.5,129.7
+  disk KB:     1935,3820,7572,15087
 

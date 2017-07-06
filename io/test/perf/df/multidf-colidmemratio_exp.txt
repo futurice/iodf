@@ -1,162 +1,162 @@
-  creating items..creating segments..11716 ms (was 11805 ms)
+  creating items..creating segments..14534 ms (was 11716 ms)
 
 colIdMemRatio: 1
-segments:      1, 1793 KB
-opening multidf..2463 ms 
+segments:      1, 992 KB
+opening multidf..1126 ms (was 2463 ms)
 
-  mem base: 70.0 MB -> 29.0 MB
-  mem MB:   -42.0<-19.2<-1.0 (n:14)
+  mem base: 97.0 MB -> 63.0 MB
+  mem MB:   -34.0<-25.6<0.0 (n:4)
 
 items:        262144
 colIds:       5
-index.colIds: 101304
+index.colIds: 771
 
 
 
-searching 1024 ids...171 ms.
+searching 1024 ids...717 ms.
 
-  checksum:    50089698
-  time/lookup: 166 us
+  checksum:    384837
+  time/lookup: 700 us
 
-making 1024 cofreq calculations...895 ms.
+making 1024 cofreq calculations...6498 ms.
 
-  checksums:    12375/12375/0
-  time/freq:    874 us
+  checksums:    2541598/2541598/16591
+  time/freq:    6345 us
 
-opening bitsets (no id lookup)...255 ms 
+opening bitsets (no id lookup)...2279 ms (was 255 ms)
+
+counting freqs...6 ms.
+
+  checksum:     2195813
+  time/freq:    5 us
+
+comparing bits...20 ms.
+
+  checksums:    2195813/2823498/39800
+  time/freq:    19 us
+
+making three way bit and comparisons...3473 ms.
+
+  checksums:    13748/104
+  time/freq:    3391 us
+
+colIdMemRatio: 16
+segments:      1, 992 KB
+opening multidf..1012 ms (was 1715 ms)
+
+  mem base: 900.0 MB -> 84.0 MB
+  mem MB:   -815.0<-685.0<-468.0 (n:3)
+
+items:        262144
+colIds:       5
+index.colIds: 771
+
+
+
+searching 1024 ids...615 ms.
+
+  checksum:    384837
+  time/lookup: 600 us
+
+making 1024 cofreq calculations...6273 ms.
+
+  checksums:    2541598/2541598/16591
+  time/freq:    6125 us
+
+opening bitsets (no id lookup)...2340 ms (was 257 ms)
 
 counting freqs...2 ms.
 
-  checksum:     1645
+  checksum:     2195813
   time/freq:    1 us
 
-comparing bits...3 ms.
+comparing bits...31 ms.
 
-  checksums:    1645/1342/1
-  time/freq:    2 us
+  checksums:    2195813/2823498/39800
+  time/freq:    30 us
 
-making three way bit and comparisons...232 ms.
+making three way bit and comparisons...2963 ms.
 
-  checksums:    1/0
-  time/freq:    226 us
-
-colIdMemRatio: 16
-segments:      1, 1793 KB
-opening multidf..1715 ms 
-
-  mem base: 28.0 MB -> 29.0 MB
-  mem MB:   0.0<24.3<40.0 (n:10)
-
-items:        262144
-colIds:       5
-index.colIds: 101304
-
-
-
-searching 1024 ids...154 ms.
-
-  checksum:    50089698
-  time/lookup: 150 us
-
-making 1024 cofreq calculations...885 ms.
-
-  checksums:    12375/12375/0
-  time/freq:    864 us
-
-opening bitsets (no id lookup)...257 ms 
-
-counting freqs...1 ms.
-
-  checksum:     1645
-  time/freq:    0 us
-
-comparing bits...3 ms.
-
-  checksums:    1645/1342/1
-  time/freq:    2 us
-
-making three way bit and comparisons...145 ms.
-
-  checksums:    1/0
-  time/freq:    141 us
+  checksums:    13748/104
+  time/freq:    2893 us
 
 colIdMemRatio: 1
-segments:      4, 7134 KB
-opening multidf..1715 ms 
+segments:      4, 3967 KB
+opening multidf..452 ms (was 1715 ms)
 
-  mem base: 28.0 MB -> 29.0 MB
-  mem MB:   1.0<36.2<40.0 (n:10)
+  mem base: 571.0 MB -> 69.0 MB
+  mem MB:   -502.0<-496.3<-490.0 (n:2)
 
 items:        262144
 colIds:       5
-index.colIds: 101304
+index.colIds: 771
 
 
 
-searching 1024 ids...158 ms.
+searching 1024 ids...597 ms.
 
-  checksum:    50089698
-  time/lookup: 154 us
+  checksum:    384837
+  time/lookup: 583 us
 
-making 1024 cofreq calculations...807 ms.
+making 1024 cofreq calculations...6118 ms.
 
-  checksums:    12375/12375/0
-  time/freq:    788 us
+  checksums:    2541598/2541598/16591
+  time/freq:    5974 us
 
-opening bitsets (no id lookup)...243 ms (was 145 ms)
+opening bitsets (no id lookup)...2293 ms (was 243 ms)
 
-counting freqs...1 ms.
+counting freqs...4 ms.
 
-  checksum:     1645
-  time/freq:    0 us
+  checksum:     2195813
+  time/freq:    3 us
 
-comparing bits...1 ms.
+comparing bits...24 ms.
 
-  checksums:    1645/1342/1
-  time/freq:    0 us
+  checksums:    2195813/2823498/39800
+  time/freq:    23 us
 
-making three way bit and comparisons...141 ms.
+making three way bit and comparisons...3116 ms.
 
-  checksums:    1/0
-  time/freq:    137 us
+  checksums:    13748/104
+  time/freq:    3042 us
 
 colIdMemRatio: 16
-segments:      4, 7134 KB
-opening multidf..1722 ms 
+segments:      4, 3967 KB
+opening multidf..438 ms (was 1722 ms)
 
-  mem base: 28.0 MB -> 29.0 MB
-  mem MB:   0.0<28.3<40.0 (n:10)
+  mem base: 402.0 MB -> 75.0 MB
+  mem MB:   -332.0<-332.1<-332.0 (n:2)
 
 items:        262144
 colIds:       5
-index.colIds: 101304
+index.colIds: 771
 
 
 
-searching 1024 ids...156 ms.
+searching 1024 ids...601 ms.
 
-  checksum:    50089698
-  time/lookup: 152 us
+  checksum:    384837
+  time/lookup: 586 us
 
-making 1024 cofreq calculations...810 ms.
+making 1024 cofreq calculations...6120 ms.
 
-  checksums:    12375/12375/0
-  time/freq:    791 us
+  checksums:    2541598/2541598/16591
+  time/freq:    5976 us
 
-opening bitsets (no id lookup)...251 ms 
+opening bitsets (no id lookup)...2326 ms (was 251 ms)
 
-counting freqs...1 ms.
+counting freqs...3 ms.
 
-  checksum:     1645
-  time/freq:    0 us
+  checksum:     2195813
+  time/freq:    2 us
 
-comparing bits...1 ms.
+comparing bits...22 ms.
 
-  checksums:    1645/1342/1
-  time/freq:    0 us
+  checksums:    2195813/2823498/39800
+  time/freq:    21 us
 
-making three way bit and comparisons...143 ms.
+making three way bit and comparisons...3189 ms.
 
-  checksums:    1/0
-  time/freq:    139 us
+  checksums:    13748/104
+  time/freq:    3114 us
 

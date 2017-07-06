@@ -2,14 +2,19 @@ package com.futurice.iodf
 
 import java.io.{Closeable, File}
 
+import scala.reflect.runtime.universe._
+import com.futurice.iodf.io.{DataRef, IoType, IoTypes}
 import com.futurice.iodf.ioseq._
-import com.futurice.iodf.store.{Allocator, Dir, RamAllocator, RamDir}
-import com.futurice.iodf.util.LSeq
+import com.futurice.iodf.store._
+import com.futurice.iodf.util.{LBits, LSeq, Ref}
+import com.futurice.iodf.Utils._
+import com.futurice.iodf.df.{DfIoType, IndexedDfIoType, TypedDfIoType}
 import xerial.larray.buffer.LBufferConfig
 
 import scala.annotation.tailrec
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Promise
+import scala.reflect.ClassTag
 
 /**
   * NOT thread safe: DO NOT SHARE scopes across threads!
@@ -20,9 +25,13 @@ class IoScope extends Closeable{
     closeables.foreach(_.close)
     closeables.clear()
   }
-  def bind[T <: Closeable](c:T) = {
-    closeables += c
-    c
+  def bind[T](v:T) = {
+    v match {
+      case c : Closeable =>
+        closeables += c
+      case None =>
+    }
+    v
   }
   def cleanup(closer:  => Unit) = {
     closeables += new Closeable {
@@ -30,7 +39,7 @@ class IoScope extends Closeable{
     }
     Unit
   }
-  def apply[T <: Closeable](c:T) : T = bind[T](c)
+  def apply[T](c:T) : T = bind[T](c)
   def openScope = bind(new IoScope)
 
 }
@@ -39,26 +48,49 @@ object IoScope {
   def open : IoScope = new IoScope()
 }
 
-class IoContext(val allocator:Allocator) extends Closeable {
+class IoContext(val types:IoTypes, _allocator:Ref[Allocator]) extends Closeable {
+
+  val allocatorRef = _allocator.openCopy
+  val allocator = allocatorRef.get
+
   val bits =
-    new IoBitsType(
-      new SparseIoBitsType(),
-      new DenseIoBitsType())
+    types.ioTypeOf[LBits].asInstanceOf[BitsIoType]
+
+  def openSave[T:TypeTag](ref:AllocateOnce, t:T) : DataRef =
+    types.openSave[T](ref, t)
+
+  def save[T:TypeTag](ref:AllocateOnce, t:T)(implicit scope:IoScope) : DataRef =
+    types.save[T](ref, t)
+
+  def openAs[T](ref:DataRef) : T =
+    using (ref.openAccess) { data =>
+      types.openAs[T](ref)
+    }
+
+  def as[T](ref:DataRef)(implicit bind:IoScope) : T =
+    bind(openAs[T](ref))
 
   override def close(): Unit = {
-    allocator.close()
+    allocatorRef.close()
   }
+
+  def withIoType(t:IoType[_, _])(implicit bind:IoScope) : IoContext = {
+    bind(new IoContext(types + t, allocatorRef))
+  }
+
+  def withType[T:TypeTag:ClassTag](implicit bind:IoScope) : IoContext = {
+    implicit val io = this
+    val typedDfs = new TypedDfIoType[T](IoTypes.stringDfType)
+    val indexedDfs = new IndexedDfIoType[T](typedDfs, IoTypes.indexDfType)
+
+    withIoType(typedDfs).withIoType(indexedDfs)
+  }
+
 }
 
 object IoContext {
-
-  implicit val default = open
-
-  def open = {
-    new IoContext(new RamAllocator())
-  }
-  def apply()(implicit scope:IoScope) = {
-    scope.bind(open)
+  def apply()(implicit bind:IoScope) = {
+    bind(new IoContext(IoTypes.default, bind(Ref.open(new RamAllocator()))))
   }
 }
 

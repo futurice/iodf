@@ -21,17 +21,17 @@ class FileRef[Id](val dir:Dir[Id], val id:Id) extends DataRef {
   def openAccess : DataAccess = dir.openAccess(id)
   def openView(from:Long, until:Long) =
     new DataRefView(this, from, until)
-  def copy = new FileRef(dir, id)
+  def openCopy = new FileRef(dir, id)
 }
 
 class WritableFileRef[Id](dir:WritableDir[Id], id:Id) extends FileRef(dir, id) with AllocateOnce {
   def create = dir.create(id)
-  override def copy = new WritableFileRef[Id](dir, id)
+  override def openCopy = new WritableFileRef[Id](dir, id)
 }
 
 class MutableFileRef[Id](dir:MutableDir[Id], id:Id) extends WritableFileRef(dir, id) {
   def delete = dir.delete(id)
-  override def copy = new MutableFileRef[Id](dir, id)
+  override def openCopy = new MutableFileRef[Id](dir, id)
 }
 
 trait Dir[Id] extends Closeable {
@@ -46,6 +46,9 @@ trait Dir[Id] extends Closeable {
   def ref(id:Id)(implicit bind:IoScope) = bind(openRef(id))
 
   def openAccess(id:Id) : DataAccess
+  def access(id:Id)(implicit bind:IoScope) = {
+    bind(openAccess(id))
+  }
 
   def byteSize : Long
 }

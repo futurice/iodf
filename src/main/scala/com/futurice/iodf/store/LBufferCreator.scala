@@ -45,11 +45,6 @@ class LBufferCreator extends DataOutput with DataOutputMixin {
     }
     ref = None
   }
-  override def adoptResult: DataRef = {
-    val rv = openDataRef
-    close
-    rv
-  }
   override def openDataRef: DataRef = {
     using (ref.get.openMapped(_.m)) { ref =>
       DataRef.open(ref, 0, Some(pos))

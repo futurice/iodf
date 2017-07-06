@@ -1,6 +1,6 @@
 package com.futurice.iodf.util
 
-import java.io.Closeable
+import java.io.{Closeable, PrintWriter, StringWriter}
 
 /**
   * Created by arau on 4.7.2017.
@@ -11,18 +11,18 @@ import java.io.Closeable
   * You can copy a handle, or you can close a handle
   */
 trait Handle extends Closeable {
-  def copy : Handle
+  def openCopy : Handle
 }
 
 trait Ref[T] extends Handle{
   def isClosed : Boolean
   def get : T
-  def copy : Ref[T]
+  def openCopy : Ref[T]
   def openMapped[E](f:T => E) : Ref[E] = {
-    val c : Ref[T] = copy
+    val c : Ref[T] = openCopy
     new Ref[E] {
       override def get: E = f(c.get)
-      override def copy: Ref[E] = c.openMapped(f)
+      override def openCopy: Ref[E] = c.openMapped(f)
       override def close(): Unit = c.close
       override def isClosed = c.isClosed
     }
@@ -56,14 +56,15 @@ object Ref {
       if (refCount.isClosed) throw new RuntimeException("closed " + value + " accessed")
       value
     }
-    override def copy: Ref[T] = Ref.open[T](value, refCount)
+    override def openCopy: Ref[T] = Ref.open[T](value, refCount)
     override def isClosed = _isClosed || refCount.isClosed
     override def close(): Unit = {
       refCount.dec
       _isClosed = true
       Tracing.closed(this)
     }
-    override def toString = value.toString + "@" + refCount
+    override def toString =
+      value.toString + "@" + refCount
   }
 
   def open[T](value:T, closer:() => Unit ): Ref[T] = {

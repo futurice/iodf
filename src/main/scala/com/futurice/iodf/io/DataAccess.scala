@@ -20,8 +20,8 @@ class DataAccess(val _dataRef:DataRef,
                  val until:Option[Long] = None)
   extends Handle {
 
-  val dataRef = _dataRef.copy
-  val ref = _memRef.copy
+  val dataRef = _dataRef.openCopy
+  val ref = _memRef.openCopy
   Tracing.opened(this)
 
   override def close(): Unit = {
@@ -30,7 +30,7 @@ class DataAccess(val _dataRef:DataRef,
     Tracing.closed(this)
   }
 
-  override def copy = new DataAccess(dataRef, ref, from, until)
+  override def openCopy = new DataAccess(dataRef, ref, from, until)
 
   val m = ref.get
 
@@ -63,7 +63,7 @@ class DataAccess(val _dataRef:DataRef,
   }
 
   def getMemoryByte(memory:Long) = {
-    //    safeGetMemoryByte(memory)
+    //safeGetMemoryByte(memory)
     unsafeGetMemoryByte(memory)
   }
 

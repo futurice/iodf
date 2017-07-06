@@ -109,8 +109,10 @@ object ObjectIoSeqWriter {
 }
 
 class ObjectIoSeq[T](val openRef:IoRef[ObjectIoSeq[T]],
-                     val buf:DataAccess,
+                     val _buf:DataAccess,
                      val i:RandomAccessReading[T]) extends IoSeq[T] {
+
+  val buf = _buf.openCopy
 
   val indexPos = buf.getBeLong(buf.size - 8)
   val lsize = ((buf.size-8)-indexPos) / 8

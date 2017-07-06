@@ -4,9 +4,11 @@ import java.io.Closeable
 
 import com.futurice.iodf.Utils.{scoped, _}
 import com.futurice.iodf._
+import com.futurice.iodf.df.MultiDf.DefaultColIdMemRatio
 import com.futurice.iodf.io._
 import com.futurice.iodf.ioseq.{IoSeq, SeqIoType}
 import com.futurice.iodf.ml.CoStats
+import com.futurice.iodf.providers.OrderingProvider
 import com.futurice.iodf.store.{CfsDir, WrittenCfsDir}
 import com.futurice.iodf.util.{LBits, LSeq, PeekIterator, Ref}
 
@@ -40,20 +42,29 @@ case class IndexConf[ColId](analyzers:Map[ColId, Any => Seq[Any]] = Map[ColId, A
 
 object IndexedDf {
 
+  def viewMerged[T:TypeTag:ClassTag](dfs:Seq[IndexedDf[T]], colIdMemRatio:Int = DefaultColIdMemRatio)(
+    implicit io:IoContext) : IndexedDf[T]= {
+    IndexedDf[T](
+      TypedDf.viewMerged[T](dfs.map(_.df), colIdMemRatio),
+      MultiDf[(String, Any)](dfs.map(_.indexDf), IndexedDf.indexMerging)(indexColIdOrdering))
+  }
+
+
   def index(col:LSeq[_], analyzer:Any => Seq[Any], ordering:Ordering[Any]) : Array[(Any, LBits)] = {
     val distinct = col.toArray.flatMap(analyzer(_)).distinct.sorted(ordering)
     val rv = Array.fill(distinct.size)(new ArrayBuffer[Long]())
     val toIndex = distinct.zipWithIndex.toMap
     for (i <- (0L until col.lsize)) {
       analyzer(col(i)).foreach { token =>
-        rv(toIndex(token)) += i
+        val idx = rv(toIndex(token))
+        if (idx.size == 0 || idx.last != i) idx += i // avoid duplicates
       }
     }
     (distinct zip rv).map { case (value, trues) => (value, LBits(trues, col.lsize))}
   }
 
-  def index[ColId:Ordering](df:Df[ColId], conf:IndexConf[ColId])(implicit types:IoTypes) : Df[(ColId, Any)]= {
-    val indexes = indexIterator(df, conf)(types).toArray
+  def index[ColId:Ordering](df:Df[ColId], conf:IndexConf[ColId]) : Df[(ColId, Any)]= {
+    val indexes = indexIterator(df, conf).toArray
     Df[(ColId, Any)](
        LSeq(indexes.map(_._1)),
        LSeq.fill(indexes.length, typeOf[Boolean]),
@@ -63,10 +74,14 @@ object IndexedDf {
   def apply[T:ClassTag](df:TypedDf[T], indexDf:Df[(String, Any)]) : IndexedDf[T] = {
     new IndexedDf[T](df, indexDf)
   }
-  def apply[T:ClassTag:TypeTag](df:Df[String], conf:IndexConf[String])(implicit types:IoTypes) : IndexedDf[T] = {
-    IndexedDf[T](TypedDf[T](df), index(df, conf))
+  def apply[T:ClassTag:TypeTag](df:TypedDf[T], conf:IndexConf[String]) : IndexedDf[T] = {
+    IndexedDf[T](df, index(df, conf))
   }
-  def indexIterator[ColId](df:Df[ColId], conf:IndexConf[ColId])(implicit types:IoTypes) = {
+  def apply[T:ClassTag:TypeTag](data:Seq[T], conf:IndexConf[String]) : IndexedDf[T] = {
+    val df = TypedDf[T](data)
+    IndexedDf[T](df, conf)
+  }
+  def indexIterator[ColId](df:Df[ColId], conf:IndexConf[ColId]) = {
     new Iterator[((ColId, Any), LBits)] {
       val colIds = df.colIds.iterator
       val colTypes = df.colTypes.iterator
@@ -79,7 +94,7 @@ object IndexedDf {
             val colType = colTypes.next
             using(cols.next) { col =>
               val analyzer = conf.analyzer(colId)
-              val ordering = types.orderingOf(colType)
+              val ordering = OrderingProvider.orderingOf(colType)
 
               index(col, analyzer, ordering).iterator match {
                 case indexes if indexes.hasNext => Some((colId, indexes))
@@ -107,17 +122,17 @@ object IndexedDf {
     }
   }
 
-  def indexMerging(implicit types:IoTypes) = {
+  def indexMerging(implicit io:IoContext) = {
     new DfMerging[(String, Any)] {
       def colMerging(col: (String, Any)) =
-        types.bitsLSeqType
+        io.bits
       def colMerging(index:Long) =
-        types.bitsLSeqType
+        io.bits
     }
   }
-  def indexColIdOrdering[ColId](implicit colOrd: Ordering[ColId], types:IoTypes) = {
+  def indexColIdOrdering[ColId](implicit colOrd: Ordering[ColId]) = {
     new Ordering[(ColId, Any)] {
-      val anyOrdering = types.anyOrdering
+      val anyOrdering = OrderingProvider.anyOrdering
 
       override def compare(x: (ColId, Any), y: (ColId, Any)): Int = {
         colOrd.compare(x._1, y._1) match {
@@ -221,10 +236,12 @@ class IndexedDf[T](val df:TypedDf[T],
 
 class IndexedDfIoType[T:ClassTag:TypeTag](
     dfType:TypedDfIoType[T],
-    indexType:DfIoType[(String, Any)]) extends MergeableIoType[IndexedDf[T], IndexedDf[T]] {
+    indexType:DfIoType[(String, Any)])(implicit io:IoContext) extends MergeableIoType[IndexedDf[T], IndexedDf[T]] {
 
-  def DfFileName = "df"
-  def IndexDfFileName = "indexDf"
+  // Ints are fast and compact
+  type CfsFileId = Int
+  def DfFileId = 0
+  def IndexDfId = 1
 
   implicit val types = indexType.types
 
@@ -232,26 +249,26 @@ class IndexedDfIoType[T:ClassTag:TypeTag](
   override def ioInstanceType: universe.Type = typeOf[IndexedDf[T]]
 
   override def open(data: DataAccess): IndexedDf[T] = scoped { implicit bind =>
-    val dirRef = bind(Ref.open(CfsDir.open[String](data)))
+    val dirRef = bind(Ref.open(CfsDir.open[CfsFileId](data)))
     val dir = dirRef.get
-    val df = dfType.open(dir.openAccess(DfFileName))
-    val indexDf = indexType.open(dir.openAccess(IndexDfFileName))
+    val df = dfType.open(dir.access(DfFileId))
+    val indexDf = indexType.open(dir.access(IndexDfId))
     new IndexedDf[T](df, indexDf, () => dirRef.close)
   }
 
   override def write(out: DataOutput, df: IndexedDf[T]): Unit = scoped { implicit bind =>
-    val dir = bind(WrittenCfsDir.open[String](out))
-    dfType.write(out, df.df)
-    indexType.write(out, df.indexDf)
+    val dir = bind(WrittenCfsDir.open[CfsFileId](out))
+    dfType.save(dir.ref(DfFileId), df.df)
+    indexType.save(dir.ref(IndexDfId), df.indexDf)
   }
 
-  def writeIndexed(out:DataOutput, df:TypedDf[T], indexConf:IndexConf[String])(implicit types:IoTypes) : Unit = scoped { implicit bind =>
-    val dir = bind(WrittenCfsDir.open[String](out))
+  def writeIndexed(out:DataOutput, df:TypedDf[T], indexConf:IndexConf[String]) : Unit = scoped { implicit bind =>
+    val dir = bind(WrittenCfsDir.open[CfsFileId](out))
     dfType.write(out, df)
     indexType.writeAsDf(
       out,
       df.lsize,
-      IndexedDf.indexIterator[String](df, indexConf)(types).map { case (colId, bits) =>
+      IndexedDf.indexIterator[String](df, indexConf).map { case (colId, bits) =>
         (colId, typeOf[Boolean]) -> bits
       })
   }

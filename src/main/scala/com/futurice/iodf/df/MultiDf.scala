@@ -1,17 +1,18 @@
 package com.futurice.iodf.df
 
-import com.futurice.iodf.io.SizedMerging
+import com.futurice.iodf.io.{IoTypes, SizedMerging}
 import com.futurice.iodf.ioseq.{IoSeq, SeqIoType}
 import com.futurice.iodf.util._
 import com.futurice.iodf.{IoScope, Utils}
 
 import scala.collection.mutable.ArrayBuffer
+import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 
 object MultiDf {
   def DefaultColIdMemRatio = 16
   def apply[ColId](dfs:Seq[_ <: Df[ColId]], types:DfMerging[ColId])(
-    implicit colIdOrdering:Ordering[ColId]) = {
+    implicit colIdOrdering:Ordering[ColId]) : MultiDf[ColId] = {
     new MultiDf[ColId](dfs.toArray, types)
   }
   def refCounted[ColId](dfs:Seq[_ <: Ref[Df[ColId]]], types:DfMerging[ColId])(

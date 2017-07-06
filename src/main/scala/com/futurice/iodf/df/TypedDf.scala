@@ -1,5 +1,7 @@
 package com.futurice.iodf.df
 
+import com.futurice.iodf.IoContext
+import com.futurice.iodf.df.MultiDf.DefaultColIdMemRatio
 import com.futurice.iodf.util.LSeq
 import com.futurice.iodf.io._
 import com.futurice.iodf.ioseq.{IoSeq, SeqIoType}
@@ -47,7 +49,12 @@ trait TypedDf[T] extends Df[String] {
 
 object TypedDf {
 
-  def typeMerging[T : ClassTag: TypeTag](implicit types: IoTypes) = {
+  def viewMerged[T:TypeTag:ClassTag](dfs:Seq[TypedDf[T]],
+                                colIdMemRatio:Int = DefaultColIdMemRatio)(implicit io:IoContext) : TypedDf[T]  = {
+    TypedDf.apply[T](MultiDf[String](dfs, TypedDf.typeMerging[T]))
+  }
+
+  def typeMerging[T : ClassTag: TypeTag](implicit io: IoContext) = {
     val schema = TypedDf.typeSchema[T]
 
     new DfMerging[String] {
@@ -56,7 +63,7 @@ object TypedDf {
         schema
           .fields
           .map { case (tpe, id) =>
-            (id, types.seqTypeOf(tpe) : Any)
+            (id, io.types.seqTypeOf(tpe) : Any)
           }
 
       def colMerging(col: String) : SizedMerging[_ <: LSeq[_]]= {
@@ -171,7 +178,7 @@ object TypedDf {
   }
 }
 
-class TypedDfIoType[T : ClassTag:TypeTag](dfType:DfIoType[String]) extends MergeableIoType[TypedDf[T], TypedDf[T]] {
+class TypedDfIoType[T : ClassTag:TypeTag](dfType:DfIoType[String])(implicit io:IoContext) extends MergeableIoType[TypedDf[T], TypedDf[T]] {
   override def interfaceType: universe.Type = typeOf[TypedDf[T]]
   override def ioInstanceType: universe.Type = typeOf[TypedDf[T]]
   override def open(data: DataAccess): TypedDf[T] = {

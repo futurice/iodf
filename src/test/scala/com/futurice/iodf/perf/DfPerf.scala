@@ -1,16 +1,18 @@
 package com.futurice.iodf.perf
 
+import scala.reflect.runtime.universe._
 import java.io.File
 
 import com.futurice.iodf.Utils._
 import com.futurice.iodf._
-import com.futurice.iodf.df.{IndexConf, IndexedDf}
-import com.futurice.iodf.store.{MMapDir}
+import com.futurice.iodf.df.{IndexConf, IndexedDf, MultiDf, TypedDf}
+import com.futurice.iodf.store.{AllocateOnce, MMapDir, MMapFile}
 import com.futurice.iodf.util.{LBits, Tracing}
 import com.futurice.testtoys.{TestSuite, TestTool}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import scala.reflect.ClassTag
 import scala.util.Random
 
 
@@ -19,7 +21,12 @@ import scala.util.Random
   */
 class DfPerf extends TestSuite("perf/df") {
 
-  def tIndexedDfPerf[IoId, T](t:TestTool, view:IndexedDf[T]) = {
+  def makeIoContext(implicit scope:IoScope) = {
+    IoContext().withType[ExampleItem]
+  }
+
+
+  def tIndexedDfPerf[IoId, T](t:TestTool, view:IndexedDf[T])(implicit io:IoContext) = {
     val df = view.df
     val index = view.indexDf
 
@@ -64,7 +71,6 @@ class DfPerf extends TestSuite("perf/df") {
       t.tln
 
       using(IoScope.open) { implicit scope =>
-        implicit val io = IoContext()
         var fs, fA, fB, fAB = 0L
         val n = 1024
 
@@ -134,19 +140,18 @@ class DfPerf extends TestSuite("perf/df") {
 
   test("multidf-colidmemratio") { t =>
     t.t(f"  creating items..")
-    Tracing.trace {
+    Tracing.lightTrace {
       using(IoScope.open) { implicit bind =>
-        implicit val io = IoContext()
-        val dfs = Dfs.fs
+        implicit val io = makeIoContext
+        val dir = MMapDir(t.fileDir)
 
         t.t("creating segments..")
         val dfFiles =
           t.iMsLn(
             (0 until 16).map { i =>
               val items = ExampleItem.makeItems(i, 16* 1024)
-              val file = new File(t.fileDir, f"df$i")
-              dfs.writeIndexedDfFile(items, file)
-              file
+              val rf = dir.ref(f"df$i")
+              rf.save(IndexedDf(items, ExampleItem.indexConf))
             })
         t.tln
         val M = 1024*1024
@@ -159,14 +164,16 @@ class DfPerf extends TestSuite("perf/df") {
               val segments = dfFiles.take(1 << (scale*2))
 
               t.tln("colIdMemRatio: " + colIdMemRatio)
-              t.tln("segments:      " + segments.size + ", " + (segments.map(_.length).sum / 1024) + " KB")
+              t.tln("segments:      " + segments.size + ", " + (segments.map(_.byteSize).sum / 1024) + " KB")
 
               val baseMem = Utils.memory
               t.t("opening multidf..")
               val (stats, multiDf) =
                 t.iMsLn(
                   using(new MemoryMonitor(100)) { mem: MemoryMonitor =>
-                    val df = bind(dfs.openMultiIndexedDfFiles[ExampleItem](dfFiles, colIdMemRatio))
+                    val df =
+                      bind(IndexedDf.viewMerged(
+                        dfFiles.map(_.openAs[IndexedDf[ExampleItem]]), colIdMemRatio))
                     (Await.result(mem.finish, Duration.Inf), df)
                   })
               t.tln
@@ -188,11 +195,11 @@ class DfPerf extends TestSuite("perf/df") {
   }
 
 
-  def testWritingPerf(testName:String, writer:(Seq[ExampleItem], File, IndexConf[String])=>Unit) =
+  def testWritingPerf[T:TypeTag:ClassTag](testName:String, toDf:Seq[ExampleItem]=>T) =
     test(testName) { t =>
-      Tracing.trace {
+      Tracing.lightTrace {
         using(IoScope.open) { implicit bind =>
-          implicit val io = IoContext()
+          implicit val io = makeIoContext
 
           t.tln("testing, how writing index behaves time & memory wise")
           t.tln
@@ -209,14 +216,18 @@ class DfPerf extends TestSuite("perf/df") {
 
               t.t(f"  creating items..")
               val items = t.iMsLn(ExampleItem.makeItems(0, scale))
+              t.t(f"  creating dataframe..")
+              val df = t.iMsLn(toDf(items))
 
               t.t(f"  indexing items..")
               using (new MemoryMonitor(100)) { mem : MemoryMonitor=>
-                val (ms, _) =
-                  TestTool.ms(
-                    writer(items, file, IndexConf()))
-                t.iln(f"$ms ms")
-
+                val (ms, _) = TestTool.ms(MMapFile(file).save(df))
+                val old = t.peekLong
+                t.i(f"$ms ms")
+                old match {
+                  case Some(v) => t.iln(f" (was $v)")
+                  case None => t.iln("")
+                }
                 val stats =
                   Await.result(mem.finish, Duration.Inf)
 
@@ -241,7 +252,7 @@ class DfPerf extends TestSuite("perf/df") {
       }
     }
 
-  testWritingPerf("writing-indexed-perf", Dfs.fs.writeIndexedDfFile)
-  testWritingPerf("writing-typed-perf", (items, dir, index) => Dfs.fs.writeTypedDfFile(items, dir))
+  testWritingPerf[TypedDf[ExampleItem]]("writing-typed-perf", items => TypedDf(items) )
+  testWritingPerf[IndexedDf[ExampleItem]]("writing-indexed-perf", items => IndexedDf(items, ExampleItem.indexConf))
 
 }

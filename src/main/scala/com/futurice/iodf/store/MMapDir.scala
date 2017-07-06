@@ -11,6 +11,22 @@ import xerial.larray.mmap.{MMapBuffer, MMapMode}
 
 object MMapDir {
   def apply(dir:File)(implicit scope:IoScope) = scope.bind(new MMapDir(dir))
+  def open(dir:File) = new MMapDir(dir)
+}
+
+object MMapFile {
+  def apply(file:File)(implicit bind:IoScope) = {
+    val d = MMapDir(file.getParentFile)
+    val rv = d.ref(file.getName)
+    d.close
+    rv
+  }
+  def apply(dir:File, file:String)(implicit bind:IoScope) = {
+    val d = MMapDir(dir)
+    val rv = d.ref(file)
+    d.close
+    rv
+  }
 }
 
 /**
@@ -34,11 +50,8 @@ class MMapDir(dir:File) extends MutableDir[String] {
 
       override def close = out.close
       override def openDataRef: DataRef = {
+        out.flush
         MMapDir.this.openRef(name)
-      }
-      override def adoptResult: DataRef = {
-        close
-        openRef(name)
       }
       override def write(b: Int): Unit = {
         out.write(b)
@@ -73,3 +86,4 @@ class MMapDir(dir:File) extends MutableDir[String] {
 
   def byteSize = dir.listFiles.map(_.length()).sum
 }
+

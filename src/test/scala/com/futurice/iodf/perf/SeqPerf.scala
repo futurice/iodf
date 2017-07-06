@@ -3,9 +3,9 @@ package com.futurice.iodf.perf
 import java.io.{DataOutputStream, File}
 
 import com.futurice.iodf.store.MMapDir
-import com.futurice.iodf.{Dfs}
 import com.futurice.testtoys.{TestSuite, TestTool}
 import com.futurice.iodf.Utils._
+import com.futurice.iodf.io.IoTypes
 import com.futurice.iodf.ioseq.{IoSeq, SeqIoType}
 import com.futurice.iodf.util.LSeq
 
@@ -29,7 +29,7 @@ class SeqPerf extends TestSuite("perf/seq") {
         t.t("creating data..")
         val data = t.iMsLn(LSeq(source.take(n).toSeq))
         val (ms, _) =
-          using (new DataOutputStream(file.create)) { out =>
+          using (file.create) { out =>
             TestTool.ms(
               ty.write(out, data))
           }
@@ -72,7 +72,7 @@ class SeqPerf extends TestSuite("perf/seq") {
       t,
       1024,
       stringSource(new Random(0)),
-      Dfs.fs.types.seqTypeOf[String])
+      IoTypes.default.seqTypeOf[String])
   }
 
   test("int") { t =>
@@ -80,7 +80,7 @@ class SeqPerf extends TestSuite("perf/seq") {
       t,
       4*1024,
       intSource(new Random(0)),
-      Dfs.fs.types.seqTypeOf[Int])
+      IoTypes.default.seqTypeOf[Int])
   }
 
 }

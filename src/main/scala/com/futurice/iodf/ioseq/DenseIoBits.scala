@@ -136,7 +136,7 @@ class BooleanIoSeqType[Id](implicit val t:TypeTag[Seq[Boolean]])
 class DenseIoBits(_openRef:IoRef[DenseIoBits], _origBuf:DataAccess)
   extends IoBits with java.io.Closeable {
 
-  val origBuf = _origBuf.copy
+  val origBuf = _origBuf.openCopy
 
   val bitSize = origBuf.getBeLong(0)
   override val longCount = DenseIoBits.bitsToLongCount(bitSize)
@@ -145,7 +145,7 @@ class DenseIoBits(_openRef:IoRef[DenseIoBits], _origBuf:DataAccess)
 
   override def close = { _openRef.close; origBuf.close; buf.close } //close both handles
 
-  def openRef = _openRef.copy
+  def openRef = _openRef.openCopy
 
   def byteSize = buf.size
 

@@ -56,16 +56,19 @@ object IoBits {
   }
 }
 
-object IoBitsType {
+object BitsIoType {
   val SparseId = 0
   val DenseId = 1
 
-  def booleanSeqIoType(bitsType:IoBitsType)(implicit t:TypeTag[LSeq[Boolean]], valueTag:TypeTag[Boolean]) =
+  def booleanSeqIoType(bitsType:BitsIoType)(implicit t:TypeTag[LSeq[Boolean]], valueTag:TypeTag[Boolean]) =
     new SeqIoType[Boolean, LSeq[Boolean], WrappedIoBits] {
       val tp =
         new SuperIoType[LSeq[Boolean], LBits, WrappedIoBits](
           bitsType,
-          bools => LBits(bools))
+          _ match {
+            case bits : LBits => bits
+            case bools => LBits(bools)
+          })
       override def valueTypeTag: universe.TypeTag[Boolean] = valueTag
       def viewMerged(seqs: Seq[LSeq[Boolean]]) =
         bitsType.viewMerged(seqs.map { _ match {
@@ -88,6 +91,7 @@ class WrappedIoBits(val someRef:Option[IoRef[IoBits]],
 
   def unwrap = bits
   override def close = {
+    openRef.close
     bits match {
       case c : Closeable => c.close
     }
@@ -120,12 +124,12 @@ class WrappedIoBits(val someRef:Option[IoRef[IoBits]],
 }
 
 
-class IoBitsType(val sparse:SparseIoBitsType,
+class BitsIoType(val sparse:SparseIoBitsType,
                  val dense:DenseIoBitsType,
                  sparsityThreshold:Long = 4*1024)(implicit val t:TypeTag[LBits])
   extends SeqIoType[Boolean, LBits, WrappedIoBits] {
 
-  import IoBitsType._
+  import BitsIoType._
 
   override def valueTypeTag =
     _root_.scala.reflect.runtime.universe.typeTag[Boolean]
@@ -299,7 +303,7 @@ class IoBitsType(val sparse:SparseIoBitsType,
   def createAndNot(file: AllocateOnce, b1:LBits, b2:LBits) : IoBits = {
     val (typ, openRef) = using( file.create ) { output =>
       val t = writeAndNot(output, b1, b2)
-      (t, output.adoptResult)
+      (t, output.openDataRef)
     }
     using(openRef) { ref => typ.open(ref) }
   }
@@ -321,7 +325,7 @@ class IoBitsType(val sparse:SparseIoBitsType,
   def createNot(ref: AllocateOnce, b:LBits) : IoBits = {
     val (typ, openRef) = using( ref.create ) { out =>
       val t = writeNot(out, b)
-      (t, out.adoptResult)
+      (t, out.openDataRef)
     }
     using(openRef) { typ.open(_) }
   }
@@ -342,7 +346,7 @@ class IoBitsType(val sparse:SparseIoBitsType,
     val openRes =
       using( ref.create ) { out =>
         writeMerged(out, bs)
-        out.adoptResult
+        out.openDataRef
       }
     using(openRes) { open(_) }
   }

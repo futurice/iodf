@@ -66,7 +66,7 @@ class SparseIoBitsType
 class SparseIoBits(val _openRef:IoRef[SparseIoBits],
                    val indexes:LongIoArray,
                    val lsize : Long) extends IoBits {
-  override def openRef = _openRef.copy
+  override def openRef = _openRef.openCopy
   override def apply(l: Long): Boolean = {
     val e = Utils.binarySearch(indexes, l, 0, l+1)
     e._1 != -1

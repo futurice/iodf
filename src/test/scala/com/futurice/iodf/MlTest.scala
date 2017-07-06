@@ -3,10 +3,10 @@ package com.futurice.iodf
 import java.io.File
 
 import com.futurice.iodf.Utils._
-import com.futurice.iodf.df.IndexConf
+import com.futurice.iodf.df.{IndexConf, IndexedDf}
 import com.futurice.iodf.ioseq.DenseIoBits
 import com.futurice.iodf.ml.Knn
-import com.futurice.iodf.store.{MMapDir}
+import com.futurice.iodf.store.MMapDir
 import com.futurice.iodf.util.{LBits, Tracing}
 import com.futurice.testtoys.TestSuite
 
@@ -57,11 +57,10 @@ class MlTest extends TestSuite("ml") {
 
   test("knn") { t =>
     Tracing.trace {
-      val dfs = Dfs.fs
       scoped { implicit bind =>
-        implicit val io = IoContext()
         val dir = bind(new MMapDir(t.fileDir))
-        val df = bind(dfs.createIndexedDf[Animal, String](items, dir, indexConf))
+        val df = bind(IndexedDf[Animal](items, indexConf))
+        implicit val io = IoContext()
         val knn =
           Knn(
             df,
@@ -84,13 +83,12 @@ class MlTest extends TestSuite("ml") {
 
   test("knn-weights") { t =>
     Tracing.trace {
-      val dfs = Dfs.fs
       scoped { implicit bind =>
         implicit val io = IoContext()
         val dir = bind(new MMapDir(new File(t.fileDir, "articles")))
-        val df = bind(dfs.createIndexedDf[Article, String](articles, dir, indexConf))
+        val df = bind(IndexedDf[Article](articles, indexConf))
         val dir2 = bind(new MMapDir(new File(t.fileDir, "decisions")))
-        val df2 = bind(dfs.createIndexedDf[Decision, String](decisions, dir2, indexConf))
+        val df2 = bind(IndexedDf[Decision](decisions, indexConf))
         val weights =
           Knn.keyValueWeights(
             df2,

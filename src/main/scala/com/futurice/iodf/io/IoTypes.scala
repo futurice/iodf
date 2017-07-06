@@ -1,6 +1,8 @@
 package com.futurice.iodf.io
 
+import com.futurice.iodf.IoScope
 import com.futurice.iodf.Utils.using
+import com.futurice.iodf.df.{DfIoType, IndexedDf, TypedDf}
 import com.futurice.iodf.ioseq._
 import com.futurice.iodf.store.AllocateOnce
 import com.futurice.iodf.util.{LBits, LSeq}
@@ -9,35 +11,26 @@ import scala.collection.mutable.ArrayBuffer
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 
+
 /**
- * Few thoughts..
+ * TODO: refactor some day.. this should be split into parts
  *
- *   it would be nice to have version of write / open that
- *   will write down the object type.
- *
- *   In this case, you could
- *
+ * FIXME: this is crappy design. This class should have one goal: provide open/write types.
  */
 
 trait IoTypes {
-  def orderingOf(valueTypeTag: Type) : Ordering[Any]
+
+  // TODO: refactor following ->
 
 
-/*  def ioType = new IoType[Any] {
-    override def valueType: universe.Type = typeOf[Any]
-    override def open(data: DataRef): Any =
-      open[]()
-    override def write(out: DataOutputStream, iface: Any): Unit = ???
-  }*/
+  // TODO: <-
 
-/*  def writerEntryOf(t:Type) : (IoWriter[_], Int)
-  def openerEntryOf(t:Type) : (IoOpener[_], Int)
-
-  def writerOf(t:Type) = writerEntryOf(t)._1
-  def openerOf(t:Type) = openerEntryOf(t)._1*/
+  //
 
   def ioTypeOf(t : Type)      : IoType[_, _]
   def ioTypeOf[T : TypeTag]() : IoType[_ >: T, _ <: T]
+
+
 
   def write(out:DataOutput, t:Any, tpe:Type) : Unit
 
@@ -58,12 +51,16 @@ trait IoTypes {
     open(ref).asInstanceOf[Interface]
 
   /** note: this returns and opened a data reference */
-  def written[Interface](ref:AllocateOnce, t:Interface)(
+  def openSave[Interface](ref:AllocateOnce, t:Interface)(
     implicit tag:TypeTag[Interface]): DataRef = {
     using (ref.create) { out =>
       write(out, t)
-      out.adoptResult
+      out.openDataRef
     }
+  }
+  def save[Interface:TypeTag](ref:AllocateOnce, t:Interface)(
+    implicit bind:IoScope): DataRef = {
+    bind(openSave(ref, t))
   }
 
   def getIoTypeId(t:IoType[_, _]) : Option[Int]
@@ -78,9 +75,6 @@ trait IoTypes {
 
   // shortcuts: reconsider
 //  def idOrdering : Ordering[IoId]
-  def anyOrdering : Ordering[Any]
-
-  def intToId[Id](implicit tag:TypeTag[Id]) : Int => Id
 
   val TypeRef(seqPkg, seqSymbol, anyArgs) = typeOf[LSeq[Any]]
   def toLSeqType(tpe:Type) =
@@ -102,6 +96,8 @@ trait IoTypes {
   def bitsLSeqType : SeqIoType[Boolean, LBits,_ <: IoSeq[Boolean]] = {
     ioTypeOf[LBits].asInstanceOf[SeqIoType[Boolean, LBits,_ <: IoSeq[Boolean]]]
   }
+
+  def +(tpe:IoType[_, _]) : IoTypes
 }
 
 abstract class Bounds() {}
@@ -109,10 +105,15 @@ case class MinBound() extends Bounds() {}
 case class MaxBound() extends Bounds() {}
 
 class IoTypesImpl(types:Seq[IoType[_, _]]) extends IoTypes {
+  lazy val reversedWithIndex =
+    types.zipWithIndex.reverse
+
+  def +(tpe:IoType[_, _]) = new IoTypesImpl(types ++ Seq[IoType[_, _]](tpe))
+
   def writerEntryOf(t:Type) : (IoWriter[_], Int) = {
-    types.toStream
-      .zipWithIndex
-      .flatMap(e => e._1.castToWriter(t).map(c => (c, e._2)))
+    reversedWithIndex
+      .toStream
+      .flatMap(e => e._1.provideWriter(t).map(c => (c, e._2)))
       .headOption match {
       case Some(v) => v
       case None =>
@@ -120,9 +121,9 @@ class IoTypesImpl(types:Seq[IoType[_, _]]) extends IoTypes {
     }
   }
   def openerEntryOf(t:Type) : (IoOpener[_], Int) = {
-    types.toStream
-      .zipWithIndex
-      .flatMap(e => e._1.castToOpener(t).map(c => (c, e._2)))
+    reversedWithIndex
+      .toStream
+      .flatMap(e => e._1.provideOpener(t).map(c => (c, e._2)))
       .headOption match {
       case Some(v) => v
       case None =>
@@ -161,53 +162,13 @@ class IoTypesImpl(types:Seq[IoType[_, _]]) extends IoTypes {
     using(
       using(ref.create) { out =>
         typ.write(out, v)
-        out.adoptResult
+        out.openDataRef
       }) { typ.open }
   }
   override def getIoTypeId(t:IoType[_, _]) = {
     Some(types.indexOf(t)).filter(_ >= 0)
   }
   override def idIoType(i:Int) = types(i)
-
-  def orderingOf[T](implicit ord: Ordering[T]) = ord
-
-  override def orderingOf(tpe: Type) = {
-    (tpe match {
-
-      case t if t <:< typeOf[Boolean] => orderingOf[Boolean]
-      case t if t <:< typeOf[Int] => orderingOf[Int]
-      case t if t <:< typeOf[Long] => orderingOf[Long]
-      case t if t <:< typeOf[String] => orderingOf[String]
-      case v =>
-        throw new IllegalArgumentException(v + " is unknown")
-    }).asInstanceOf[Ordering[Any]] // TODO: refactor, there has to be a better way
-  }
-  override def anyOrdering : Ordering[Any] = new Ordering[Any] {
-    val b = orderingOf[Boolean]
-    val i = orderingOf[Int]
-    val l = orderingOf[Long]
-    val s = orderingOf[String]
-    override def compare(x: Any, y: Any): Int = {
-      (x, y) match {
-        case (_ : MinBound, _) => -1
-        case (_ : MaxBound, _) => 1
-        case (_, _ : MinBound) => 1
-        case (_, _ : MaxBound) => -1
-        case (xv: Boolean, yv:Boolean) => b.compare(xv, yv)
-        case (xv: Int, yv:Int) => i.compare(xv, yv)
-        case (xv: Long, yv:Long) => l.compare(xv, yv)
-        case (xv: String, yv:String) => s.compare(xv, yv)
-        case (x, y) =>
-          throw new IllegalArgumentException("cannot compare " + x + " with " + y)
-      }
-    }
-  }
-  override def intToId[Id](implicit tag:TypeTag[Id]) =
-    tag.tpe match {
-      case t if t == typeOf[Int] => (i => i.asInstanceOf[Id])
-      case t if t == typeOf[String] => (i => i.toString.asInstanceOf[Id])
-
-    }
 
 }
 
@@ -216,10 +177,10 @@ object IoTypes {
   def apply(types:Seq[IoType[_, _]]) = {
     new IoTypesImpl(types)
   }
-  def strings = {
+  val (default : IoTypes, stringDfType : DfIoType[String], indexDfType : DfIoType[(String, Any)]) = {
     val str = new StringIoSeqType
     val buf = new ArrayBuffer[IoType[_, _]]()
-    val self = apply(buf)
+    implicit val self = apply(buf)
     val entryIo = new Serializer[(Int, String, Long)] {
       override def read(b: DataAccess, pos: Long): (Int, String, Long) = {
         val i = b.getBeInt(pos)
@@ -240,19 +201,24 @@ object IoTypes {
     val variantIo = new VariantIo(Array(BooleanIo, IntIo, LongIo, StringIo), javaIo)
     val tupleIo = new Tuple2Io[String, Any](StringIo, variantIo)
     val bitsIoType =
-      new IoBitsType(// converts Bits
+      new BitsIoType(// converts Bits
         new SparseIoBitsType(),
         new DenseIoBitsType())
+    val dfs = new DfIoType[String]()
+    implicit val indexOrdering = IndexedDf.indexColIdOrdering[String]
+    val indexDfs = new DfIoType[(String, Any)]()
+
     buf ++=
       Seq(
-        str,
-        new IntIoArrayType,
-        new LongIoArrayType,
-        bitsIoType, // prefer lbits type seq[boolean] type
-        IoBitsType.booleanSeqIoType(bitsIoType),
-        new IntIoArrayType,
+        new ObjectIoSeqType[Any](javaIo, javaIo),
         new ObjectIoSeqType[(String, Any)](tupleIo, tupleIo),
-        new ObjectIoSeqType[Any](javaIo, javaIo))
-    self
+        str,
+        new LongIoArrayType,
+        new IntIoArrayType,
+        BitsIoType.booleanSeqIoType(bitsIoType),
+        bitsIoType, // prefer lbits type over seq[boolean] type
+        dfs,
+        indexDfs)
+    (self, dfs, indexDfs)
   }
 }

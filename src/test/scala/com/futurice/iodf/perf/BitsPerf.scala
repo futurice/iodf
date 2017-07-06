@@ -4,7 +4,7 @@ import java.util
 
 import com.futurice.iodf.Utils._
 import com.futurice.iodf.ioseq._
-import com.futurice.iodf.store.{MMapDir}
+import com.futurice.iodf.store.{RamDir}
 import com.futurice.iodf.util._
 import com.futurice.iodf.{IoContext, IoScope}
 import com.futurice.testtoys.{TestSuite, TestTool}
@@ -19,21 +19,21 @@ import scala.util.Random
 class BitsPerf extends TestSuite("perf/bits") {
 
   test("bits-perf") { t =>
-    Tracing.trace {
+    Tracing.lightTrace {
       scoped { implicit scope =>
         val sizes = Array(16, 256, 4 * 1024, 1024 * 1024)
 
         sizes.foreach { sz =>
-          using(new MMapDir(t.fileDir)) { dir =>
+          using(new RamDir[String]) { dir =>
             val bits = new SparseIoBitsType()
             val data = (0 until sz).filter(_ % 4 == 0).map(_.toLong)
 
             val n = 32
             t.t(f"creating $n sparse bits of size $sz...")
-            val (ms, res) =
+            val (ms, _) =
               TestTool.ms(
                 (0 until n).foreach { i =>
-                  bits.create(dir.ref("bits"), LBits(data, sz)).close()
+                  bits.openCreated(dir.ref("bits" + i), LBits(data, sz)).close()
                 })
 
             val old = t.peekDouble
@@ -60,7 +60,7 @@ class BitsPerf extends TestSuite("perf/bits") {
 
   def testBitPerf(t:TestTool, size:Int) = {
     scoped { implicit bind =>
-      val dir = bind(new MMapDir(t.fileDir))
+      val dir = bind(new RamDir[String])
 
       val sparse = new SparseIoBitsType()
       val dense = new DenseIoBitsType()
@@ -75,7 +75,7 @@ class BitsPerf extends TestSuite("perf/bits") {
         val bits = (0 until size).filter(_ % sparsity == 0).map(_.toLong)
         t.tUsLn(
           bind(
-            sparse.create(
+            sparse.openCreated(
               dir.ref("sparse"),
               LBits(bits, size))))
       }
@@ -85,7 +85,7 @@ class BitsPerf extends TestSuite("perf/bits") {
         val bits = (0 until size).filter(_ % sparsity2 == 0).map(_.toLong)
         t.tUsLn(
           bind(
-            sparse.create(
+            sparse.openCreated(
               dir.ref("sparse2"),
               LBits(bits, size))))
       }
@@ -101,7 +101,7 @@ class BitsPerf extends TestSuite("perf/bits") {
       val d =
         t.tUsLn(
           bind(
-            dense.create(
+            dense.openCreated(
               dir.ref("dense"),
               LBits(b, size))))
       t.tln
@@ -216,7 +216,7 @@ class BitsPerf extends TestSuite("perf/bits") {
   }
 
   test("perf-by-sparsity") { t =>
-    Tracing.trace {
+    Tracing.lightTrace {
       using(IoScope.open) { implicit scope =>
         val rnd = new Random(0)
         implicit val io = IoContext()
@@ -242,7 +242,7 @@ class BitsPerf extends TestSuite("perf/bits") {
   }
 
   test("multi-bits") { t =>
-    Tracing.trace {
+    Tracing.lightTrace {
       using (IoScope.open) { implicit scope =>
         val rnd = new Random(0)
         implicit val io = IoContext()

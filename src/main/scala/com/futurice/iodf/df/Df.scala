@@ -57,8 +57,6 @@ object Df {
       override def _cols = __cols.map[ColType[_]](_.asInstanceOf[ColType[_]])
       override def lsize = _lsize
       override def close(): Unit = {
-        _colIds.close;
-        __cols.close
         closer()
       }
       override def view(from:Long, until:Long) = {
@@ -144,8 +142,8 @@ object IoDf {
   def apply[ColId](_ioRef:IoRef[IoDf[ColId]],
                    df:Df[ColId]) = {
     new IoDf[ColId] {
-      val ioRef = _ioRef.copy
-      override def openRef: IoRef[_ <: IoObject] = ioRef.copy
+      val ioRef = _ioRef.openCopy
+      override def openRef: IoRef[_ <: IoObject] = ioRef.openCopy
       override type ColType[T] = LSeq[T]
       override def colIds: LSeq[ColId] = df.colIds
       override def colTypes: LSeq[universe.Type] = df.colTypes
@@ -201,6 +199,21 @@ class DfView[ColId](val df:Df[ColId], val from:Long, val until:Long)
   override def close(): Unit = {}
 }
 
+/*
+class DfIoTypeProvider(implicit val types:IoTypes) extends TypeIoProvider {
+  val TypeRef(dfPre, dfSymbol, anyArgs) = typeOf[Df[Any]]
+  override def provideWriter(to: universe.Type): Option[IoWriter[_]] = {
+    val TypeRef(tPre, tSymbol, tArgs) = to
+    if (dfPre == tPre && dfSymbol == tSymbol) {
+      val clazz = runtimeMirror(getClass.getClassLoader).runtimeClass(tArgs.head.typeSymbol.asClass)
+      new DfIoType( types)
+    }
+  }
+  override def provideOpener(to: universe.Type): Option[IoOpener[_]] = {
+
+  }
+}*/
+
 class DfIoType[ColId:ClassTag:TypeTag:Ordering](implicit val types:IoTypes) extends MergeableIoType[Df[ColId], IoDf[ColId]] {
   val l = LoggerFactory.getLogger(getClass)
   override def interfaceType: universe.Type = typeOf[Df[ColId]]
@@ -211,7 +224,7 @@ class DfIoType[ColId:ClassTag:TypeTag:Ordering](implicit val types:IoTypes) exte
     scoped { implicit bind =>
       val size = data.getBeLong(0)
       val cfsPart = bind(data.openView(8, data.size))
-      val dirRef = bind(Ref.open(CfsDir.open[ColId](cfsPart)))
+      val dirRef = Ref.open(CfsDir.open[ColId](cfsPart))
       val dir = dirRef.get
       val colIds = dir.list
       val ioCols =
@@ -227,7 +240,7 @@ class DfIoType[ColId:ClassTag:TypeTag:Ordering](implicit val types:IoTypes) exte
           new LSeq[Type] {
             def lsize = ioCols.lsize
             def apply(i: Long) = // hackish!
-              ioCols(i).asInstanceOf[IoSeq[ColId]].seqIoType.valueType
+              using (ioCols(i)) { _.asInstanceOf[IoSeq[ColId]].seqIoType.valueType }
           },
           ioCols,
           size,

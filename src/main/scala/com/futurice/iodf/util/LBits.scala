@@ -163,7 +163,7 @@ object LBits {
   }
   def apply(bools:LSeq[Boolean]) : LBits  = {
     new LBits {
-      lazy val f = bools.count(b => b).toLong
+      val f = bools.iterator.count(b => b).toLong
       def lsize = bools.size
       def apply(i:Long) = bools(i.toInt)
       def truesFrom(from:Long) : Scanner[Long, Long] = {
@@ -314,9 +314,9 @@ object LBits {
         var i = 0;
         var t = PeekIterator(trueIndexes.iterator)
 
-        def hasNext = i < lsize
+        def hasNext = i < thisn
 
-        def head = t.head == i
+        def head = t.hasNext && t.head == i
 
         def next = {
           if (t.hasNext && t.head == i) {
