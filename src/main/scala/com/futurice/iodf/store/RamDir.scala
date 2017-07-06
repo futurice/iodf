@@ -24,7 +24,7 @@ class RamDir[FileId:Ordering](implicit t:ClassTag[FileId]) extends MutableDir[Fi
     val creator = allocator.create
     new DataOutput with DataOutputMixin{
       override def close = self.synchronized {
-        dir.put(id, creator.openDataRef).foreach { _.close()}
+        dir.put(id, creator.openDataRef).foreach { _.close()  }
         creator.close
       }
       override def openDataRef: DataRef =

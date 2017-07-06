@@ -75,5 +75,7 @@ trait MutableDir[Id] extends WritableDir[Id] {
   def delete(id:Id) : Boolean
   override def openRef(id:Id) =
     new MutableFileRef[Id](this, id)
+  override def ref(id:Id)(implicit bind:IoScope) : MutableFileRef[Id] =
+    bind(openRef(id))
 }
 

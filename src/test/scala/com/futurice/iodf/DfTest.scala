@@ -334,7 +334,7 @@ class DfTest extends TestSuite("df") {
           t.iMsLn(
             IndexedDf[ExampleItem](items, ExampleItem.indexConf))
         t.tln
-        t.t("creating io df")
+        t.t("creating io df..")
         val ioDf = t.iMsLn(file.saved(heapDf))
         t.tln
         t.tln("testing heap df:")

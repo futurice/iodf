@@ -32,8 +32,8 @@ class BitsTest extends TestSuite("bits") {
       } else {
         if (verbose) {
           t.tln(f"  $name ground and test properties are equal:")
-          t.tln(f"    ground: " + gp)
-          t.tln(f"    test:   " + tp)
+          t.tln(f"    ground: " + gp.toString.take(80))
+          t.tln(f"    test:   " + tp.toString.take(80))
           t.tln
         }
         None
@@ -182,8 +182,9 @@ class BitsTest extends TestSuite("bits") {
         val testDataB = (0 until sz).map(i => rnd.nextDouble() < pB)
 
         if (verbose) {
-          t.tln("  a trues are " + testDataA.zipWithIndex.filter(_._1).map(_._2).mkString(", "))
-          t.tln("  b trues are " + testDataB.zipWithIndex.filter(_._1).map(_._2).mkString(", "))
+          t.tln("  a trues are " + testDataA.zipWithIndex.filter(_._1).map(_._2).mkString(", ").take(80))
+          t.tln("  b trues are " + testDataB.zipWithIndex.filter(_._1).map(_._2).mkString(", ").take(80))
+          t.tln
         }
 
         val groundA = LBits(testDataA)

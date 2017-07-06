@@ -2,6 +2,8 @@ package com.futurice.iodf.util
 
 import java.io.{Closeable, PrintWriter, StringWriter}
 
+import com.futurice.iodf.IoScope
+
 /**
   * Created by arau on 4.7.2017.
   */
@@ -18,14 +20,22 @@ trait Ref[T] extends Handle{
   def isClosed : Boolean
   def get : T
   def openCopy : Ref[T]
-  def openMapped[E](f:T => E) : Ref[E] = {
+  def openMap[E](f:T => E) : Ref[E] = {
     val c : Ref[T] = openCopy
     new Ref[E] {
       override def get: E = f(c.get)
-      override def openCopy: Ref[E] = c.openMapped(f)
+      override def openCopy: Ref[E] = c.openMap(f)
       override def close(): Unit = c.close
       override def isClosed = c.isClosed
     }
+  }
+
+  // helper
+  def copy(implicit bind:IoScope): Ref[T] = {
+    bind(openCopy)
+  }
+  def map[E](f: T => E )(implicit bind:IoScope) : Ref[E] = {
+    bind(openMap(f))
   }
 }
 
