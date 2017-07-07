@@ -1,35 +1,35 @@
 based on hit dataframe, key-value weights are:
-  0.087/0.233 features=urheilu
-  0.087/0.233 features=ivalo
-  0.424/0.971 features=eu
-  0.730/0.919 features=ulkomaat
-  0.551/0.776 features=rovaniemi
-  0.551/0.776 features=kotimaa
-  0.919/0.730 features=lappi
-  0.164/0.343 features=trump
+  0.077/0.235 features=urheilu
+  0.077/0.235 features=ivalo
+  0.433/0.969 features=eu
+  0.739/0.912 features=ulkomaat
+  0.542/0.783 features=rovaniemi
+  0.542/0.783 features=kotimaa
+  0.912/0.739 features=lappi
+  0.174/0.340 features=trump
 
 knn for: Article(5,lappi ivalo urheilu)
-  distance:0.6818413671308794 : Article(0,lappi ivalo kotimaa) ctr:0.6
-  distance:0.6818413671308794 : Article(2,lappi rovaniemi urheilu) ctr:0.6
+  distance:0.7774901155265366 : Article(0,lappi ivalo kotimaa) ctr:0.6
+  distance:0.7774901155265366 : Article(2,lappi rovaniemi urheilu) ctr:0.6
 -> ctr estimate: 0.600
 
 knn for: Article(6,lappi rovaniemi trump)
-  distance:0.21524525110977244 : Article(2,lappi rovaniemi urheilu) ctr:0.6
-  distance:0.6789587590157096 : Article(1,lappi rovaniemi kotimaa) ctr:0.8
+  distance:0.41730665450007853 : Article(2,lappi rovaniemi urheilu) ctr:0.6
+  distance:0.8820799955902556 : Article(1,lappi rovaniemi kotimaa) ctr:0.8
 -> ctr estimate: 0.700
 
 knn for: Article(7,lappi)
-  distance:0.8270782178494209 : Article(0,lappi ivalo kotimaa) ctr:0.6
-  distance:0.8270782178494209 : Article(2,lappi rovaniemi urheilu) ctr:0.6
+  distance:0.6194326251230531 : Article(0,lappi ivalo kotimaa) ctr:0.6
+  distance:0.6194326251230531 : Article(2,lappi rovaniemi urheilu) ctr:0.6
 -> ctr estimate: 0.600
 
 knn for: Article(8,ulkomaat)
-  distance:-0.024766101226138648 : Article(3,ulkomaat trump) ctr:0.4
-  distance:0.23474509425894619 : Article(4,ulkomaat eu) ctr:0.2
+  distance:0.17398478626446856 : Article(3,ulkomaat trump) ctr:0.4
+  distance:0.43349598174955295 : Article(4,ulkomaat eu) ctr:0.2
 -> ctr estimate: 0.300
 
 knn for: Article(9,ulkomaat eu)
-  distance:-0.7367066789120091 : Article(4,ulkomaat eu) ctr:0.2
-  distance:0.39877534210341237 : Article(3,ulkomaat trump) ctr:0.4
+  distance:0.0 : Article(4,ulkomaat eu) ctr:0.2
+  distance:1.1425704581704834 : Article(3,ulkomaat trump) ctr:0.4
 -> ctr estimate: 0.300
 

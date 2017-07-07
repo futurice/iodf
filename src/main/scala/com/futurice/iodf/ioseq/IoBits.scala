@@ -45,15 +45,19 @@ object IoBits {
     rv
   }
 
-  def apply(trues:Iterable[Long], size:Long)(implicit io:IoContext, scope:IoScope) = {
-    scope.bind(io.bits.create(LBits(trues.toSeq, size))(io))
+  def apply(trues:Iterable[Long], size:Long)(implicit io:IoContext, bind:IoScope) = {
+    bind(create(LBits(trues.toSeq, size)))
   }
-  def apply(bits:Seq[Boolean])(implicit io:IoContext, scope:IoScope) = {
-    scope.bind(io.bits.create(LBits(bits))(io))
+  def apply(bits:Seq[Boolean])(implicit io:IoContext, bind:IoScope) = {
+    bind(create(LBits(bits)))
   }
-  def apply(bits:LBits)(implicit io:IoContext, scope:IoScope) = {
-    scope.bind(io.bits.create(bits)(io))
+  def apply(bits:LBits)(implicit io:IoContext, bind:IoScope) = {
+    bind(create(bits))
   }
+  def create(bits:LBits)(implicit io:IoContext) = {
+    io.bits.create(bits)(io)
+  }
+
 }
 
 object BitsIoType {
@@ -70,11 +74,11 @@ object BitsIoType {
             case bools => LBits(bools)
           })
       override def valueTypeTag: universe.TypeTag[Boolean] = valueTag
-      def viewMerged(seqs: Seq[LSeq[Boolean]]) =
-        bitsType.viewMerged(seqs.map { _ match {
+      def viewMerged(seqs: Seq[Ref[LSeq[Boolean]]]) =
+        bitsType.viewMerged(seqs.map { _.as { _ match {
           case bits : LBits => bits
           case bools : LSeq[Boolean] => LBits(bools)
-        }})
+        }}})
       override def interfaceType: universe.Type = tp.interfaceType
       override def ioInstanceType: universe.Type = tp.ioInstanceType
 
@@ -86,12 +90,12 @@ object BitsIoType {
 }
 
 class WrappedIoBits(val someRef:Option[IoRef[IoBits]],
-                          val bits:LBits) extends IoBits {
-  def openRef = someRef.get
+                    val bits:LBits) extends IoBits {
+  def openRef = someRef.get.openCopy
 
   def unwrap = bits
   override def close = {
-    openRef.close
+    someRef.foreach { _.close }
     bits match {
       case c : Closeable => c.close
     }
@@ -182,8 +186,8 @@ class BitsIoType(val sparse:SparseIoBitsType,
     }
   }
 
-  override def viewMerged(seqs:Seq[LBits]) = {
-    MultiBits(seqs)
+  override def viewMerged(seqs:Seq[Ref[LBits]]) = {
+    new MultiBits(seqs.toArray)
   }
 
   def create(bits:LBits)(implicit io: IoContext) : IoBits = {
@@ -330,19 +334,19 @@ class BitsIoType(val sparse:SparseIoBitsType,
     using(openRef) { typ.open(_) }
   }
 
-  override def writeMerged(out:DataOutput, ss:Seq[LBits]) = {
-    val f = ss.map(_.f).sum
-    val n = ss.map(_.n).sum
+  override def writeMerged(out:DataOutput, ss:Seq[Ref[LBits]]) = {
+    val f = ss.map(_.get.f).sum
+    val n = ss.map(_.get.n).sum
     if (LBits.isSparse(f, n)) {
       out.writeByte(SparseId)
-      sparse.writeMerged(out, ss.map(unwrap))
+      sparse.writeMerged(out, ss.map(_.as(b => unwrap(b))))
     } else {
       out.writeByte(DenseId)
-      dense.writeMerged(out, ss.map(unwrap))
+      dense.writeMerged(out, ss.map(_.as(b => unwrap(b))))
     }
   }
 
-  def createMerged(ref: AllocateOnce, bs:Seq[LBits]) : IoBits = {
+  def createMerged(ref: AllocateOnce, bs:Seq[Ref[LBits]]) : IoBits = {
     val openRes =
       using( ref.create ) { out =>
         writeMerged(out, bs)

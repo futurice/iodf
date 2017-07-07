@@ -20,11 +20,20 @@ trait Ref[T] extends Handle{
   def isClosed : Boolean
   def get : T
   def openCopy : Ref[T]
-  def openMap[E](f:T => E) : Ref[E] = {
+  def openCopyAs[E](f:T => E) : Ref[E] = {
     val c : Ref[T] = openCopy
     new Ref[E] {
       override def get: E = f(c.get)
-      override def openCopy: Ref[E] = c.openMap(f)
+      override def openCopy: Ref[E] = c.openCopyAs(f)
+      override def close(): Unit = c.close
+      override def isClosed = c.isClosed
+    }
+  }
+  def as[E](f:T => E) : Ref[E] = {
+    val c = this
+    new Ref[E] {
+      override def get: E = f(c.get)
+      override def openCopy: Ref[E] = c.openCopyAs(f)
       override def close(): Unit = c.close
       override def isClosed = c.isClosed
     }
@@ -34,8 +43,8 @@ trait Ref[T] extends Handle{
   def copy(implicit bind:IoScope): Ref[T] = {
     bind(openCopy)
   }
-  def map[E](f: T => E )(implicit bind:IoScope) : Ref[E] = {
-    bind(openMap(f))
+  def copyAs[E](f: T => E )(implicit bind:IoScope) : Ref[E] = {
+    bind(openCopyAs(f))
   }
 }
 
@@ -77,12 +86,26 @@ object Ref {
       value.toString + "@" + refCount
   }
 
+  def mock[T](value:T) : Ref[T] = new Ref[T] {
+    var isClosed = false;
+
+    override def get: T = value
+
+    override def openCopy: Ref[T] = mock[T](value)
+
+    override def close(): Unit = isClosed = true
+  }
+
   def open[T](value:T, closer:() => Unit ): Ref[T] = {
     open[T](value, new RefCount(closer, 0))
   }
 
   def open[T <: Closeable](value:T): Ref[T] = {
     open[T](value, () => value.close)
+  }
+
+  def apply[T <: Closeable](value:T)(implicit bind:IoScope)  = {
+    bind(open[T](value))
   }
 
 }

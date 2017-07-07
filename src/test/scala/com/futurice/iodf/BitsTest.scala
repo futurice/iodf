@@ -6,7 +6,7 @@ import com.futurice.testtoys.{TestSuite, TestTool}
 import com.futurice.iodf.store.{MMapDir, RamDir}
 import com.futurice.iodf.Utils._
 import com.futurice.iodf.ioseq._
-import com.futurice.iodf.util.{LBits, LSeq, MultiBits, Tracing}
+import com.futurice.iodf.util._
 
 import scala.reflect.runtime.universe._
 import scala.util.Random
@@ -238,8 +238,8 @@ class BitsTest extends TestSuite("bits") {
       LBits(bs.zipWithIndex.filter(_._1).map(_._2.toLong), bs.size.toLong))
 
   def toMultiBits(bs:Seq[Boolean])(implicit scope:IoScope, io:IoContext) =
-    MultiBits(
-      bs.grouped(179).map { toIoBits(_) }.toSeq )
+    MultiBits.donate(
+      bs.grouped(179).map { bs => Ref.open(toIoBits(bs)) }.toSeq )
 
   test("lbits-boolean") { t =>
     tTestBits(t, toBooleanBits, verbose = true)

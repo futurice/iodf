@@ -10,25 +10,26 @@ class Tracing() {
   val l = LoggerFactory.getLogger(getClass)
 
   val open = mutable.Map[Any, Exception]()
-  val _closed = mutable.WeakHashMap[Any, Exception]()
+  val _closed = mutable.WeakHashMap[Any, (Exception, Exception)]()
   var openItems = 0
 
   def opened(trace:Any) = synchronized {
-    open += (trace -> new RuntimeException("leaked reference"))
+    open += (trace -> new RuntimeException("created here!"))
     openItems += 1
   }
   def closed(trace:Any) = synchronized {
     open.remove(trace) match {
-      case Some(v) =>
-        _closed += (trace -> new RuntimeException("was closed first here"))
+      case Some(err) =>
+        _closed += (trace -> (err, new RuntimeException("was closed first here")))
       case None =>
-        l.error("" + trace + " was deleted twice! ", new RuntimeException("here"))
         _closed.get(trace) match {
           case Some(e) =>
-            l.error( trace + " was first deleted here", e)
+            l.error( trace + " was create here", e._1)
+            l.error( "then " + trace + " was deleted here", e._2)
           case None =>
             l.error("either non-traced item was reported closed or we forgot deletion?")
         }
+        l.error("and then " + trace + " was deleted second time! ", new RuntimeException("here"))
     }
     openItems -= 1
   }

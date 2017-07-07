@@ -3,6 +3,7 @@ package com.futurice.iodf.io
 import java.io.OutputStream
 
 import com.futurice.iodf.util.{Handle, Ref, Tracing}
+import org.slf4j.LoggerFactory
 import xerial.larray.buffer.{Memory, UnsafeUtil}
 
 /**
@@ -20,11 +21,15 @@ class DataAccess(val _dataRef:DataRef,
                  val until:Option[Long] = None)
   extends Handle {
 
+  var isClosed = false
+
+  val logger = LoggerFactory.getLogger(getClass)
   val dataRef = _dataRef.openCopy
   val ref = _memRef.openCopy
   Tracing.opened(this)
 
   override def close(): Unit = {
+    isClosed = true
     dataRef.close()
     ref.close
     Tracing.closed(this)
@@ -47,7 +52,7 @@ class DataAccess(val _dataRef:DataRef,
   }
 
   def safeGetMemoryByte(memory:Long) = {
-    if (ref.isClosed) {
+    if (ref.isClosed || isClosed) {
       throw new RuntimeException("closed")
     }
     if (memory < address || memory >= address + size) {
@@ -68,10 +73,19 @@ class DataAccess(val _dataRef:DataRef,
   }
 
   def checkRange(offset:Long, sz:Long) = {
-    if (offset < 0 || offset + sz > size) {
+    if (offset < 0 || offset + sz > size) {7
       throw new RuntimeException(offset + s" is outside the range [0, $size]")
     }
-    if (ref.isClosed) {
+    if (ref.isClosed || isClosed) {
+      Tracing.tracing.foreach {
+        _._closed.get(this.ref).foreach { e =>
+          System.out.println("memory resource "  + m.address + " was closed before")
+          System.out.println("it was created here")
+          e._1.printStackTrace()
+          System.out.println("and closed here for first time")
+          e._2.printStackTrace()
+        }
+      }
       throw new RuntimeException("memory resource " + m.address + " is closed")
     }
   }

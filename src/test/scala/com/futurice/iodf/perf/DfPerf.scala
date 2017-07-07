@@ -7,7 +7,7 @@ import com.futurice.iodf.Utils._
 import com.futurice.iodf._
 import com.futurice.iodf.df.{IndexConf, IndexedDf, MultiDf, TypedDf}
 import com.futurice.iodf.store.{AllocateOnce, MMapDir, MMapFile}
-import com.futurice.iodf.util.{LBits, Tracing}
+import com.futurice.iodf.util.{LBits, Ref, Tracing}
 import com.futurice.testtoys.{TestSuite, TestTool}
 
 import scala.concurrent.Await
@@ -172,8 +172,9 @@ class DfPerf extends TestSuite("perf/df") {
                 t.iMsLn(
                   using(new MemoryMonitor(100)) { mem: MemoryMonitor =>
                     val df =
-                      bind(IndexedDf.viewMerged(
-                        dfFiles.map(_.openAs[IndexedDf[ExampleItem]]), colIdMemRatio))
+                      bind(
+                        IndexedDf.viewMerged(
+                          dfFiles.map(f => Ref(f.openAs[IndexedDf[ExampleItem]])), colIdMemRatio))
                     (Await.result(mem.finish, Duration.Inf), df)
                   })
               t.tln

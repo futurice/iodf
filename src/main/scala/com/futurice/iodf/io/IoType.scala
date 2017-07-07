@@ -118,7 +118,7 @@ trait IoType[Interface, IoInstance <: Interface] extends IoWriter[Interface] wit
 }
 
 trait Merging[Interface] {
-  def viewMerged(seqs:Seq[Interface]) : Interface
+  def viewMerged(seqs:Seq[Ref[Interface]]) : Interface
 }
 
 trait SizedMerging[Interface] extends Merging[Interface] {
@@ -126,7 +126,7 @@ trait SizedMerging[Interface] extends Merging[Interface] {
 }
 
 trait MergeableIoType[Interface, IoInstance <: Interface] extends IoType[Interface, IoInstance] with Merging[Interface] {
-  def writeMerged(out:DataOutput, ss:Seq[Interface]) = {
+  def writeMerged(out:DataOutput, ss:Seq[Ref[Interface]]) = {
     write(out, viewMerged(ss))
   }
 }

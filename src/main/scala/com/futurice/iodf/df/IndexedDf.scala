@@ -42,11 +42,11 @@ case class IndexConf[ColId](analyzers:Map[ColId, Any => Seq[Any]] = Map[ColId, A
 
 object IndexedDf {
 
-  def viewMerged[T:TypeTag:ClassTag](dfs:Seq[IndexedDf[T]], colIdMemRatio:Int = DefaultColIdMemRatio)(
+  def viewMerged[T:TypeTag:ClassTag](dfs:Seq[Ref[IndexedDf[T]]], colIdMemRatio:Int = DefaultColIdMemRatio)(
     implicit io:IoContext) : IndexedDf[T]= {
     IndexedDf[T](
-      TypedDf.viewMerged[T](dfs.map(_.df), colIdMemRatio),
-      MultiDf[(String, Any)](dfs.map(_.indexDf), IndexedDf.indexMerging)(indexColIdOrdering))
+      TypedDf.viewMerged[T](dfs.map(_.as(_.df)), colIdMemRatio),
+      MultiDf.open[(String, Any)](dfs.map(_.as(_.indexDf)), IndexedDf.indexMerging)(indexColIdOrdering))
   }
 
 
@@ -273,10 +273,10 @@ class IndexedDfIoType[T:ClassTag:TypeTag](
       })
   }
 
-  override def viewMerged(seqs: Seq[IndexedDf[T]]): IndexedDf[T] = {
+  override def viewMerged(seqs: Seq[Ref[IndexedDf[T]]]): IndexedDf[T] = {
     IndexedDf(
-      dfType.viewMerged(seqs.map(_.df)),
-      MultiDf[(String, Any)](seqs.map(_.indexDf), IndexedDf.indexMerging)(
+      dfType.viewMerged(seqs.map(_.as(_.df))),
+      MultiDf.open[(String, Any)](seqs.map(_.as(_.indexDf)), IndexedDf.indexMerging)(
         IndexedDf.indexColIdOrdering[String]
       )
     )

@@ -243,7 +243,7 @@ class BitsPerf extends TestSuite("perf/bits") {
 
   test("multi-bits") { t =>
     Tracing.lightTrace {
-      using (IoScope.open) { implicit scope =>
+      using (IoScope.open) { implicit bind =>
         val rnd = new Random(0)
         implicit val io = IoContext()
         t.t("creating multibits..")
@@ -252,8 +252,9 @@ class BitsPerf extends TestSuite("perf/bits") {
         val mbits =
           t.iMsLn(
             Array(4, 8, 12).map(s => Math.pow(0.5, s)).map { p =>
-              (p, MultiBits(
-                (0 until parts).map(i => makeBits(v => IoBits(v), p, n / parts, rnd))
+              (p, bind(MultiBits.donate(
+                (0 until parts).map(i =>
+                  Ref.open(makeBits(v => IoBits.create(v), p, n / parts, rnd))))
               ))
             })
         t.t("creating bits of different sparseness..")

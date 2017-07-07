@@ -1,417 +1,417 @@
-creating bits..347 ms (was 442 ms)
+creating bits..412 ms (was 597 ms)
 p(a)=1.00000, type:com.futurice.iodf.ioseq.WrappedIoBits
-  popcount took    0.024s us, was 0.028 us  - ok 
-  negation took    2657.895s us, was 2020.000 us  - ok 
+  popcount took    0.024s us, was 0.025 us  - ok 
+  negation took    2564.103s us, was 2885.714 us  - ok 
 
   p(b)=1.00000, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        18.674s us, was 19.543 us  - ok 
-    & took           2127.660s us, was 1578.125 us  - ok 
-    &~ took          2148.936s us, was 1562.500 us  - ok 
-    merge took       4000.000s us, was 2657.895 us  - ok 
+    fAnd took        18.539s us, was 18.612 us  - ok 
+    & took           2244.444s us, was 2325.581 us  - ok 
+    &~ took          2222.222s us, was 2318.182 us  - ok 
+    merge took       9272.727s us, was 4000.000 us  - WORSE!
 
   p(b)=0.25000, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        16.998s us, was 18.015 us  - ok 
-    & took           2318.182s us, was 1612.903 us  - ok 
-    &~ took          2244.444s us, was 1603.175 us  - ok 
-    merge took       3777.778s us, was 2702.703 us  - ok 
+    fAnd took        17.406s us, was 17.806 us  - ok 
+    & took           2295.455s us, was 2439.024 us  - ok 
+    &~ took          2244.444s us, was 2439.024 us  - ok 
+    merge took       3846.154s us, was 3961.538 us  - ok 
 
   p(b)=0.06250, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        17.021s us, was 17.709 us  - ok 
-    & took           2195.652s us, was 1538.462 us  - ok 
-    &~ took          2173.913s us, was 1515.152 us  - ok 
-    merge took       3777.778s us, was 2589.744 us  - ok 
+    fAnd took        16.739s us, was 16.946 us  - ok 
+    & took           2325.581s us, was 2372.093 us  - ok 
+    &~ took          2222.222s us, was 2348.837 us  - ok 
+    merge took       3923.077s us, was 3923.077 us  - ok 
 
   p(b)=0.01563, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        17.042s us, was 17.565 us  - ok 
-    & took           2244.444s us, was 1562.500 us  - ok 
-    &~ took          2272.727s us, was 1587.302 us  - ok 
-    merge took       4347.826s us, was 2657.895 us  - ok 
+    fAnd took        17.044s us, was 16.773 us  - ok 
+    & took           2348.837s us, was 2380.952 us  - ok 
+    &~ took          2325.581s us, was 2439.024 us  - ok 
+    merge took       3884.615s us, was 3923.077 us  - ok 
 
   p(b)=0.00391, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        17.224s us, was 17.806 us  - ok 
-    & took           2272.727s us, was 1553.846 us  - ok 
-    &~ took          2239.130s us, was 1538.462 us  - ok 
-    merge took       4040.000s us, was 2756.757 us  - ok 
+    fAnd took        16.883s us, was 16.966 us  - ok 
+    & took           2244.444s us, was 2380.952 us  - ok 
+    &~ took          2244.444s us, was 2348.837 us  - ok 
+    merge took       3923.077s us, was 3884.615 us  - ok 
 
   p(b)=0.00098, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        6.439s us, was 8.413 us  - ok 
-    & took           219.298s us, was 216.920 us  - ok 
-    &~ took          4333.333s us, was 2000.000 us  - WORSE!
-    merge took       4250.000s us, was 9363.636 us  - better!
+    fAnd took        5.623s us, was 8.840 us  - ok 
+    & took           192.678s us, was 229.358 us  - ok 
+    &~ took          2295.455s us, was 2318.182 us  - ok 
+    merge took       4040.000s us, was 4166.667 us  - ok 
 
   p(b)=0.00024, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        1.207s us, was 1.928 us  - ok 
-    & took           53.022s us, was 70.922 us  - ok 
-    &~ took          3060.606s us, was 4583.333 us  - ok 
-    merge took       6625.000s us, was 10800.000 us  - ok 
+    fAnd took        1.117s us, was 1.704 us  - ok 
+    & took           47.870s us, was 57.637 us  - ok 
+    &~ took          2222.222s us, was 2272.727 us  - ok 
+    merge took       4000.000s us, was 4208.333 us  - ok 
 
   p(b)=0.00006, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        0.623s us, was 0.841 us  - ok 
-    & took           20.794s us, was 41.929 us  - better!
-    &~ took          3551.724s us, was 1578.125 us  - WORSE!
-    merge took       7357.143s us, was 2885.714 us  - WORSE!
+    fAnd took        0.331s us, was 0.487 us  - ok 
+    & took           14.126s us, was 21.268 us  - ok 
+    &~ took          2272.727s us, was 2272.727 us  - ok 
+    merge took       4000.000s us, was 4120.000 us  - ok 
 
 p(a)=0.25000, type:com.futurice.iodf.ioseq.WrappedIoBits
-  popcount took    0.036s us, was 0.029 us  - ok 
-  negation took    2525.000s us, was 2000.000 us  - ok 
+  popcount took    0.027s us, was 0.028 us  - ok 
+  negation took    2729.730s us, was 3000.000 us  - ok 
 
   p(b)=1.00000, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        16.795s us, was 17.153 us  - ok 
-    & took           2244.444s us, was 1530.303 us  - ok 
-    &~ took          2272.727s us, was 1639.344 us  - ok 
-    merge took       4166.667s us, was 2500.000 us  - ok 
+    fAnd took        17.001s us, was 17.036 us  - ok 
+    & took           2318.182s us, was 2463.415 us  - ok 
+    &~ took          2244.444s us, was 2348.837 us  - ok 
+    merge took       3884.615s us, was 3961.538 us  - ok 
 
   p(b)=0.25000, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        17.047s us, was 16.912 us  - ok 
-    & took           2500.000s us, was 1492.537 us  - ok 
-    &~ took          2222.222s us, was 1492.537 us  - ok 
-    merge took       3884.615s us, was 2525.000 us  - ok 
+    fAnd took        16.872s us, was 16.636 us  - ok 
+    & took           2318.182s us, was 2463.415 us  - ok 
+    &~ took          2272.727s us, was 2500.000 us  - ok 
+    merge took       3961.538s us, was 4000.000 us  - ok 
 
   p(b)=0.06250, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        17.071s us, was 17.292 us  - ok 
-    & took           2272.727s us, was 1629.032 us  - ok 
-    &~ took          2222.222s us, was 2083.333 us  - ok 
-    merge took       3846.154s us, was 2525.000 us  - ok 
+    fAnd took        17.596s us, was 16.767 us  - ok 
+    & took           2380.952s us, was 2463.415 us  - ok 
+    &~ took          2272.727s us, was 2631.579 us  - ok 
+    merge took       3923.077s us, was 4809.524 us  - ok 
 
   p(b)=0.01563, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        16.773s us, was 17.373 us  - ok 
-    & took           2325.581s us, was 1639.344 us  - ok 
-    &~ took          2318.182s us, was 1612.903 us  - ok 
-    merge took       3814.815s us, was 2589.744 us  - ok 
+    fAnd took        17.578s us, was 16.946 us  - ok 
+    & took           2463.415s us, was 2702.703 us  - ok 
+    &~ took          7176.471s us, was 2525.000 us  - WORSE!
+    merge took       4166.667s us, was 4040.000 us  - ok 
 
   p(b)=0.00391, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        16.852s us, was 17.221 us  - ok 
-    & took           2222.222s us, was 1538.462 us  - ok 
-    &~ took          2348.837s us, was 1593.750 us  - ok 
-    merge took       3777.778s us, was 3258.065 us  - ok 
+    fAnd took        17.030s us, was 16.821 us  - ok 
+    & took           2325.581s us, was 2428.571 us  - ok 
+    &~ took          2372.093s us, was 2439.024 us  - ok 
+    merge took       3884.615s us, was 4391.304 us  - ok 
 
   p(b)=0.00098, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        5.184s us, was 7.546 us  - ok 
-    & took           67.659s us, was 77.942 us  - ok 
-    &~ took          2222.222s us, was 1666.667 us  - ok 
-    merge took       3884.615s us, was 2857.143 us  - ok 
+    fAnd took        4.802s us, was 7.502 us  - ok 
+    & took           73.638s us, was 154.321 us  - better!
+    &~ took          2325.581s us, was 3060.606 us  - ok 
+    merge took       4166.667s us, was 4809.524 us  - ok 
 
   p(b)=0.00024, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        1.106s us, was 1.624 us  - ok 
-    & took           19.109s us, was 23.929 us  - ok 
-    &~ took          2272.727s us, was 1553.846 us  - ok 
-    merge took       3923.077s us, was 2805.556 us  - ok 
+    fAnd took        1.133s us, was 1.698 us  - ok 
+    & took           19.172s us, was 27.640 us  - ok 
+    &~ took          2318.182s us, was 2404.762 us  - ok 
+    merge took       4080.000s us, was 4250.000 us  - ok 
 
   p(b)=0.00006, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        0.324s us, was 0.464 us  - ok 
-    & took           6.757s us, was 12.503 us  - ok 
-    &~ took          2195.652s us, was 1553.846 us  - ok 
-    merge took       3923.077s us, was 2885.714 us  - ok 
+    fAnd took        0.330s us, was 0.487 us  - ok 
+    & took           7.713s us, was 9.718 us  - ok 
+    &~ took          2380.952s us, was 2404.762 us  - ok 
+    merge took       4166.667s us, was 4166.667 us  - ok 
 
 p(a)=0.06250, type:com.futurice.iodf.ioseq.WrappedIoBits
-  popcount took    0.027s us, was 0.029 us  - ok 
-  negation took    2272.727s us, was 1724.138 us  - ok 
+  popcount took    0.028s us, was 0.028 us  - ok 
+  negation took    2657.895s us, was 2941.176 us  - ok 
 
   p(b)=1.00000, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        18.667s us, was 17.797 us  - ok 
-    & took           2040.816s us, was 1960.784 us  - ok 
-    &~ took          2148.936s us, was 1538.462 us  - ok 
-    merge took       3678.571s us, was 2463.415 us  - ok 
+    fAnd took        16.818s us, was 16.611 us  - ok 
+    & took           2272.727s us, was 2348.837 us  - ok 
+    &~ took          2217.391s us, was 2325.581 us  - ok 
+    merge took       3777.778s us, was 3923.077 us  - ok 
 
   p(b)=0.25000, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        17.033s us, was 17.550 us  - ok 
-    & took           2195.652s us, was 2104.167 us  - ok 
-    &~ took          2244.444s us, was 1562.500 us  - ok 
-    merge took       3740.741s us, was 2564.103 us  - ok 
+    fAnd took        17.603s us, was 16.969 us  - ok 
+    & took           2380.952s us, was 2525.000 us  - ok 
+    &~ took          2295.455s us, was 2439.024 us  - ok 
+    merge took       3884.615s us, was 4040.000 us  - ok 
 
   p(b)=0.06250, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        16.592s us, was 17.443 us  - ok 
-    & took           2083.333s us, was 2000.000 us  - ok 
-    &~ took          2173.913s us, was 1492.537 us  - ok 
-    merge took       3777.778s us, was 2500.000 us  - ok 
+    fAnd took        16.692s us, was 16.739 us  - ok 
+    & took           2272.727s us, was 2404.762 us  - ok 
+    &~ took          2266.667s us, was 2348.837 us  - ok 
+    merge took       3884.615s us, was 4000.000 us  - ok 
 
   p(b)=0.01563, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        17.277s us, was 17.819 us  - ok 
-    & took           2173.913s us, was 2040.816 us  - ok 
-    &~ took          2244.444s us, was 1612.903 us  - ok 
-    merge took       3814.815s us, was 4080.000 us  - ok 
+    fAnd took        17.649s us, was 17.331 us  - ok 
+    & took           2372.093s us, was 2439.024 us  - ok 
+    &~ took          2318.182s us, was 2404.762 us  - ok 
+    merge took       3923.077s us, was 4000.000 us  - ok 
 
   p(b)=0.00391, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        16.903s us, was 22.277 us  - ok 
-    & took           2127.660s us, was 3607.143 us  - ok 
-    &~ took          2195.652s us, was 1818.182 us  - ok 
-    merge took       3740.741s us, was 2805.556 us  - ok 
+    fAnd took        17.334s us, was 17.203 us  - ok 
+    & took           2295.455s us, was 2380.952 us  - ok 
+    &~ took          2487.805s us, was 2428.571 us  - ok 
+    merge took       3884.615s us, was 3961.538 us  - ok 
 
   p(b)=0.00098, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        4.924s us, was 7.034 us  - ok 
-    & took           41.118s us, was 47.304 us  - ok 
-    &~ took          2195.652s us, was 1530.303 us  - ok 
-    merge took       3846.154s us, was 2833.333 us  - ok 
+    fAnd took        5.054s us, was 6.936 us  - ok 
+    & took           46.339s us, was 81.500 us  - ok 
+    &~ took          2325.581s us, was 2380.952 us  - ok 
+    merge took       4120.000s us, was 4250.000 us  - ok 
 
   p(b)=0.00024, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        1.085s us, was 1.598 us  - ok 
-    & took           11.579s us, was 16.866 us  - ok 
-    &~ took          2173.913s us, was 1754.386 us  - ok 
-    merge took       3814.815s us, was 2756.757 us  - ok 
+    fAnd took        1.120s us, was 1.676 us  - ok 
+    & took           13.392s us, was 21.259 us  - ok 
+    &~ took          2295.455s us, was 2318.182 us  - ok 
+    merge took       4080.000s us, was 4208.333 us  - ok 
 
   p(b)=0.00006, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        0.322s us, was 0.468 us  - ok 
-    & took           5.143s us, was 10.739 us  - better!
-    &~ took          2148.936s us, was 1485.294 us  - ok 
-    merge took       3777.778s us, was 2729.730 us  - ok 
+    fAnd took        0.327s us, was 0.496 us  - ok 
+    & took           6.325s us, was 8.225 us  - ok 
+    &~ took          2380.952s us, was 2325.581 us  - ok 
+    merge took       4120.000s us, was 4291.667 us  - ok 
 
 p(a)=0.01563, type:com.futurice.iodf.ioseq.WrappedIoBits
-  popcount took    0.027s us, was 0.028 us  - ok 
-  negation took    2348.837s us, was 1771.930 us  - ok 
+  popcount took    0.027s us, was 0.029 us  - ok 
+  negation took    2684.211s us, was 2970.588 us  - ok 
 
   p(b)=1.00000, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        16.844s us, was 17.013 us  - ok 
-    & took           2127.660s us, was 1923.077 us  - ok 
-    &~ took          2222.222s us, was 1515.152 us  - ok 
-    merge took       3740.741s us, was 2500.000 us  - ok 
+    fAnd took        17.056s us, was 16.941 us  - ok 
+    & took           2348.837s us, was 2404.762 us  - ok 
+    &~ took          2295.455s us, was 2372.093 us  - ok 
+    merge took       3884.615s us, was 3923.077 us  - ok 
 
   p(b)=0.25000, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        17.024s us, was 17.343 us  - ok 
-    & took           2222.222s us, was 2061.224 us  - ok 
-    &~ took          2272.727s us, was 1603.175 us  - ok 
-    merge took       3846.154s us, was 2564.103 us  - ok 
+    fAnd took        17.575s us, was 16.920 us  - ok 
+    & took           2439.024s us, was 2589.744 us  - ok 
+    &~ took          2348.837s us, was 2463.415 us  - ok 
+    merge took       4000.000s us, was 4080.000 us  - ok 
 
   p(b)=0.06250, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        16.832s us, was 17.203 us  - ok 
-    & took           2127.660s us, was 1980.392 us  - ok 
-    &~ took          2372.093s us, was 1538.462 us  - ok 
-    merge took       3777.778s us, was 2550.000 us  - ok 
+    fAnd took        17.394s us, was 17.498 us  - ok 
+    & took           2439.024s us, was 2404.762 us  - ok 
+    &~ took          2348.837s us, was 2428.571 us  - ok 
+    merge took       4040.000s us, was 4000.000 us  - ok 
 
   p(b)=0.01563, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        16.502s us, was 16.656 us  - ok 
-    & took           2127.660s us, was 1905.660 us  - ok 
-    &~ took          2222.222s us, was 1530.303 us  - ok 
-    merge took       3923.077s us, was 2631.579 us  - ok 
+    fAnd took        17.256s us, was 16.681 us  - ok 
+    & took           2380.952s us, was 2404.762 us  - ok 
+    &~ took          2348.837s us, was 2439.024 us  - ok 
+    merge took       4166.667s us, was 4040.000 us  - ok 
 
   p(b)=0.00391, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        16.838s us, was 17.295 us  - ok 
-    & took           2170.213s us, was 1942.308 us  - ok 
-    &~ took          2244.444s us, was 1562.500 us  - ok 
-    merge took       3814.815s us, was 2550.000 us  - ok 
+    fAnd took        17.921s us, was 17.167 us  - ok 
+    & took           2439.024s us, was 2428.571 us  - ok 
+    &~ took          2404.762s us, was 2404.762 us  - ok 
+    merge took       4040.000s us, was 4000.000 us  - ok 
 
   p(b)=0.00098, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        4.853s us, was 6.735 us  - ok 
-    & took           35.676s us, was 39.588 us  - ok 
-    &~ took          2244.444s us, was 1562.500 us  - ok 
-    merge took       3923.077s us, was 2885.714 us  - ok 
+    fAnd took        5.089s us, was 7.046 us  - ok 
+    & took           40.750s us, was 75.019 us  - ok 
+    &~ took          2428.571s us, was 2404.762 us  - ok 
+    merge took       4250.000s us, was 4291.667 us  - ok 
 
   p(b)=0.00024, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        1.082s us, was 1.628 us  - ok 
-    & took           9.967s us, was 15.002 us  - ok 
-    &~ took          2244.444s us, was 1629.032 us  - ok 
-    merge took       3846.154s us, was 2941.176 us  - ok 
+    fAnd took        1.165s us, was 1.694 us  - ok 
+    & took           12.287s us, was 19.520 us  - ok 
+    &~ took          2589.744s us, was 2372.093 us  - ok 
+    merge took       6500.000s us, was 4250.000 us  - ok 
 
   p(b)=0.00006, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        0.324s us, was 0.481 us  - ok 
-    & took           4.235s us, was 9.744 us  - better!
-    &~ took          2244.444s us, was 1578.125 us  - ok 
-    merge took       3884.615s us, was 2914.286 us  - ok 
+    fAnd took        0.363s us, was 0.491 us  - ok 
+    & took           7.046s us, was 7.025 us  - ok 
+    &~ took          3740.741s us, was 2325.581 us  - ok 
+    merge took       8416.667s us, was 4208.333 us  - WORSE!
 
 p(a)=0.00391, type:com.futurice.iodf.ioseq.WrappedIoBits
-  popcount took    0.027s us, was 0.029 us  - ok 
-  negation took    2272.727s us, was 1754.386 us  - ok 
+  popcount took    0.034s us, was 0.029 us  - ok 
+  negation took    3884.615s us, was 2914.286 us  - ok 
 
   p(b)=1.00000, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        16.844s us, was 17.828 us  - ok 
-    & took           2104.167s us, was 1851.852 us  - ok 
-    &~ took          2148.936s us, was 1515.152 us  - ok 
-    merge took       3678.571s us, was 2525.000 us  - ok 
+    fAnd took        18.639s us, was 16.818 us  - ok 
+    & took           2463.415s us, was 2325.581 us  - ok 
+    &~ took          2404.762s us, was 2380.952 us  - ok 
+    merge took       4208.333s us, was 3923.077 us  - ok 
 
   p(b)=0.25000, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        16.686s us, was 17.358 us  - ok 
-    & took           2127.660s us, was 1980.392 us  - ok 
-    &~ took          2222.222s us, was 1562.500 us  - ok 
-    merge took       3740.741s us, was 2525.000 us  - ok 
+    fAnd took        17.928s us, was 16.810 us  - ok 
+    & took           2550.000s us, was 2380.952 us  - ok 
+    &~ took          2641.026s us, was 2404.762 us  - ok 
+    merge took       6312.500s us, was 3961.538 us  - ok 
 
   p(b)=0.06250, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        16.697s us, was 19.736 us  - ok 
-    & took           2083.333s us, was 1905.660 us  - ok 
-    &~ took          2173.913s us, was 1507.463 us  - ok 
-    merge took       3740.741s us, was 2463.415 us  - ok 
+    fAnd took        17.995s us, was 17.144 us  - ok 
+    & took           2325.581s us, was 2380.952 us  - ok 
+    &~ took          2372.093s us, was 2380.952 us  - ok 
+    merge took       3961.538s us, was 3961.538 us  - ok 
 
   p(b)=0.01563, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        16.669s us, was 17.056 us  - ok 
-    & took           2127.660s us, was 1960.784 us  - ok 
-    &~ took          2222.222s us, was 1562.500 us  - ok 
-    merge took       3740.741s us, was 2550.000 us  - ok 
+    fAnd took        17.634s us, was 17.194 us  - ok 
+    & took           2372.093s us, was 2404.762 us  - ok 
+    &~ took          2325.581s us, was 2439.024 us  - ok 
+    merge took       3884.615s us, was 4000.000 us  - ok 
 
   p(b)=0.00391, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        16.628s us, was 16.886 us  - ok 
-    & took           2040.816s us, was 1836.364 us  - ok 
-    &~ took          2148.936s us, was 1515.152 us  - ok 
-    merge took       3740.741s us, was 2729.730 us  - ok 
+    fAnd took        16.866s us, was 16.617 us  - ok 
+    & took           2244.444s us, was 2325.581 us  - ok 
+    &~ took          2222.222s us, was 2348.837 us  - ok 
+    merge took       3846.154s us, was 3961.538 us  - ok 
 
   p(b)=0.00098, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        4.763s us, was 6.662 us  - ok 
-    & took           34.650s us, was 37.230 us  - ok 
-    &~ took          2195.652s us, was 1492.537 us  - ok 
-    merge took       1666.667s us, was 2325.581 us  - ok 
+    fAnd took        4.806s us, was 6.930 us  - ok 
+    & took           37.453s us, was 73.046 us  - ok 
+    &~ took          2272.727s us, was 2404.762 us  - ok 
+    merge took       1234.568s us, was 1449.275 us  - ok 
 
   p(b)=0.00024, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        1.097s us, was 1.619 us  - ok 
-    & took           9.798s us, was 14.463 us  - ok 
-    &~ took          2195.652s us, was 1492.537 us  - ok 
-    merge took       781.250s us, was 1123.596 us  - ok 
+    fAnd took        1.103s us, was 1.697 us  - ok 
+    & took           10.922s us, was 19.305 us  - ok 
+    &~ took          2272.727s us, was 2325.581 us  - ok 
+    merge took       833.333s us, was 900.901 us  - ok 
 
   p(b)=0.00006, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        0.328s us, was 0.464 us  - ok 
-    & took           4.351s us, was 9.670 us  - better!
-    &~ took          2173.913s us, was 1492.537 us  - ok 
-    merge took       763.359s us, was 1111.111 us  - ok 
+    fAnd took        0.336s us, was 0.488 us  - ok 
+    & took           5.184s us, was 7.198 us  - ok 
+    &~ took          2295.455s us, was 2318.182 us  - ok 
+    merge took       800.000s us, was 854.701 us  - ok 
 
 p(a)=0.00098, type:com.futurice.iodf.ioseq.WrappedIoBits
-  popcount took    0.030s us, was 0.028 us  - ok 
-  negation took    2564.103s us, was 1851.852 us  - ok 
+  popcount took    0.028s us, was 0.028 us  - ok 
+  negation took    2833.333s us, was 3290.323 us  - ok 
 
   p(b)=1.00000, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        5.304s us, was 6.725 us  - ok 
-    & took           203.252s us, was 141.643 us  - ok 
-    &~ took          51.813s us, was 41.000 us  - ok 
-    merge took       3777.778s us, was 2756.757 us  - ok 
+    fAnd took        4.895s us, was 7.087 us  - ok 
+    & took           169.779s us, was 304.878 us  - ok 
+    &~ took          56.180s us, was 67.114 us  - ok 
+    merge took       4166.667s us, was 4809.524 us  - ok 
 
   p(b)=0.25000, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        5.193s us, was 6.767 us  - ok 
-    & took           71.276s us, was 69.930 us  - ok 
-    &~ took          2777.778s us, was 3607.143 us  - ok 
-    merge took       3884.615s us, was 2885.714 us  - ok 
+    fAnd took        4.874s us, was 7.230 us  - ok 
+    & took           91.158s us, was 143.062 us  - ok 
+    &~ took          2777.778s us, was 2805.556 us  - ok 
+    merge took       4250.000s us, was 4291.667 us  - ok 
 
   p(b)=0.06250, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        5.241s us, was 6.943 us  - ok 
-    & took           45.683s us, was 45.558 us  - ok 
-    &~ took          3642.857s us, was 3678.571 us  - ok 
-    merge took       3884.615s us, was 2805.556 us  - ok 
+    fAnd took        5.123s us, was 6.995 us  - ok 
+    & took           60.643s us, was 82.850 us  - ok 
+    &~ took          3703.704s us, was 3703.704 us  - ok 
+    merge took       4208.333s us, was 4166.667 us  - ok 
 
   p(b)=0.01563, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        5.282s us, was 6.843 us  - ok 
-    & took           38.344s us, was 40.241 us  - ok 
-    &~ took          3884.615s us, was 4120.000 us  - ok 
-    merge took       3923.077s us, was 2970.588 us  - ok 
+    fAnd took        5.082s us, was 7.069 us  - ok 
+    & took           52.466s us, was 75.643 us  - ok 
+    &~ took          3923.077s us, was 3740.741 us  - ok 
+    merge took       4208.333s us, was 4291.667 us  - ok 
 
   p(b)=0.00391, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        5.214s us, was 6.953 us  - ok 
-    & took           37.693s us, was 37.736 us  - ok 
-    &~ took          4000.000s us, was 4000.000 us  - ok 
-    merge took       892.857s us, was 1219.512 us  - ok 
+    fAnd took        4.907s us, was 6.941 us  - ok 
+    & took           51.813s us, was 72.622 us  - ok 
+    &~ took          4000.000s us, was 3846.154 us  - ok 
+    merge took       917.431s us, was 1052.632 us  - ok 
 
   p(b)=0.00098, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        10.010s us, was 14.986 us  - ok 
-    & took           219.298s us, was 207.469 us  - ok 
-    &~ took          75.873s us, was 82.169 us  - ok 
-    merge took       312.500s us, was 359.712 us  - ok 
+    fAnd took        9.378s us, was 29.507 us  - better!
+    & took           170.068s us, was 182.815 us  - ok 
+    &~ took          41.425s us, was 59.916 us  - ok 
+    merge took       305.810s us, was 471.698 us  - ok 
 
   p(b)=0.00024, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        15.501s us, was 18.179 us  - ok 
-    & took           41.824s us, was 51.948 us  - ok 
-    &~ took          234.742s us, was 226.244 us  - ok 
-    merge took       279.330s us, was 203.252 us  - ok 
+    fAnd took        15.908s us, was 30.883 us  - ok 
+    & took           33.591s us, was 46.773 us  - ok 
+    &~ took          157.233s us, was 178.571 us  - ok 
+    merge took       201.207s us, was 303.951 us  - ok 
 
   p(b)=0.00006, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        7.955s us, was 6.064 us  - ok 
-    & took           16.359s us, was 18.416 us  - ok 
-    &~ took          216.450s us, was 206.186 us  - ok 
-    merge took       164.204s us, was 166.945 us  - ok 
+    fAnd took        5.252s us, was 9.693 us  - ok 
+    & took           16.656s us, was 18.044 us  - ok 
+    &~ took          159.490s us, was 169.492 us  - ok 
+    merge took       177.305s us, was 275.482 us  - ok 
 
 p(a)=0.00024, type:com.futurice.iodf.ioseq.WrappedIoBits
-  popcount took    0.028s us, was 0.028 us  - ok 
-  negation took    2439.024s us, was 1785.714 us  - ok 
+  popcount took    0.029s us, was 0.029 us  - ok 
+  negation took    2914.286s us, was 2684.211 us  - ok 
 
   p(b)=1.00000, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        1.177s us, was 1.739 us  - ok 
-    & took           44.131s us, was 42.445 us  - ok 
-    &~ took          11.052s us, was 14.203 us  - ok 
-    merge took       3814.815s us, was 2756.757 us  - ok 
+    fAnd took        1.158s us, was 1.696 us  - ok 
+    & took           47.081s us, was 53.533 us  - ok 
+    &~ took          13.672s us, was 15.793 us  - ok 
+    merge took       4040.000s us, was 4080.000 us  - ok 
 
   p(b)=0.25000, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        1.177s us, was 1.763 us  - ok 
-    & took           20.272s us, was 22.946 us  - ok 
-    &~ took          126.422s us, was 128.370 us  - ok 
-    merge took       3846.154s us, was 2857.143 us  - ok 
+    fAnd took        1.107s us, was 1.697 us  - ok 
+    & took           24.056s us, was 31.466 us  - ok 
+    &~ took          128.866s us, was 135.870 us  - ok 
+    merge took       4080.000s us, was 4208.333 us  - ok 
 
   p(b)=0.06250, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        1.191s us, was 1.746 us  - ok 
-    & took           12.802s us, was 17.030 us  - ok 
-    &~ took          189.394s us, was 191.939 us  - ok 
-    merge took       3814.815s us, was 2805.556 us  - ok 
+    fAnd took        1.120s us, was 1.680 us  - ok 
+    & took           16.584s us, was 21.858 us  - ok 
+    &~ took          189.394s us, was 196.464 us  - ok 
+    merge took       4080.000s us, was 4166.667 us  - ok 
 
   p(b)=0.01563, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        1.197s us, was 1.779 us  - ok 
-    & took           10.335s us, was 15.029 us  - ok 
-    &~ took          210.526s us, was 211.864 us  - ok 
-    merge took       3884.615s us, was 2857.143 us  - ok 
+    fAnd took        1.107s us, was 1.692 us  - ok 
+    & took           14.086s us, was 19.585 us  - ok 
+    &~ took          211.416s us, was 217.865 us  - ok 
+    merge took       4120.000s us, was 4208.333 us  - ok 
 
   p(b)=0.00391, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        1.172s us, was 1.755 us  - ok 
-    & took           10.121s us, was 15.263 us  - ok 
-    &~ took          210.970s us, was 211.416 us  - ok 
-    merge took       781.250s us, was 1123.596 us  - ok 
+    fAnd took        1.082s us, was 1.694 us  - ok 
+    & took           13.922s us, was 19.131 us  - ok 
+    &~ took          212.766s us, was 218.341 us  - ok 
+    merge took       813.008s us, was 877.193 us  - ok 
 
   p(b)=0.00098, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        10.892s us, was 13.667 us  - ok 
-    & took           22.351s us, was 36.955 us  - ok 
-    &~ took          64.851s us, was 95.511 us  - ok 
-    merge took       186.220s us, was 187.970 us  - ok 
+    fAnd took        11.050s us, was 24.062 us  - better!
+    & took           30.084s us, was 46.147 us  - ok 
+    &~ took          67.705s us, was 86.059 us  - ok 
+    merge took       186.220s us, was 290.698 us  - ok 
 
   p(b)=0.00024, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        3.136s us, was 3.219 us  - ok 
-    & took           40.469s us, was 42.974 us  - ok 
-    &~ took          10.213s us, was 16.192 us  - ok 
-    merge took       77.700s us, was 82.102 us  - ok 
+    fAnd took        3.160s us, was 4.577 us  - ok 
+    & took           41.017s us, was 45.065 us  - ok 
+    &~ took          11.241s us, was 15.763 us  - ok 
+    merge took       76.511s us, was 116.822 us  - ok 
 
   p(b)=0.00006, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        2.825s us, was 3.373 us  - ok 
-    & took           7.266s us, was 14.391 us  - ok 
-    &~ took          40.193s us, was 39.557 us  - ok 
-    merge took       68.966s us, was 59.737 us  - ok 
+    fAnd took        2.943s us, was 6.384 us  - better!
+    & took           9.662s us, was 13.563 us  - ok 
+    &~ took          39.017s us, was 43.403 us  - ok 
+    merge took       54.885s us, was 78.370 us  - ok 
 
 p(a)=0.00006, type:com.futurice.iodf.ioseq.WrappedIoBits
-  popcount took    0.029s us, was 0.029 us  - ok 
-  negation took    2500.000s us, was 1803.571 us  - ok 
+  popcount took    0.034s us, was 0.028 us  - ok 
+  negation took    2885.714s us, was 2702.703 us  - ok 
 
   p(b)=1.00000, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        0.351s us, was 0.500 us  - ok 
-    & took           13.676s us, was 16.926 us  - ok 
-    &~ took          4.148s us, was 8.868 us  - better!
-    merge took       3814.815s us, was 2756.757 us  - ok 
+    fAnd took        0.329s us, was 0.492 us  - ok 
+    & took           14.997s us, was 16.343 us  - ok 
+    &~ took          6.194s us, was 9.079 us  - ok 
+    merge took       4000.000s us, was 4160.000 us  - ok 
 
   p(b)=0.25000, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        0.350s us, was 0.500 us  - ok 
-    & took           7.526s us, was 12.105 us  - ok 
-    &~ took          16.767s us, was 21.720 us  - ok 
-    merge took       3846.154s us, was 2805.556 us  - ok 
+    fAnd took        0.323s us, was 0.500 us  - ok 
+    & took           8.870s us, was 10.269 us  - ok 
+    &~ took          17.556s us, was 19.531 us  - ok 
+    merge took       4040.000s us, was 4291.667 us  - ok 
 
   p(b)=0.06250, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        0.353s us, was 0.503 us  - ok 
-    & took           5.692s us, was 10.799 us  - ok 
-    &~ took          22.212s us, was 26.309 us  - ok 
-    merge took       3777.778s us, was 2756.757 us  - ok 
+    fAnd took        0.324s us, was 0.490 us  - ok 
+    & took           6.999s us, was 8.352 us  - ok 
+    &~ took          22.472s us, was 24.166 us  - ok 
+    merge took       4166.667s us, was 4120.000 us  - ok 
 
   p(b)=0.01563, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        0.356s us, was 0.508 us  - ok 
-    & took           4.436s us, was 9.496 us  - better!
-    &~ took          25.694s us, was 29.958 us  - ok 
-    merge took       3884.615s us, was 2833.333 us  - ok 
+    fAnd took        0.332s us, was 0.493 us  - ok 
+    & took           5.739s us, was 6.978 us  - ok 
+    &~ took          26.103s us, was 27.988 us  - ok 
+    merge took       4080.000s us, was 4208.333 us  - ok 
 
   p(b)=0.00391, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        0.353s us, was 0.503 us  - ok 
-    & took           4.591s us, was 9.653 us  - better!
-    &~ took          25.075s us, was 29.499 us  - ok 
-    merge took       751.880s us, was 1336.957 us  - ok 
+    fAnd took        0.334s us, was 0.493 us  - ok 
+    & took           6.058s us, was 7.309 us  - ok 
+    &~ took          25.927s us, was 27.412 us  - ok 
+    merge took       781.250s us, was 840.336 us  - ok 
 
   p(b)=0.00098, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        4.565s us, was 6.102 us  - ok 
-    & took           9.814s us, was 17.966 us  - ok 
-    &~ took          38.285s us, was 51.840 us  - ok 
-    merge took       169.779s us, was 159.744 us  - ok 
+    fAnd took        4.705s us, was 9.579 us  - better!
+    & took           11.671s us, was 18.580 us  - ok 
+    &~ took          40.634s us, was 56.370 us  - ok 
+    merge took       157.978s us, was 256.410 us  - ok 
 
   p(b)=0.00024, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        2.967s us, was 3.358 us  - ok 
-    & took           7.256s us, was 14.550 us  - better!
-    &~ took          23.375s us, was 24.085 us  - ok 
-    merge took       59.988s us, was 53.022 us  - ok 
+    fAnd took        2.833s us, was 6.257 us  - better!
+    & took           9.642s us, was 13.373 us  - ok 
+    &~ took          18.790s us, was 23.691 us  - ok 
+    merge took       49.950s us, was 80.515 us  - ok 
 
   p(b)=0.00006, type:com.futurice.iodf.ioseq.WrappedIoBits
-    fAnd took        1.045s us, was 0.897 us  - ok 
-    & took           15.041s us, was 16.915 us  - ok 
-    &~ took          4.455s us, was 9.584 us  - better!
-    merge took       24.594s us, was 29.078 us  - ok 
+    fAnd took        0.894s us, was 1.322 us  - ok 
+    & took           12.968s us, was 13.829 us  - ok 
+    &~ took          5.108s us, was 8.074 us  - ok 
+    merge took       24.771s us, was 36.049 us  - ok 
 

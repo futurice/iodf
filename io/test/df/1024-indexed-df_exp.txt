@@ -1,6 +1,6 @@
-creating heap df..20 ms (was 47 ms)
+creating heap df..104 ms (was 20 ms)
 
-creating io df104 ms 
+creating io df..129 ms 
 
 testing heap df:
 
@@ -8,32 +8,32 @@ testing heap df:
   property frequencies: original 2 vs index 498
   name=h frequencies: original 0 vs index 43
 
-  searching 1024 ids...4 ms.
+  searching 1024 ids...8 ms.
 
     checksum:    283674
-    time/lookup: 3 us
+    time/lookup: 7 us
 
-  making 1024 cofreq calculations...25 ms.
+  making 1024 cofreq calculations...29 ms.
 
     checksums:    11129/11129/93
-    time/freq:    24 us
+    time/freq:    28 us
 
-  opening bitsets (no id lookup)...1 ms (was 1 ms)
+  opening bitsets (no id lookup)...2 ms (was 1 ms)
 
   counting freqs...1 ms.
 
     checksum:     10676
     time/freq:    0 us
 
-  comparing bits...5 ms.
+  comparing bits...4 ms.
 
     checksums:    10676/10354/135
-    time/freq:    4 us
+    time/freq:    3 us
 
-  making three way bit and comparisons...83 ms.
+  making three way bit and comparisons...20 ms.
 
     checksums:    60/1
-    time/freq:    81 us
+    time/freq:    19 us
 
 
 testing io df:
@@ -42,32 +42,32 @@ testing io df:
   property frequencies: original 2 vs index 498
   name=h frequencies: original 0 vs index 43
 
-  searching 1024 ids...43 ms.
+  searching 1024 ids...42 ms.
 
     checksum:    283674
     time/lookup: 41 us
 
-  making 1024 cofreq calculations...117 ms.
+  making 1024 cofreq calculations...77 ms.
 
     checksums:    11129/11129/93
-    time/freq:    114 us
+    time/freq:    75 us
 
-  opening bitsets (no id lookup)...9 ms (was 6 ms)
+  opening bitsets (no id lookup)...6 ms (was 9 ms)
 
-  counting freqs...1 ms.
+  counting freqs...0 ms.
 
     checksum:     10676
     time/freq:    0 us
 
-  comparing bits...1 ms.
+  comparing bits...3 ms.
 
     checksums:    10676/10354/135
-    time/freq:    0 us
+    time/freq:    2 us
 
-  making three way bit and comparisons...27 ms.
+  making three way bit and comparisons...10 ms.
 
     checksums:    60/1
-    time/freq:    26 us
+    time/freq:    9 us
 
 comparing main dfs:
 

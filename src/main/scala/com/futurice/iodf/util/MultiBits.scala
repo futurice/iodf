@@ -4,15 +4,26 @@ import com.futurice.iodf.{IoContext, IoScope}
 import com.futurice.iodf.ioseq.IoBits
 
 object MultiBits {
-  //  def apply[IoId](bits:Array[IoBits[_]]) = new MultiBits(bits)
-  def apply(bits:Seq[LBits]) = new MultiBits(bits.toArray)
+  /**
+    * donate closes the given references automatically, after the call
+    */
+  def donate(donatedBits:Seq[Ref[_ <: LBits]]) : MultiBits = {
+    try {
+      new MultiBits(donatedBits.toArray)
+    } finally {
+      donatedBits.foreach { _.close }
+    }
+  }
+  def open(bits:Seq[Ref[_ <: LBits]]) : MultiBits = {
+    new MultiBits(bits.toArray)
+  }
 
   /* it's faster to do bit operations, if both bits have the same scheme */
   def shard[IoId](sharded:LBits, model:MultiBits)(implicit scope:IoScope, io:IoContext): MultiBits = {
     scope.bind(new MultiBits(
       model.ranges.map { case (from, until) =>
-        io.bits.create(sharded.view(from, until))
-      }))
+        Ref.open(io.bits.create(sharded.view(from, until)))
+      }.toArray))
   }
   def maybeShard[IoId](sharded:LBits, model:LBits)(implicit scope:IoScope, io:IoContext): LBits
   = {
@@ -23,7 +34,8 @@ object MultiBits {
   }
 }
 
-class MultiBits(val bits:Array[LBits]) extends MultiSeq[Boolean, LBits](bits) with LBits {
+class MultiBits(_refs:Array[Ref[_ <: LBits]]) extends MultiSeq[Boolean, LBits](_refs) with LBits {
+  val bits = refs.map(_.get)
   override lazy val f: Long = {
     bits.map(_.f).sum
   }
@@ -175,18 +187,18 @@ class MultiBits(val bits:Array[LBits]) extends MultiSeq[Boolean, LBits](bits) wi
 
   override def createAnd(b:LBits)(implicit io:IoContext) = {
     mapOperation(
-      b, _ createAnd _, MultiBits.apply _,
+      b, (a, b) => Ref.open(a createAnd b), MultiBits.donate _,
       (a, b) => io.bits.createAnd(io.allocator, a, b))
   }
   override def createAndNot(b:LBits)(implicit io:IoContext) = {
-    mapOperation(b, _ createAndNot _, MultiBits.apply _,
+    mapOperation(b, (a, b) => Ref.open(a createAndNot b), MultiBits.donate _,
       (a, b) => io.bits.createAndNot(io.allocator, a, b))
   }
   override def createNot(implicit io:IoContext) = {
-    MultiBits(bits.map(_.createNot))
+    MultiBits.donate(bits.map(b => Ref.open(b.createNot)))
   }
   override def createMerged(b:LBits)(implicit io:IoContext) = {
-    io.bits.createMerged(io.allocator, Seq(this, b))
+    io.bits.createMerged(io.allocator, Seq(Ref.mock(this), Ref.mock(b)))
   }
 
 }

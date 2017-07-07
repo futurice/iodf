@@ -234,7 +234,7 @@ class DfIoType[ColId:ClassTag:TypeTag:Ordering](implicit val types:IoTypes) exte
           override def lsize: Long = colIds.lsize
         }
       IoDf[ColId](
-        IoRef.open(this, data.dataRef),
+        IoRef(this, data.dataRef),
         Df[ColId](
           colIds,
           new LSeq[Type] {
@@ -275,8 +275,8 @@ class DfIoType[ColId:ClassTag:TypeTag:Ordering](implicit val types:IoTypes) exte
                df._cols.iterator))
   }
 
-  override def viewMerged(seqs: Seq[Df[ColId]]): Df[ColId] = {
-    val schema = seqs.headOption.map(Df.ioSchema(_)).getOrElse(Df.emptyIoSchema[ColId])
-    MultiDf[ColId](seqs, schema)
+  override def viewMerged(seqs: Seq[Ref[Df[ColId]]]): Df[ColId] = {
+    val schema = seqs.headOption.map(e => Df.ioSchema(e.get)).getOrElse(Df.emptyIoSchema[ColId])
+    MultiDf.open[ColId](seqs, schema)
   }
 }

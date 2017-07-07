@@ -4,15 +4,12 @@ import java.io.Closeable
 
 import com.futurice.iodf.IoScope
 
-class MultiSeq[T, S <: LSeq[T]](seqs:Array[S]) extends LSeq[T] with Closeable {
+class MultiSeq[T, S <: LSeq[T]](_refs:Array[Ref[_ <: S]]) extends LSeq[T] with Closeable {
 
   val scope = new IoScope()
-  seqs.foreach {
-    _ match {
-      case c: Closeable => scope.bind(c)
-      case _ =>
-    }
-  }
+
+  val refs = _refs.map(_.copy(scope))
+  val seqs = refs.map(_.get)
 
   override def close(): Unit = {
     scope.close()

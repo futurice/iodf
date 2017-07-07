@@ -54,7 +54,7 @@ trait LBits extends LSeq[Boolean] {
     io.bits.createNot(io.allocator, this)
   }
   def createMerged(b:LBits)(implicit io:IoContext) : LBits = {
-    io.bits.createMerged(io.allocator, Seq(this, b))
+    io.bits.createMerged(io.allocator, Seq(Ref.mock(this), Ref.mock(b)))
   }
   def &(b:LBits)(implicit io:IoContext, scope:IoScope) : LBits = {
     scope.bind(createAnd(b))

@@ -41,8 +41,8 @@ trait LSeq[T] extends Iterable[T] with PartialFunction[Long, T] with Closeable {
 
 object LSeq {
   def fill[T](n:Long, t:T) = new LSeq[T] {
-    override def apply(l: Long): T = t
-    override def lsize: Long = n
+      override def apply(l: Long): T = t
+      override def lsize: Long = n
   }
   def apply[T](v:Seq[T]) = new LSeq[T] {
     override def apply(l: Long): T = v(l.toInt)

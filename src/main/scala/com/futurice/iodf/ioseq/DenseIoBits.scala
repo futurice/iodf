@@ -67,9 +67,10 @@ class DenseIoBitsType
       out.writeLeLong(overflow)
     }
   }
-  override def writeMerged(out: DataOutput, bs:Seq[LBits]): Unit = {
-    writeMerged2(out, bs.map(e => (e.n, e.leLongs.iterator)))
+  override def writeMerged(out: DataOutput, bs:Seq[Ref[LBits]]): Unit = {
+    writeMerged2(out, bs.map(e => (e.get.n, e.get.leLongs.iterator)))
   }
+
   def writeLSeq(output: DataOutput, v:LSeq[Boolean]): Unit = {
     output.writeLong(v.size)
     var i = 0
@@ -107,7 +108,7 @@ class DenseIoBitsType
     new DenseIoBits(IoRef.open(this, buf.dataRef), buf)
   }
 
-  override def viewMerged(seqs: Seq[LBits]): LBits = MultiBits(seqs)
+  override def viewMerged(seqs: Seq[Ref[LBits]]): LBits = MultiBits.open(seqs)
 }
 
 /*

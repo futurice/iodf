@@ -68,7 +68,7 @@ abstract class IoArrayType[T]()(implicit ifaceTag:TypeTag[LSeq[T]], instanceTag:
   def write(output:DataOutput, data:LSeq[T]) = {
     write(output, data.size, data.iterator)
   }
-  override def viewMerged(items:Seq[LSeq[T]]) = {
+  override def viewMerged(items:Seq[Ref[LSeq[T]]]) = {
     new MultiSeq[T, LSeq[T]](items.toArray)
   }
   def open(data:DataAccess) = {

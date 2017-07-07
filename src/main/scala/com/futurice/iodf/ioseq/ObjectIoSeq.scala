@@ -4,7 +4,7 @@ import java.io._
 
 import com.futurice.iodf.Utils._
 import com.futurice.iodf.io.{DataAccess, DataOutput, DataRef, IoRef}
-import com.futurice.iodf.util.{LSeq, MultiSeq}
+import com.futurice.iodf.util.{LSeq, MultiSeq, Ref}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.runtime.universe
@@ -39,7 +39,7 @@ class ObjectIoSeqType[T](i:RandomAccessReading[T], o:OutputWriting[T])(
     v.foreach { w.write(_) }
     w.writeIndex
   }
-  override def writeMerged(out: DataOutput, seqs: Seq[LSeq[T]]): Unit = {
+  override def writeMerged(out: DataOutput, seqs: Seq[Ref[LSeq[T]]]): Unit = {
     seqs.exists(!_.isInstanceOf[ObjectIoSeq[T]]) match {
       case true => // there is at least one sequence, which cannot be white box merged
         super.writeMerged(out, seqs) // go generic
@@ -54,7 +54,7 @@ class ObjectIoSeqType[T](i:RandomAccessReading[T], o:OutputWriting[T])(
 
   override def valueTypeTag = vTag
 
-  override def viewMerged(seqs: Seq[LSeq[T]]): LSeq[T] =
+  override def viewMerged(seqs: Seq[Ref[LSeq[T]]]): LSeq[T] =
     new MultiSeq[T, LSeq[T]](seqs.toArray)
 
 }
@@ -108,10 +108,16 @@ object ObjectIoSeqWriter {
   }
 }
 
-class ObjectIoSeq[T](val openRef:IoRef[ObjectIoSeq[T]],
+class ObjectIoSeq[T](_openRef:IoRef[ObjectIoSeq[T]],
                      val _buf:DataAccess,
                      val i:RandomAccessReading[T]) extends IoSeq[T] {
 
+  def openRef = _openRef.openCopy
+
+  override def close(): Unit = {
+    _openRef.close
+    buf.close
+  }
   val buf = _buf.openCopy
 
   val indexPos = buf.getBeLong(buf.size - 8)
@@ -129,9 +135,7 @@ class ObjectIoSeq[T](val openRef:IoRef[ObjectIoSeq[T]],
       throw new ArrayIndexOutOfBoundsException(f"index $l is out of range [0, $lsize]")
     }
   }
-  override def close(): Unit = {
-    buf.close
-  }
+
 }
 
 class JavaObjectIo[T] extends Serializer[T] {

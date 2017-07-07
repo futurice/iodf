@@ -28,8 +28,8 @@ class SparseIoBitsType
   override def write(output: DataOutput, v: LBits) : Unit = {
     write(output, v.f, v.n, v.trues.iterator)
   }
-  def viewMerged(seqs:Seq[LBits]) : LBits = {
-    MultiBits(seqs)
+  def viewMerged(seqs:Seq[Ref[LBits]]) : LBits = {
+    MultiBits.open(seqs)
   }
 /*  override def writeMerged(out: DataOutputStream, seqs:Seq[LBits]): Unit = {
     var at = 0L

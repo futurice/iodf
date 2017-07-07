@@ -72,7 +72,7 @@ class MMapDir(dir:File) extends MutableDir[String] {
   override def openAccess(name: String): DataAccess = {
     val f = file(name)
     val m = new MMapBuffer(f, 0, f.length(), MMapMode.READ_ONLY)
-    using (Ref.open[Memory](m.m, () => m.m.release())) { mem =>
+    using (Ref.open[Memory](m.m, () => m.close())) { mem =>
       using (openRef(name)) { dataRef =>
         new DataAccess(dataRef, mem)
       }
