@@ -39,16 +39,18 @@ class MMapDir(dir:File) extends MutableDir[String] {
 
   def file(name:String) = new File(dir, name)
 
-/*  override def create(name: String, length: Long): LBufferAPI = {
-    new MMapBuffer(file(name), 0, length, MMapMode.READ_WRITE)
-  }*/
   override def create(name: String) =
     new io.DataOutput with DataOutputMixin {
+      val tmp =
+        File.createTempFile(dir.getName + "-" + name, ".tmp")
       val out =
-        new BufferedOutputStream(new FileOutputStream(file(name)))
+        new BufferedOutputStream(new FileOutputStream(tmp))
       var pos = 0L
 
-      override def close = out.close
+      override def close = {
+        out.close
+        tmp.renameTo(file(name))
+      }
       override def openDataRef: DataRef = {
         out.flush
         MMapDir.this.openRef(name)

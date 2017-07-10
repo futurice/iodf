@@ -66,6 +66,14 @@ case class RefCount(closer:() => Unit, var v:Int = 0) {
 
 object Ref {
 
+  def unapply[T](value:Ref[_]) : Option[T] = {
+    if (value.get.isInstanceOf[T]) {
+      Some(value.get.asInstanceOf[T])
+    } else {
+      None
+    }
+  }
+
   def open[T](value:T, refCount:RefCount) : Ref[T] = new Ref[T] {
     var _isClosed = false
 

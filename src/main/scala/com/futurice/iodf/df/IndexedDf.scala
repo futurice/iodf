@@ -143,8 +143,6 @@ object IndexedDf {
       }
     }
   }
-
-
 }
 
 class IndexedDf[T](val df:TypedDf[T],
