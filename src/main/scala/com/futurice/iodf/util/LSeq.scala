@@ -37,6 +37,8 @@ trait LSeq[T] extends Iterable[T] with PartialFunction[Long, T] with Closeable {
       override def close = self.close
     }
   }
+  override def toString =
+    f"LSeq(" + (if (lsize < 8) this.mkString(", ") else this.take(8).mkString(", ") + "..") + ")"
 }
 
 object LSeq {

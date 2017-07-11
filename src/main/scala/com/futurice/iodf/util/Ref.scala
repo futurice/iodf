@@ -16,7 +16,7 @@ trait Handle extends Closeable {
   def openCopy : Handle
 }
 
-trait Ref[T] extends Handle{
+trait Ref[+T] extends Handle{
   def isClosed : Boolean
   def get : T
   def openCopy : Ref[T]

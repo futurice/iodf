@@ -15,21 +15,22 @@ import scala.collection.mutable
 
 
 
-class FileRef[Id](val dir:Dir[Id], val id:Id) extends DataRef {
+class FileRef[Id:Ordering](val dir:Dir[Id], val id:Id) extends DataRef {
   def close = {}
   def byteSize = dir.byteSize(id)
+  def exists = dir.exists(id)
   def openAccess : DataAccess = dir.openAccess(id)
   def openView(from:Long, until:Long) =
     new DataRefView(this, from, until)
   def openCopy = new FileRef(dir, id)
 }
 
-class WritableFileRef[Id](dir:WritableDir[Id], id:Id) extends FileRef(dir, id) with AllocateOnce {
+class WritableFileRef[Id:Ordering](dir:WritableDir[Id], id:Id) extends FileRef(dir, id) with AllocateOnce {
   def create = dir.create(id)
   override def openCopy = new WritableFileRef[Id](dir, id)
 }
 
-class MutableFileRef[Id](dir:MutableDir[Id], id:Id) extends WritableFileRef(dir, id) {
+class MutableFileRef[Id:Ordering](dir:MutableDir[Id], id:Id) extends WritableFileRef(dir, id) {
   def delete = dir.delete(id)
   override def openCopy = new MutableFileRef[Id](dir, id)
 }
@@ -42,8 +43,8 @@ trait Dir[Id] extends Closeable {
 
   def exists(id:Id)(implicit ord:Ordering[Id]) = Utils.binarySearch(list, id)._1 != -1
 
-  def openRef(id:Id) = new FileRef(this, id)
-  def ref(id:Id)(implicit bind:IoScope) = bind(openRef(id))
+  def openRef(id:Id)(implicit ord:Ordering[Id]) = new FileRef(this, id)
+  def ref(id:Id)(implicit bind:IoScope, ord:Ordering[Id]) = bind(openRef(id))
 
   def openAccess(id:Id) : DataAccess
   def access(id:Id)(implicit bind:IoScope) = {
@@ -62,9 +63,9 @@ trait IndexReferableDir[Id] extends Dir[Id] {
 }
 
 trait WritableDir[Id] extends Dir[Id] {
-  override def openRef(id:Id) =
+  override def openRef(id:Id)(implicit ord:Ordering[Id]) =
     new WritableFileRef[Id](this, id)
-  override def ref(id:Id)(implicit bind:IoScope) : WritableFileRef[Id] =
+  override def ref(id:Id)(implicit bind:IoScope, ord:Ordering[Id]) : WritableFileRef[Id] =
     bind(openRef(id))
 
   def create(id:Id) : DataOutput
@@ -73,9 +74,9 @@ trait WritableDir[Id] extends Dir[Id] {
 
 trait MutableDir[Id] extends WritableDir[Id] {
   def delete(id:Id) : Boolean
-  override def openRef(id:Id) =
+  override def openRef(id:Id)(implicit ord:Ordering[Id]) =
     new MutableFileRef[Id](this, id)
-  override def ref(id:Id)(implicit bind:IoScope) : MutableFileRef[Id] =
+  override def ref(id:Id)(implicit bind:IoScope, ord:Ordering[Id]) : MutableFileRef[Id] =
     bind(openRef(id))
 }
 

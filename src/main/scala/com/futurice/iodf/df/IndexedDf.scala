@@ -213,7 +213,7 @@ class IndexedDf[T](val df:TypedDf[T],
       }
     }
   }
-  def coStats(idValue1:Int, idValue2:Int) = {
+  def coStats(idValue1:Long, idValue2:Long) = {
     using(openIndex(idValue1)) { b1 =>
       using (openIndex(idValue2)) { b2 =>
         CoStats(df.lsize, b1.f, b2.f, b1.fAnd(b2))
