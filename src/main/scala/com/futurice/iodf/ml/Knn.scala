@@ -104,7 +104,7 @@ object Knn {
       in,
       df.index(predicted),
       scope.bind(io.bits.create(
-        LBits((0 until df.size).map(i => true)))), // true vector
+        LBits.from((0 until df.size).map(i => true)))), // true vector
       varDFilter)
 
   def apply[T](df:IndexedDf[T],
@@ -117,7 +117,7 @@ object Knn {
                scope:IoScope,
                io:IoContext) = {
     new Knn(df,
-            LBits((0L until df.lsize).map(e => true)),
+            LBits.from((0L until df.lsize).map(e => true)),
             indexConf,
             keyValueWeights(
               df,

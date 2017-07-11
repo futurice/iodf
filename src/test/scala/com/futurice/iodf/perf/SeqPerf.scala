@@ -27,7 +27,7 @@ class SeqPerf extends TestSuite("perf/seq") {
       def writeN(n: Int) = {
         val file = dir.ref(n.toString)
         t.t("creating data..")
-        val data = t.iMsLn(LSeq(source.take(n).toSeq))
+        val data = t.iMsLn(LSeq.from(source.take(n).toSeq))
         val (ms, _) =
           using (file.create) { out =>
             TestTool.ms(

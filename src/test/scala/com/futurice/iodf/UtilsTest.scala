@@ -23,7 +23,7 @@ class UtilsTest extends TestSuite("utils") {
 
     val rnd = new Random(1)
     val max = 128
-    val seq = LSeq[Int]((0 until max).filter(i => rnd.nextInt(16) == 0))
+    val seq = LSeq.from((0 until max).filter(i => rnd.nextInt(16) == 0))
     t.tln("seq is: " + seq.mkString(","))
     t.tln
     t.tln("boundaries:")

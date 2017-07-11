@@ -33,7 +33,7 @@ class BitsPerf extends TestSuite("perf/bits") {
             val (ms, _) =
               TestTool.ms(
                 (0 until n).foreach { i =>
-                  bits.openCreated(dir.ref("bits" + i), LBits(data, sz)).close()
+                  bits.openCreated(dir.ref("bits" + i), LBits.from(data, sz)).close()
                 })
 
             val old = t.peekDouble
@@ -77,7 +77,7 @@ class BitsPerf extends TestSuite("perf/bits") {
           bind(
             sparse.openCreated(
               dir.ref("sparse"),
-              LBits(bits, size))))
+              LBits.from(bits, size))))
       }
 
       t.t("creating really sparse bits of size " + size + "...")
@@ -87,7 +87,7 @@ class BitsPerf extends TestSuite("perf/bits") {
           bind(
             sparse.openCreated(
               dir.ref("sparse2"),
-              LBits(bits, size))))
+              LBits.from(bits, size))))
       }
 
       t.t("populating bitset of size " + size + "...")
@@ -103,7 +103,7 @@ class BitsPerf extends TestSuite("perf/bits") {
           bind(
             dense.openCreated(
               dir.ref("dense"),
-              LBits(b, size))))
+              LBits.from(b, size))))
       t.tln
       t.t("counting sparse f..")
       val sf = t.tUsLn(s.f)
@@ -163,7 +163,7 @@ class BitsPerf extends TestSuite("perf/bits") {
                      n:Long,
                      rnd:Random) = {
     create(
-      LBits((0L until n).filter(i => rnd.nextDouble() < p), n))
+      LBits.from((0L until n).filter(i => rnd.nextDouble() < p), n))
   }
 
   def perOpUs(op : => Unit, waitMs:Long = 100) = {

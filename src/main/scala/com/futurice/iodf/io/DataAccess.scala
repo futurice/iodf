@@ -73,7 +73,7 @@ class DataAccess(val _dataRef:DataRef,
   }
 
   def checkRange(offset:Long, sz:Long) = {
-    if (offset < 0 || offset + sz > size) {7
+    if (offset < 0 || offset + sz > size) {
       throw new RuntimeException(offset + s" is outside the range [0, $size]")
     }
     if (ref.isClosed || isClosed) {

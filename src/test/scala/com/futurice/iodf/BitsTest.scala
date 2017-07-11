@@ -125,7 +125,7 @@ class BitsTest extends TestSuite("bits") {
       val rnd = new Random(round)
       val testData = (0 until rnd.nextInt(2048)).map(i => rnd.nextDouble() < p)
 
-      val ground = LBits(testData)
+      val ground = LBits.from(testData)
 
       val rv = using(create(testData)) { b =>
         (round, tTestBitsAgainst(t, ground, b, verbose))
@@ -187,8 +187,8 @@ class BitsTest extends TestSuite("bits") {
           t.tln
         }
 
-        val groundA = LBits(testDataA)
-        val groundB = LBits(testDataB)
+        val groundA = LBits.from(testDataA)
+        val groundB = LBits.from(testDataB)
 
         val rv = using(createA(testDataA)) { testA =>
           using(createB(testDataB)) { testB =>
@@ -207,35 +207,35 @@ class BitsTest extends TestSuite("bits") {
     }
   }
 
-  def toBooleanBits(bs:Seq[Boolean]) = LBits(bs)
+  def toBooleanBits(bs:Seq[Boolean]) = LBits.from(bs)
   def toDenseBits(bs:Seq[Boolean]) = {
     val bits = new java.util.BitSet(bs.size)
     bs.zipWithIndex.foreach { case (bit, index) =>
       bits.set(index, bit)
     }
-    LBits(bits, bs.size)
+    LBits.from(bits, bs.size)
   }
   def toSparseBits(bs:Seq[Boolean]) =
-    LBits(bs.zipWithIndex.filter(_._1).map(_._2.toLong), bs.size.toLong)
+    LBits.from(bs.zipWithIndex.filter(_._1).map(_._2.toLong), bs.size.toLong)
 
   // test the double wrapped
   def toBooleanSparseBits(bs:Seq[Boolean]) =
-    LBits(LBits(bs.zipWithIndex.filter(_._1).map(_._2.toLong), bs.size.toLong))
+    LBits.from(LBits.from(bs.zipWithIndex.filter(_._1).map(_._2.toLong), bs.size.toLong))
 
   def toDenseIoBits(bs:Seq[Boolean])(implicit scope:IoScope, io:IoContext) =
     io.bits.dense.openCreated(
       io.allocator,
-      LBits(bs.zipWithIndex.filter(_._1).map(_._2.toLong), bs.size.toLong))
+      LBits.from(bs.zipWithIndex.filter(_._1).map(_._2.toLong), bs.size.toLong))
 
   def toSparseIoBits(bs:Seq[Boolean])(implicit scope:IoScope, io:IoContext) =
     io.bits.sparse.openCreated(
       io.allocator,
-      LBits(bs.zipWithIndex.filter(_._1).map(_._2.toLong), bs.size.toLong))
+      LBits.from(bs.zipWithIndex.filter(_._1).map(_._2.toLong), bs.size.toLong))
 
   def toIoBits(bs:Seq[Boolean])(implicit scope:IoScope, io:IoContext) =
     io.bits.openCreated(
       io.allocator,
-      LBits(bs.zipWithIndex.filter(_._1).map(_._2.toLong), bs.size.toLong))
+      LBits.from(bs.zipWithIndex.filter(_._1).map(_._2.toLong), bs.size.toLong))
 
   def toMultiBits(bs:Seq[Boolean])(implicit scope:IoScope, io:IoContext) =
     MultiBits.donate(
@@ -293,8 +293,8 @@ class BitsTest extends TestSuite("bits") {
   test("lbits-boolean-ops") { t =>
     tTestBitSOps(
       t,
-      bs => LBits(bs),
-      bs => LBits(bs),
+      bs => LBits.from(bs),
+      bs => LBits.from(bs),
       verbose = true)
   }
 /*  test("lbits-sparseio-ops") { t =>

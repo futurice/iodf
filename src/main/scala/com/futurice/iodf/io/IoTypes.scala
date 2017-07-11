@@ -200,6 +200,7 @@ object IoTypes {
     val javaIo = new JavaObjectIo[Any]
     val variantIo = new VariantIo(Array(BooleanIo, IntIo, LongIo, StringIo), javaIo)
     val tupleIo = new Tuple2Io[String, Any](StringIo, variantIo)
+    val stringIntIo = new Tuple2Io[String, Int](StringIo, IntIo)
     val bitsIoType =
       new BitsIoType(// converts Bits
         new SparseIoBitsType(),
@@ -212,6 +213,7 @@ object IoTypes {
       Seq(
         new ObjectIoSeqType[Any](javaIo, javaIo),
         new ObjectIoSeqType[(String, Any)](tupleIo, tupleIo),
+        new ObjectIoSeqType[(String, Int)](stringIntIo, stringIntIo),
         str,
         new LongIoArrayType,
         new IntIoArrayType,

@@ -46,10 +46,10 @@ object IoBits {
   }
 
   def apply(trues:Iterable[Long], size:Long)(implicit io:IoContext, bind:IoScope) = {
-    bind(create(LBits(trues.toSeq, size)))
+    bind(create(LBits.from(trues.toSeq, size)))
   }
   def apply(bits:Seq[Boolean])(implicit io:IoContext, bind:IoScope) = {
-    bind(create(LBits(bits)))
+    bind(create(LBits.from(bits)))
   }
   def apply(bits:LBits)(implicit io:IoContext, bind:IoScope) = {
     bind(create(bits))
@@ -71,13 +71,13 @@ object BitsIoType {
           bitsType,
           _ match {
             case bits : LBits => bits
-            case bools => LBits(bools)
+            case bools => LBits.from(bools)
           })
       override def valueTypeTag: universe.TypeTag[Boolean] = valueTag
       def viewMerged(seqs: Seq[Ref[LSeq[Boolean]]]) =
         bitsType.viewMerged(seqs.map { _.as { _ match {
           case bits : LBits => bits
-          case bools : LSeq[Boolean] => LBits(bools)
+          case bools : LSeq[Boolean] => LBits.from(bools)
         }}})
       override def interfaceType: universe.Type = tp.interfaceType
       override def ioInstanceType: universe.Type = tp.ioInstanceType
@@ -213,10 +213,10 @@ class BitsIoType(val sparse:SparseIoBitsType,
           })
         dense
       case (true, false) =>
-        sparse.write(output, LBits(b2.trues.iterator.filter(b1(_)).toArray, b1.n))
+        sparse.write(output, LBits.from(b2.trues.iterator.filter(b1(_)).toArray, b1.n))
         sparse
       case (false, true) =>
-        sparse.write(output, LBits(b1.trues.iterator.filter(b2(_)).toArray, b1.n))
+        sparse.write(output, LBits.from(b1.trues.iterator.filter(b2(_)).toArray, b1.n))
         sparse
       case (false, false) =>
         val trues = ArrayBuffer[Long]()
@@ -233,7 +233,7 @@ class BitsIoType(val sparse:SparseIoBitsType,
             j.next
           }
         }
-        sparse.write(output, LBits(trues, b1.n))
+        sparse.write(output, LBits.from(trues, b1.n))
         sparse
     }
   }
@@ -280,7 +280,7 @@ class BitsIoType(val sparse:SparseIoBitsType,
           })
         dense
       case (false, true) =>
-        sparse.write(output, LBits(b1.trues.filter(!b2(_)).toSeq, b1.n))
+        sparse.write(output, LBits.from(b1.trues.filter(!b2(_)).toSeq, b1.n))
         sparse
       case (false, false) =>
         val trues = ArrayBuffer[Long]()
@@ -300,7 +300,7 @@ class BitsIoType(val sparse:SparseIoBitsType,
           }
         }
         while (i.hasNext) trues += i.next
-        sparse.write(output, LBits(trues, b1.n))
+        sparse.write(output, LBits.from(trues, b1.n))
         sparse
     }
   }

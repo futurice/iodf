@@ -81,7 +81,7 @@ class MMapDir(dir:File) extends MutableDir[String] {
     }
   }
 
-  override def list = LSeq(dir.list.sorted)
+  override def list = LSeq.from(dir.list.sorted)
   override def byteSize(id:String) = new File(dir, id).length()
 
   override def close(): Unit = {}

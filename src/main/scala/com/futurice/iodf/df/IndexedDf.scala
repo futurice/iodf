@@ -60,15 +60,15 @@ object IndexedDf {
         if (idx.size == 0 || idx.last != i) idx += i // avoid duplicates
       }
     }
-    (distinct zip rv).map { case (value, trues) => (value, LBits(trues, col.lsize))}
+    (distinct zip rv).map { case (value, trues) => (value, LBits.from(trues, col.lsize))}
   }
 
   def index[ColId:Ordering](df:Df[ColId], conf:IndexConf[ColId]) : Df[(ColId, Any)]= {
     val indexes = indexIterator(df, conf).toArray
     Df[(ColId, Any)](
-       LSeq(indexes.map(_._1)),
+       LSeq.from(indexes.map(_._1)),
        LSeq.fill(indexes.length, typeOf[Boolean]),
-       LSeq(indexes.map(_._2)),
+       LSeq.from(indexes.map(_._2)),
        df.lsize)(indexColIdOrdering[ColId])
   }
   def apply[T:ClassTag](df:TypedDf[T], indexDf:Df[(String, Any)]) : IndexedDf[T] = {

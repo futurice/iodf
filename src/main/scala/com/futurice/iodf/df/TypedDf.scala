@@ -26,7 +26,7 @@ case class TypeSchema[T](t:Class[_],
 
   def toColumns(items: LSeq[T]) =
   //   Seq(items) ++
-    LSeq(
+    LSeq.from(
       fields.map { case (typ, name) =>
         //          System.out.println("matching '" + name + "' with " + t.getMethods.map(e => e.getName + "/" + e.getParameterCount + "/" + (e.getName == name)).mkString(","))
         val accessor = getAccessor(name).get
@@ -35,13 +35,13 @@ case class TypeSchema[T](t:Class[_],
           items.zipWithIndex.foreach { case (item, i) =>
             bitset.set(i, accessor.invoke(item).asInstanceOf[Boolean])
           }
-          LBits(bitset, items.size)
+          LBits.from(bitset, items.size)
         } else {
           val rv = new Array[Any](items.size)
           items.zipWithIndex.foreach { case (item, i) =>
             rv(i) = accessor.invoke(item)
           }
-          LSeq(rv)
+          LSeq.from(rv)
         }
       })
 }
@@ -165,9 +165,9 @@ object TypedDf {
 
       override def colIdOrdering = ord
 
-      override def colIds = LSeq(fieldNames)
+      override def colIds = LSeq.from(fieldNames)
 
-      override def colTypes = LSeq(fieldTypes)
+      override def colTypes = LSeq.from(fieldTypes)
 
       override def fieldIndexes = (0 until colIds.size).toArray //.filter(_ != thisColIndex)
 
@@ -188,13 +188,13 @@ object TypedDf {
     val t = typeSchema[T]
     apply(
       Df[String](
-        LSeq(t.fields.map(_._2)), // names
-        LSeq(t.fields.map(_._1)), // types
+        LSeq.from(t.fields.map(_._2)), // names
+        LSeq.from(t.fields.map(_._1)), // types
         t.toColumns(items),
         items.size))
   }
   def apply[T:ClassTag:TypeTag](items:Seq[T]) : TypedDf[T] = {
-    apply(LSeq(items))
+    apply(LSeq.from(items))
   }
 }
 

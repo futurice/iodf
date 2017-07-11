@@ -46,12 +46,14 @@ object LSeq {
       override def apply(l: Long): T = t
       override def lsize: Long = n
   }
-  def apply[T](v:Seq[T]) = new LSeq[T] {
+
+  def apply[T](v:T*) = from[T](v)
+  def from[T](v:Seq[T]) = new LSeq[T] {
     override def apply(l: Long): T = v(l.toInt)
     override def lsize: Long = v.size
     override def iterator = PeekIterator(v.iterator)
   }
-  def apply[T](v:Array[T]) = new LSeq[T] {
+  def from[T](v:Array[T]) = new LSeq[T] {
     override def apply(l: Long): T = v(l.toInt)
     override def lsize: Long = v.size
     override def iterator = PeekIterator(v.iterator)

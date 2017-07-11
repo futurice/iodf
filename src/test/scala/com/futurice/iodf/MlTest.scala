@@ -104,7 +104,7 @@ class MlTest extends TestSuite("ml") {
         val knn =
           new Knn(
             df,
-            LBits(0L until df.lsize map (e => true)),
+            LBits.from(0L until df.lsize map (e => true)),
             indexConf,
             weights)
 

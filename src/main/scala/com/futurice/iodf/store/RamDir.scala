@@ -46,7 +46,7 @@ class RamDir[FileId:Ordering](implicit t:ClassTag[FileId]) extends MutableDir[Fi
     dir(id).openAccess
   }
   override def list = synchronized {
-    LSeq(dir.keySet.toArray.sorted)
+    LSeq.from(dir.keySet.toArray.sorted)
   }
   def byteSize(id:FileId) : Long = dir(id).byteSize
   def byteSize : Long = dir.map(_._2.byteSize).sum

@@ -158,10 +158,10 @@ object LBits {
     }
     rv
   }
-  def apply(bools:Seq[Boolean]) : LBits = {
-    apply(LSeq(bools))
+  def from(bools:Seq[Boolean]) : LBits = {
+    from(LSeq.from(bools))
   }
-  def apply(bools:LSeq[Boolean]) : LBits  = {
+  def from(bools:LSeq[Boolean]) : LBits  = {
     new LBits {
       val f = bools.iterator.count(b => b).toLong
       def lsize = bools.size
@@ -194,7 +194,7 @@ object LBits {
       }
     }
   }
-  def apply(bits:util.BitSet, n:Long) = {
+  def from(bits:util.BitSet, n:Long) = {
     val thisn = n
     new LBits {
       lazy val f = bits.cardinality().toLong
@@ -269,10 +269,10 @@ object LBits {
     }
   }
 
-  def apply(trueIndexes:Seq[Long], n:Long) : LBits =
-    apply(LSeq(trueIndexes), n)
+  def from(trueIndexes:Seq[Long], n:Long) : LBits =
+    from(LSeq.from(trueIndexes), n)
 
-  def apply(trueIndexes:LSeq[Long], n:Long) : LBits = {
+  def from(trueIndexes:LSeq[Long], n:Long) : LBits = {
     def thisn = n
 
     new LBits {

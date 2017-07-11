@@ -88,7 +88,7 @@ class WrittenCfsDir[MyFileId](_out:DataOutput,
     }
   }
 
-  override def list = LSeq(ids)
+  override def list = LSeq.from(ids)
 
   override def byteSize(id: MyFileId) = {
     val i = ids.indexOf(id)
@@ -105,11 +105,11 @@ class WrittenCfsDir[MyFileId](_out:DataOutput,
     val idIndex = ids.zipWithIndex.toArray.sortBy(_._1)
     val idPos = out.pos
     using (out) { dout =>
-      idSeqType.write(dout, LSeq(idIndex.map(_._1).toSeq))
+      idSeqType.write(dout, LSeq.from(idIndex.map(_._1).toSeq))
       val ordPos = out.pos
-      longSeqType.write(dout, LSeq(idIndex.map(_._2.toLong).toSeq))
+      longSeqType.write(dout, LSeq.from(idIndex.map(_._2.toLong).toSeq))
       val posPos = out.pos
-      longSeqType.write(dout, LSeq(pos))
+      longSeqType.write(dout, LSeq.from(pos))
 
       dout.writeLong(idPos)
       dout.writeLong(ordPos)

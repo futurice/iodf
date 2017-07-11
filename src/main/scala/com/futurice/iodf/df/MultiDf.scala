@@ -87,7 +87,7 @@ class MultiDf[ColId](_refs:Array[Ref[_ <: Df[ColId]]], types:DfMerging[ColId], v
       None
     } else Some({
       val jumpIndex =
-        Utils.binarySearch(LSeq(jumpEntries).map[ColId](_.value), id)(colIdOrdering)._2.toInt
+        Utils.binarySearch(LSeq.from(jumpEntries).map[ColId](_.value), id)(colIdOrdering)._2.toInt
       val jumpEntry = jumpEntries(jumpIndex)
 
       if (id == jumpEntry.value) {
