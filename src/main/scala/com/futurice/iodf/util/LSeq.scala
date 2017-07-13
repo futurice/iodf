@@ -53,12 +53,12 @@ object LSeq {
   def from[T](v:Seq[T]) = new LSeq[T] {
     override def apply(l: Long): T = v(l.toInt)
     override def lsize: Long = v.size
-    override def iterator = PeekIterator(v.iterator)
+    override def iterator = v.iterator
   }
   def from[T](v:Array[T]) = new LSeq[T] {
     override def apply(l: Long): T = v(l.toInt)
     override def lsize: Long = v.size
-    override def iterator = PeekIterator(v.iterator)
+    override def iterator = v.iterator
   }
 }
 

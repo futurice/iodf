@@ -68,7 +68,7 @@ class MultiDf[ColId](_refs:Array[Ref[_ <: Df[ColId]]], val colIdMemRatio: Int = 
   }
 
   def entryOfIndex(index:Long) : Option[MergeSortEntry[ColId]] = {
-    if (index < 0 || index >= lsize) {
+    if (index < 0 || index >= colIdsLsize) {
       None
     } else Some({
       val jumpIndex = (index / colIdMemRatio).toInt
@@ -167,7 +167,12 @@ class MultiDf[ColId](_refs:Array[Ref[_ <: Df[ColId]]], val colIdMemRatio: Int = 
     new LSeq[ColType[Any]] {
       // this will open the column
       override def apply(l: Long): ColType[Any] = {
-        openMultiCol[Any](entryOfIndex(l).get)
+        entryOfIndex(l) match {
+          case Some(v)  => openMultiCol[Any](v)
+          case None =>
+            throw new RuntimeException("what?")
+        }
+
       }
       override def lsize: Long = colIdsLsize
       override def iterator =

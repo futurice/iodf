@@ -59,7 +59,7 @@ class MlTest extends TestSuite("ml") {
     Tracing.trace {
       scoped { implicit bind =>
         val dir = bind(new MMapDir(t.fileDir))
-        val df = bind(IndexedObjects[Animal](items, indexConf))
+        val df = bind(IndexedObjects.from(items, indexConf))
         implicit val io = IoContext()
         val knn =
           Knn(
@@ -86,9 +86,9 @@ class MlTest extends TestSuite("ml") {
       scoped { implicit bind =>
         implicit val io = IoContext()
         val dir = bind(new MMapDir(new File(t.fileDir, "articles")))
-        val df = bind(IndexedObjects[Article](articles, indexConf))
+        val df = bind(IndexedObjects.from(articles, indexConf))
         val dir2 = bind(new MMapDir(new File(t.fileDir, "decisions")))
-        val df2 = bind(IndexedObjects[Decision](decisions, indexConf))
+        val df2 = bind(IndexedObjects.from(decisions, indexConf))
         val weights =
           Knn.keyValueWeights(
             df2,

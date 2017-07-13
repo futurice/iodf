@@ -1,46 +1,46 @@
 testing, how writing index behaves time & memory wise
 
 indexing 32768 random items:
-  creating items..32 ms (was 33 ms)
-  creating dataframe..20 ms (was 20 ms)
-  indexing items..217 ms (was 227 ms)
-  mem base: 47.3 MB
-  mem MB:   7.7<25.1<42.4 (n:2)
-  disk:     8061 KB
-  speed:    37 MB/s
-
-indexing 65536 random items:
-  creating items..63 ms (was 39 ms)
-  creating dataframe..45 ms (was 583 ms)
-  indexing items..351 ms
-  mem base: 47.3 MB
-  mem MB:   15.5<33.3<51.1 (n:2)
-  disk:     16114 KB
+  creating items..42 ms (was 32 ms)
+  creating dataframe..21 ms (was 20 ms)
+  indexing items..41 ms (was 217 ms)
+  mem base: 48.0 MB
+  mem MB:   7.8<7.8<7.8 (n:1)
+  disk:     1845 KB
   speed:    45 MB/s
 
+indexing 65536 random items:
+  creating items..83 ms (was 63 ms)
+  creating dataframe..40 ms (was 45 ms)
+  indexing items..82 ms (was 351 ms)
+  mem base: 48.0 MB
+  mem MB:   15.5<15.5<15.5 (n:1)
+  disk:     3688 KB
+  speed:    44 MB/s
+
 indexing 131072 random items:
-  creating items..127 ms (was 1171 ms)
-  creating dataframe..76 ms 
-  indexing items..1077 ms
-  mem base: 47.3 MB
-  mem MB:   30.9<49.7<67.4 (n:4)
-  disk:     32212 KB
-  speed:    29 MB/s
+  creating items..165 ms (was 127 ms)
+  creating dataframe..79 ms (was 76 ms)
+  indexing items..417 ms (was 1077 ms)
+  mem base: 48.0 MB
+  mem MB:   30.9<49.7<68.5 (n:2)
+  disk:     7374 KB
+  speed:    17 MB/s
 
 indexing 262144 random items:
-  creating items..257 ms 
-  creating dataframe..148 ms 
-  indexing items..2437 ms
-  mem base: 47.3 MB
-  mem MB:   61.9<89.7<100.3 (n:8)
-  disk:     64407 KB
-  speed:    26 MB/s
+  creating items..324 ms (was 257 ms)
+  creating dataframe..156 ms (was 148 ms)
+  indexing items..1400 ms (was 2437 ms)
+  mem base: 48.0 MB
+  mem MB:   61.9<78.0<110.2 (n:3)
+  disk:     14750 KB
+  speed:    10 MB/s
 
 scaling:
 
-  time ms:     217,351,1077,2437
-  mem MB mean: 25.1,33.3,49.7,89.7
-  mem MB max:  42.4,51.1,67.4,100.3
-  disk KB:     8061,16114,32212,64407
-  speed MB/s:  List(37, 45, 29, 26)
+  time ms:     41,82,417,1400
+  mem MB mean: 7.8,15.5,49.7,78.0
+  mem MB max:  7.8,15.5,68.5,110.2
+  disk KB:     1845,3688,7374,14750
+  speed MB/s:  45, 44, 17, 10
 

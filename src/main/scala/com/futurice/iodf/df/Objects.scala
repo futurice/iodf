@@ -96,8 +96,7 @@ object Objects {
           e.name.decoded.trim())
       }.toArray.sortBy(_._2)
 
-    new ObjectSchema[T](
-      fields)
+    new ObjectSchema[T](fields)
   }
 
   def apply[T:TypeTag:ClassTag](d:Df[String]) : Objects[T] = {
@@ -116,8 +115,6 @@ object Objects {
       def as[E : ClassTag](implicit tag2:TypeTag[E]) : Objects[E] = {
         Objects[E](new DfRef(df))
       }
-
-      //  lazy val thisColId = indexOf("this")
 
       val (make, constructorParamNames, constructorParamTypes, fieldNames, fieldTypes) = {
 
@@ -174,7 +171,7 @@ object Objects {
       override def close(): Unit = df.close
     }
   }
-  def apply[T:ClassTag:TypeTag](items:LSeq[T]) : Objects[T] = {
+  def from[T:ClassTag:TypeTag](items:LSeq[T]) : Objects[T] = {
     val t = typeSchema[T]
     apply(
       Df[String](
@@ -183,8 +180,8 @@ object Objects {
         t.toColumns(items),
         items.size))
   }
-  def apply[T:ClassTag:TypeTag](items:Seq[T]) : Objects[T] = {
-    apply(LSeq.from(items))
+  def from[T:ClassTag:TypeTag](items:Seq[T]) : Objects[T] = {
+    from(LSeq.from(items))
   }
 }
 

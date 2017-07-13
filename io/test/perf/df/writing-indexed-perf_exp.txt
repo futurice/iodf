@@ -1,46 +1,46 @@
 testing, how writing index behaves time & memory wise
 
 indexing 32768 random items:
-  creating items..43 ms (was 47 ms)
-  creating dataframe..277 ms (was 179 ms)
-  indexing items..476 ms (was 241 ms)
-  mem base: 47.3 MB
-  mem MB:   15.9<32.6<49.3 (n:2)
-  disk:     9059 KB
-  speed:    19 MB/s
+  creating items..55 ms (was 43 ms)
+  creating dataframe..185 ms (was 187 ms)
+  indexing items..72 ms (was 263 ms)
+  mem base: 28.0 MB
+  mem MB:   16.0<16.0<16.0 (n:1)
+  disk:     2840 KB
+  speed:    39 MB/s
 
 indexing 65536 random items:
-  creating items..64 ms (was 367 ms)
-  creating dataframe..367 ms (was 590 ms)
-  indexing items..625 ms
-  mem base: 47.3 MB
-  mem MB:   31.7<55.0<66.7 (n:3)
-  disk:     18011 KB
-  speed:    28 MB/s
+  creating items..70 ms (was 82 ms)
+  creating dataframe..355 ms (was 375 ms)
+  indexing items..263 ms (was 385 ms)
+  mem base: 28.0 MB
+  mem MB:   31.7<44.5<57.2 (n:2)
+  disk:     5581 KB
+  speed:    21 MB/s
 
 indexing 131072 random items:
-  creating items..126 ms (was 1435 ms)
-  creating dataframe..731 ms 
-  indexing items..1536 ms
-  mem base: 47.3 MB
-  mem MB:   63.1<90.9<99.5 (n:5)
-  disk:     35901 KB
-  speed:    23 MB/s
+  creating items..137 ms (was 163 ms)
+  creating dataframe..701 ms (was 749 ms)
+  indexing items..740 ms (was 1039 ms)
+  mem base: 28.0 MB
+  mem MB:   63.1<80.8<91.4 (n:3)
+  disk:     11059 KB
+  speed:    14 MB/s
 
 indexing 262144 random items:
-  creating items..256 ms 
-  creating dataframe..1450 ms 
-  indexing items..3698 ms
-  mem base: 47.3 MB
-  mem MB:   126.9<150.3<166.9 (n:10)
-  disk:     71682 KB
-  speed:    19 MB/s
+  creating items..279 ms (was 327 ms)
+  creating dataframe..1453 ms (was 1497 ms)
+  indexing items..1842 ms (was 2820 ms)
+  mem base: 28.0 MB
+  mem MB:   126.9<142.9<157.3 (n:4)
+  disk:     22021 KB
+  speed:    11 MB/s
 
 scaling:
 
-  time ms:     476,625,1536,3698
-  mem MB mean: 32.6,55.0,90.9,150.3
-  mem MB max:  49.3,66.7,99.5,166.9
-  disk KB:     9059,18011,35901,71682
-  speed MB/s:  List(19, 28, 23, 19)
+  time ms:     72,263,740,1842
+  mem MB mean: 16.0,44.5,80.8,142.9
+  mem MB max:  16.0,57.2,91.4,157.3
+  disk KB:     2840,5581,11059,22021
+  speed MB/s:  39, 21, 14, 11
 

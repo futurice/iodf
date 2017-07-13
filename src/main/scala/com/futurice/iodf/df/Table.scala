@@ -99,7 +99,8 @@ class Table(val schema:TableSchema, val df:Df[String]) extends Df[String] with L
 }
 
 object Table {
-  def from(schema:TableSchema, rows:Array[Row]) = {
+  def empty = Table.from(TableSchema(), Seq.empty)
+  def from(schema:TableSchema, rows:Seq[Row]) = {
     val orderIndex = schema.orderIndex
     val colIds = schema.colIds
     val colTypes = schema.colTypes
@@ -150,10 +151,11 @@ class TableIoType(longType:SeqIoType[Long, LSeq[Long], _ <: LSeq[Long]],
   }
 
   override def viewMerged(seqs: Seq[Ref[Table]]): Table = {
-    // FIXME: this is somewhat problematic situation, because
-    //        we cannot access the schema. How can we handle situations
-    //        with empty merge list?
-    Table(seqs.head.get.schema, dfType.viewMerged(seqs.map(_.map(_.df))))
+    if (seqs.size == 0) {
+      Table.empty // is there better way?
+    } else {
+      Table(seqs.head.get.schema, dfType.viewMerged(seqs.map(_.map(_.df))))
+    }
   }
 
 }

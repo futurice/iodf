@@ -52,7 +52,15 @@ class OptionIoSeq[T](ref:IoRef[OptionIoSeq[T]], indexes:LSeq[Long], values:LSeq[
   }
 }
 
-class OptionIoSeqType[T](tSeqType:SeqIoType[T, LSeq[T], _ <: LSeq[T]],
+object OptionIoSeqType {
+
+  def apply[T](tSeqType:SeqIoType[T, LSeq[T], _ <: LSeq[T]],
+               longSeqType:SeqIoType[Long, LSeq[Long], _ <: LSeq[Long]])(
+    implicit ifaceTag:TypeTag[LSeq[Option[T]]], instanceTag: TypeTag[OptionIoSeq[T]],valueTag:TypeTag[Option[T]]) =
+    new OptionIoSeqType[T](tSeqType, longSeqType)
+}
+
+class OptionIoSeqType[T](valueSeqType:SeqIoType[T, LSeq[T], _ <: LSeq[T]],
                          longSeqType:SeqIoType[Long, LSeq[Long], _ <: LSeq[Long]])(
   implicit ifaceTag:TypeTag[LSeq[Option[T]]], instanceTag: TypeTag[OptionIoSeq[T]],valueTag:TypeTag[Option[T]])
   extends SeqIoType[Option[T], LSeq[Option[T]], OptionIoSeq[T]] {
@@ -73,7 +81,7 @@ class OptionIoSeqType[T](tSeqType:SeqIoType[T, LSeq[T], _ <: LSeq[T]],
     out.writeLong(iface.lsize)
     longSeqType.write(out, LSeq.from(indexes))
     val valuesPos = out.pos
-    tSeqType.write(out, new LSeq[T] {
+    valueSeqType.write(out, new LSeq[T] {
       override def apply(l: Long): T = iface(indexes(l.toInt)).get
       override def lsize: Long = indexes.size
     })
@@ -84,7 +92,7 @@ class OptionIoSeqType[T](tSeqType:SeqIoType[T, LSeq[T], _ <: LSeq[T]],
     val size = ref.getBeLong(0)
     val seqPos = ref.getBeLong(ref.size - 8) // should be the last one in this buffer
     val index = longSeqType.open(ref.view(8, seqPos))
-    val values = tSeqType.open(ref.view(seqPos, ref.size))
+    val values = valueSeqType.open(ref.view(seqPos, ref.size-8))
 
     new OptionIoSeq[T](
       IoRef.open[OptionIoSeq[T]](

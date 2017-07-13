@@ -217,7 +217,16 @@ object IoTypes {
         }
       }
       val javaIo = new JavaObjectIo[Any]
-      val variantIo = new VariantIo(Array(BooleanIo, IntIo, LongIo, StringIo), javaIo)
+      val rootIo = new IoVar[Any](None)
+      val variantIo =
+        new VariantIo(
+          Array(BooleanIo,
+                IntIo,
+                LongIo,
+                StringIo,
+                new OptionIo[Any](rootIo)), javaIo)
+      rootIo.io = Some(variantIo)
+
       val tupleIo = new Tuple2Io[String, Any](StringIo, variantIo)
       val stringIntIo = new Tuple2Io[String, Int](StringIo, IntIo)
       val bitsIoType =
@@ -241,16 +250,27 @@ object IoTypes {
       val documents =     new DocumentsIoType(stringDfs)
       val indexedDocuments = new IndexedIoType(documents, indexDfs)
 
+      val ints = new IntIoArrayType
+      val bools = BitsIoType.booleanSeqIoType(bitsIoType)
+
+      val anys = new ObjectIoSeqType[Any](javaIo, javaIo)
+
       buf ++=
         Seq(
-          new ObjectIoSeqType[Any](javaIo, javaIo),
+          anys,
+          OptionIoSeqType(anys, longs),
           new ObjectIoSeqType[(String, Any)](tupleIo, tupleIo),
           new ObjectIoSeqType[(String, Int)](stringIntIo, stringIntIo),
           str,
-          new IntIoArrayType,
+          ints,
           longs,
-          BitsIoType.booleanSeqIoType(bitsIoType),
+          bools,
           bitsIoType, // prefer lbits type over seq[boolean] type
+
+          OptionIoSeqType(bools, longs),
+          OptionIoSeqType(ints, longs),
+          OptionIoSeqType(longs, longs),
+          OptionIoSeqType(str, longs),
 
           stringDfs,
           new DfIoType[Int](),

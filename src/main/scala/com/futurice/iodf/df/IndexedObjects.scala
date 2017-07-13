@@ -73,8 +73,8 @@ object IndexedObjects {
   def apply[T](indexed:Indexed[String, Objects[T]]) : IndexedObjects[T] = {
     new IndexedObjects(indexed)
   }
-  def apply[T:TypeTag:ClassTag](data:Seq[T], conf:IndexConf[String]) : IndexedObjects[T] = {
-    IndexedObjects(Indexed.from(Objects[T](data), conf))
+  def from[T:TypeTag:ClassTag](data:Seq[T], conf:IndexConf[String]) : IndexedObjects[T] = {
+    IndexedObjects(Indexed.from(Objects.from(data), conf))
   }
   def viewMerged[T:TypeTag](seqs: Seq[Ref[IndexedObjs[T]]], colIdMemRatio:Int = MultiDf.DefaultColIdMemRatio)(implicit io:IoContext)
   : IndexedObjs[T] =

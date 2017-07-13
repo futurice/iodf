@@ -1,4 +1,4 @@
-package com.futurice.iodf.df
+ package com.futurice.iodf.df
 
 import java.io.File
 
@@ -142,7 +142,7 @@ class ObjectsTest extends TestSuite("df/objects") {
         val file = MMapFile(new File(t.fileDir, "myDf"))
         implicit val io = makeIoContext
 
-        val df = Objects[ExampleItem](items)
+        val df = Objects.from[ExampleItem](items)
         t.tln
         tDf(t, df)
         tLookUpExampleDf(t, df)
@@ -171,7 +171,7 @@ class ObjectsTest extends TestSuite("df/objects") {
         val df =
           t.iMsLn {
             bind(
-              IndexedObjects(ExampleItem.makeItems(0, 16), indexConf))
+              IndexedObjects.from(ExampleItem.makeItems(0, 16), indexConf))
           }
 
         tDf(t, df.df)
@@ -181,7 +181,7 @@ class ObjectsTest extends TestSuite("df/objects") {
         t.tln
         t.t("writing dataframe..")
         t.iMsLn {
-          file.save(IndexedObjects(ExampleItem.makeItems(0, 16), indexConf))
+          file.save(IndexedObjects.from(ExampleItem.makeItems(0, 16), indexConf))
         }
         t.tln
         t.t("opening dataframe..")
@@ -330,7 +330,7 @@ class ObjectsTest extends TestSuite("df/objects") {
         t.t("creating heap df..")
         val heapDf =
           t.iMsLn(
-            IndexedObjects[ExampleItem](items, ExampleItem.indexConf))
+            IndexedObjects.from(items, ExampleItem.indexConf))
         t.tln
         t.t("creating io df..")
         val ioDf = t.iMsLn(file.saved(heapDf))

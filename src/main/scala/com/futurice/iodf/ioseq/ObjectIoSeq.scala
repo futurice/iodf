@@ -23,8 +23,12 @@ trait Serializer[T] extends OutputWriting[T] with RandomAccessReading[T] {
 
 }
 trait TypedSerializer[T] extends Serializer[T] {
-  def clazz : Class[T]
+  def classes : Seq[Class[_]]
   def tryWrite(o:DataOutput, t:Any) = write(o, t.asInstanceOf[T])
+}
+trait SingleTypedSerializer[T] extends TypedSerializer[T] {
+  def clazz : Class[T]
+  def classes = Seq(clazz)
 }
 
 class ObjectIoSeqType[T](i:RandomAccessReading[T], o:OutputWriting[T])(
@@ -178,10 +182,24 @@ class JavaObjectIo[T] extends Serializer[T] {
   }
 }
 
-class VariantIo(tpes:Array[TypedSerializer[_]], fallback:Serializer[Any]) extends Serializer[Any] {
-  val lookup =
-    tpes.zipWithIndex.map(e => (e._1.clazz, (e._2, e._1))).toMap
-      : Map[Class[_], (Int, TypedSerializer[_])]
+class IoVar[T](var io:Option[Serializer[T]]) extends Serializer[T] {
+  override def write(o: DataOutput, v: T): Unit = io.get.write(o, v)
+
+  override def read(o: DataAccess, pos: Long): T = io.get.read(o, pos)
+
+  override def size(o: DataAccess, pos: Long): Long = io.get.size(o, pos)
+}
+class VariantIo(_tpes:Array[_ <: TypedSerializer[_]], fallback:Serializer[Any]) extends Serializer[Any] {
+
+  val (tpes, lookup) = {
+    val withIndex =
+      _tpes.flatMap(s => s.classes.map(c => (c, s)))
+        .zipWithIndex
+    (withIndex.map(_._1._2),
+      withIndex
+      .map(e => (e._1._1, (e._2, e._1._2))).toMap
+      : Map[Class[_], (Int, TypedSerializer[_])])
+  }
 
   override def write(o: DataOutput, v: Any): Unit = {
     lookup.get(v.getClass) match {
@@ -224,7 +242,7 @@ class Tuple2Io[F, S](first:Serializer[F], second:Serializer[S]) extends Serializ
     fsz + second.size(o, pos + fsz)
   }
 }
-object BooleanIo extends TypedSerializer[Boolean] {
+object BooleanIo extends SingleTypedSerializer[Boolean] {
   override def read(o: DataAccess, pos: Long): Boolean = {
     o.getByte(pos) != 0
   }
@@ -236,7 +254,7 @@ object BooleanIo extends TypedSerializer[Boolean] {
   }
   override def clazz = classOf[Boolean]
 }
-object IntIo extends TypedSerializer[Int] {
+object IntIo extends SingleTypedSerializer[Int] {
   override def read(o: DataAccess, pos: Long): Int = {
     o.getBeInt(pos)
   }
@@ -248,7 +266,7 @@ object IntIo extends TypedSerializer[Int] {
   }
   override def clazz = classOf[Int]
 }
-object LongIo extends TypedSerializer[Long] {
+object LongIo extends SingleTypedSerializer[Long] {
   override def read(o: DataAccess, pos: Long): Long = {
     o.getBeLong(pos)
   }
@@ -261,7 +279,7 @@ object LongIo extends TypedSerializer[Long] {
   override def clazz = classOf[Long]
 }
 
-object StringIo extends TypedSerializer[String] {
+object StringIo extends SingleTypedSerializer[String] {
   override def read(o: DataAccess, pos: Long): String = {
     val sz = o.getBeInt(pos)
 //    System.out.println("sz " + sz + " at pos " + pos)
@@ -279,6 +297,33 @@ object StringIo extends TypedSerializer[String] {
     o.getBeInt(pos) + 4
   }
   override def clazz = classOf[String]
+}
+
+class OptionIo[T](io:Serializer[T]) extends TypedSerializer[Option[T]] {
+  override def read(o: DataAccess, pos: Long): Option[T] = {
+    if (o.getByte(pos) == 1) {
+      Some(io.read(o, pos+1))
+    } else {
+      None
+    }
+  }
+  override def write(o: DataOutput, v: Option[T]): Unit = {
+    v match {
+      case Some(e) =>
+        o.writeByte(1)
+        io.write(o, e)
+      case None =>
+        o.writeByte(0)
+    }
+  }
+  override def size(o: DataAccess, pos: Long): Long = {
+    if (o.getByte(pos) == 1) {
+      1 + io.size(o, pos+1)
+    } else {
+      1
+    }
+  }
+  override def classes = Seq(classOf[Option[T]], classOf[Some[T]], None.getClass)
 }
 
 class StringIoSeqType(implicit ifaceTag:TypeTag[LSeq[String]],

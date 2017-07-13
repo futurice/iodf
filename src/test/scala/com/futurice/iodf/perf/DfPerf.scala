@@ -153,7 +153,7 @@ class DfPerf extends TestSuite("perf/df") {
             (0 until 16).map { i =>
               val items = ExampleItem.makeItems(i, 16* 1024)
               val rf = dir.ref(f"df$i")
-              rf.save(IndexedObjects(items, ExampleItem.indexConf))
+              rf.save(IndexedObjects.from(items, ExampleItem.indexConf))
             })
         t.tln
         val M = 1024*1024
@@ -265,7 +265,7 @@ class DfPerf extends TestSuite("perf/df") {
       }
     }
 
-  testWritingPerf[Objects[ExampleItem]]("writing-typed-perf", items => Objects(items) )
-  testWritingPerf[IndexedObjects[ExampleItem]]("writing-indexed-perf", items => IndexedObjects(items, ExampleItem.indexConf))
+  testWritingPerf[Objects[ExampleItem]]("writing-typed-perf", items => Objects.from(items) )
+  testWritingPerf[IndexedObjects[ExampleItem]]("writing-indexed-perf", items => IndexedObjects.from(items, ExampleItem.indexConf))
 
 }
