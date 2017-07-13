@@ -4,7 +4,7 @@ import java.io.{DataOutputStream, File}
 
 import com.futurice.iodf.store.MMapDir
 import com.futurice.testtoys.{TestSuite, TestTool}
-import com.futurice.iodf.Utils._
+import com.futurice.iodf._
 import com.futurice.iodf.io.IoTypes
 import com.futurice.iodf.ioseq.{IoSeq, SeqIoType}
 import com.futurice.iodf.util.LSeq

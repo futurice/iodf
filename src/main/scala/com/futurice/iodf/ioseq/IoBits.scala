@@ -75,7 +75,7 @@ object BitsIoType {
           })
       override def valueTypeTag: universe.TypeTag[Boolean] = valueTag
       def viewMerged(seqs: Seq[Ref[LSeq[Boolean]]]) =
-        bitsType.viewMerged(seqs.map { _.as { _ match {
+        bitsType.viewMerged(seqs.map { _.map { _ match {
           case bits : LBits => bits
           case bools : LSeq[Boolean] => LBits.from(bools)
         }}})
@@ -84,7 +84,14 @@ object BitsIoType {
 
       override def open(ref: DataAccess): WrappedIoBits = tp.open(ref)
 
+      override def defaultInstance(lsize: Long): Option[LSeq[Boolean]] =
+        bitsType.defaultInstance(lsize)
+
       override def write(out: DataOutput, iface: LSeq[Boolean]): Unit = tp.write(out, iface)
+
+      override def toString = {
+        "SuperIoType[LSeq[Boolean] -> LBits]"
+      }
     }
 
 }
@@ -339,10 +346,10 @@ class BitsIoType(val sparse:SparseIoBitsType,
     val n = ss.map(_.get.n).sum
     if (LBits.isSparse(f, n)) {
       out.writeByte(SparseId)
-      sparse.writeMerged(out, ss.map(_.as(b => unwrap(b))))
+      sparse.writeMerged(out, ss.map(_.map(b => unwrap(b))))
     } else {
       out.writeByte(DenseId)
-      dense.writeMerged(out, ss.map(_.as(b => unwrap(b))))
+      dense.writeMerged(out, ss.map(_.map(b => unwrap(b))))
     }
   }
 
@@ -354,6 +361,8 @@ class BitsIoType(val sparse:SparseIoBitsType,
       }
     using(openRes) { open(_) }
   }
+
+  override def toString = "BitsIoType"
 
 }
 

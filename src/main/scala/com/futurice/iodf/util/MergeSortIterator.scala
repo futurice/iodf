@@ -2,7 +2,7 @@ package com.futurice.iodf.util
 
 import com.futurice.iodf.Utils
 
-trait SeekIterator[T, S] extends Iterator[T] {
+trait SeekIterator[+T, S] extends Iterator[T] {
   /* seeks the position after the given position */
   def seek(t:S) : Boolean
   def seeked(t:S) = {

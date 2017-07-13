@@ -2,7 +2,7 @@ package com.futurice.iodf.io
 
 import java.io.Closeable
 
-import com.futurice.iodf.Utils._
+import com.futurice.iodf._
 
 /**
  * This object is io-referable

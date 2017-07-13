@@ -1,0 +1,106 @@
+
+documents:
+
+
+colIds are: 
+
+  id
+  optionInt
+  property
+  text
+
+columns are: 
+
+  a,b,c
+  Some(4),None,Some(5)
+  true,false,true
+  text here,some text,some things here
+
+index:
+
+
+colIds are: 
+
+  (id,a)
+  (id,b)
+  (id,c)
+  (optionInt,Some(4))
+  (optionInt,Some(5))
+  (optionInt,None)
+  (property,false)
+  (property,true)
+  (text,here)
+  (text,some)
+  (text,text)
+  (text,things)
+
+columns are: 
+
+  true,false,false
+  false,true,false
+  false,false,true
+  true,false,false
+  false,false,true
+  false,true,false
+  false,true,false
+  true,false,true
+  true,false,true
+  false,true,true
+  true,true,false
+  false,false,true
+
+writing df..12 ms 
+
+opening df..3 ms 
+documents:
+
+
+colIds are: 
+
+  id
+  optionInt
+  property
+  text
+
+columns are: 
+
+  a,b,c
+  Some(4),None,Some(5)
+  true,false,true
+  text here,some text,some things here
+
+index:
+
+
+colIds are: 
+
+  (id,a)
+  (id,b)
+  (id,c)
+  (optionInt,Some(4))
+  (optionInt,Some(5))
+  (optionInt,None)
+  (property,false)
+  (property,true)
+  (text,here)
+  (text,some)
+  (text,text)
+  (text,things)
+
+columns are: 
+
+  true,false,false
+  false,true,false
+  false,false,true
+  true,false,false
+  false,false,true
+  false,true,false
+  false,true,false
+  true,false,true
+  true,false,true
+  false,true,true
+  true,true,false
+  false,false,true
+
+
+0 refs open.

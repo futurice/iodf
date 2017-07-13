@@ -1,41 +1,46 @@
 testing, how writing index behaves time & memory wise
 
 indexing 32768 random items:
-  creating items..26 ms (was 28 ms)
-  creating dataframe..133 ms 
-  indexing items..4598 ms
-  mem base: 43.7 MB
-  mem MB:   12.1<39.0<46.0 (n:24)
-  disk:     1935 KB
+  creating items..43 ms (was 47 ms)
+  creating dataframe..277 ms (was 179 ms)
+  indexing items..476 ms (was 241 ms)
+  mem base: 47.3 MB
+  mem MB:   15.9<32.6<49.3 (n:2)
+  disk:     9059 KB
+  speed:    19 MB/s
 
 indexing 65536 random items:
-  creating items..49 ms 
-  creating dataframe..246 ms 
-  indexing items..9174 ms (was 99)
-  mem base: 43.7 MB
-  mem MB:   24.1<51.4<58.0 (n:51)
-  disk:     3820 KB
+  creating items..64 ms (was 367 ms)
+  creating dataframe..367 ms (was 590 ms)
+  indexing items..625 ms
+  mem base: 47.3 MB
+  mem MB:   31.7<55.0<66.7 (n:3)
+  disk:     18011 KB
+  speed:    28 MB/s
 
 indexing 131072 random items:
-  creating items..98 ms 
-  creating dataframe..484 ms (was 82752 ms)
-  indexing items..23172 ms
-  mem base: 43.7 MB
-  mem MB:   48.2<77.9<84.5 (n:112)
-  disk:     7572 KB
+  creating items..126 ms (was 1435 ms)
+  creating dataframe..731 ms 
+  indexing items..1536 ms
+  mem base: 47.3 MB
+  mem MB:   63.1<90.9<99.5 (n:5)
+  disk:     35901 KB
+  speed:    23 MB/s
 
 indexing 262144 random items:
-  creating items..194 ms 
-  creating dataframe..974 ms (was 1935 ms)
-  indexing items..60789 ms
-  mem base: 43.7 MB
-  mem MB:   96.3<124.2<129.7 (n:250)
-  disk:     15087 KB
+  creating items..256 ms 
+  creating dataframe..1450 ms 
+  indexing items..3698 ms
+  mem base: 47.3 MB
+  mem MB:   126.9<150.3<166.9 (n:10)
+  disk:     71682 KB
+  speed:    19 MB/s
 
 scaling:
 
-  time ms:     4598,9174,23172,60789
-  mem MB mean: 39.0,51.4,77.9,124.2
-  mem MB max:  46.0,58.0,84.5,129.7
-  disk KB:     1935,3820,7572,15087
+  time ms:     476,625,1536,3698
+  mem MB mean: 32.6,55.0,90.9,150.3
+  mem MB max:  49.3,66.7,99.5,166.9
+  disk KB:     9059,18011,35901,71682
+  speed MB/s:  List(19, 28, 23, 19)
 

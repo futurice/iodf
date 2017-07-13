@@ -1,8 +1,8 @@
-creating 32 sparse bits of size 16...0.125 ms / op, was 0.125 ms
+creating 32 sparse bits of size 16...0.063 ms / op, was 0.125 ms
   ok.
-creating 32 sparse bits of size 256...0.063 ms / op, was 0.031 ms
+creating 32 sparse bits of size 256...0.031 ms / op, was 0.063 ms
   performance has CHANGED!
-creating 32 sparse bits of size 4096...0.375 ms / op, was 0.281 ms
+creating 32 sparse bits of size 4096...0.219 ms / op, was 0.375 ms
   ok.
-creating 32 sparse bits of size 1048576...30.000 ms / op, was 31.438 ms
+creating 32 sparse bits of size 1048576...36.281 ms / op, was 30.000 ms
   ok.

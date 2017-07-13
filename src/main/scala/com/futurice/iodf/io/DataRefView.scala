@@ -1,6 +1,6 @@
 package com.futurice.iodf.io
 
-import com.futurice.iodf.Utils.using
+import com.futurice.iodf._
 
 /**
   * Created by arau on 5.7.2017.

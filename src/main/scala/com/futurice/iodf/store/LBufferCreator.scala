@@ -3,6 +3,7 @@ package com.futurice.iodf.store
 import com.futurice.iodf.io.{DataOutput, DataOutputMixin, DataRef}
 import com.futurice.iodf.util.Ref
 import com.futurice.iodf.Utils._
+import com.futurice.iodf._
 import xerial.larray.buffer.LBuffer
 
 /**
@@ -46,7 +47,7 @@ class LBufferCreator extends DataOutput with DataOutputMixin {
     ref = None
   }
   override def openDataRef: DataRef = {
-    using (ref.get.openCopyAs(_.m)) { ref =>
+    using (ref.get.openCopyMap(_.m)) { ref =>
       DataRef.open(ref, 0, Some(pos))
     }
   }

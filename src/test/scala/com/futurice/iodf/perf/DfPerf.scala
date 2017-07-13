@@ -5,7 +5,9 @@ import java.io.File
 
 import com.futurice.iodf.Utils._
 import com.futurice.iodf._
-import com.futurice.iodf.df.{IndexConf, IndexedDf, MultiDf, TypedDf}
+import com.futurice.iodf.df.{MultiDf, _}
+import com.futurice.iodf.io.MergeableIoType
+import com.futurice.iodf.providers.OrderingProvider
 import com.futurice.iodf.store.{AllocateOnce, MMapDir, MMapFile}
 import com.futurice.iodf.util.{LBits, Ref, Tracing}
 import com.futurice.testtoys.{TestSuite, TestTool}
@@ -26,7 +28,7 @@ class DfPerf extends TestSuite("perf/df") {
   }
 
 
-  def tIndexedDfPerf[IoId, T](t:TestTool, view:IndexedDf[T])(implicit io:IoContext) = {
+  def tIndexedObjectsPerf[IoId, T](t:TestTool, view:IndexedObjects[T])(implicit io:IoContext) = {
     val df = view.df
     val index = view.indexDf
 
@@ -77,7 +79,7 @@ class DfPerf extends TestSuite("perf/df") {
         t.i("opening bitsets (no id lookup)...")
         val bits = t.iMsLn {
           (0 until n).map { i =>
-            view.openIndex(rnd.nextInt(index.colCount))
+            view.openIndex(rnd.nextInt(index.colCount.toInt))
           }
         }: Seq[LBits]
         try {
@@ -151,10 +153,12 @@ class DfPerf extends TestSuite("perf/df") {
             (0 until 16).map { i =>
               val items = ExampleItem.makeItems(i, 16* 1024)
               val rf = dir.ref(f"df$i")
-              rf.save(IndexedDf(items, ExampleItem.indexConf))
+              rf.save(IndexedObjects(items, ExampleItem.indexConf))
             })
         t.tln
         val M = 1024*1024
+
+        implicit val ord = Index.indexColIdOrdering[String]
 
         (0 until 2).foreach { scale =>
           (0 until 2).foreach { colIdMemRatioScale =>
@@ -167,14 +171,20 @@ class DfPerf extends TestSuite("perf/df") {
               t.tln("segments:      " + segments.size + ", " + (segments.map(_.byteSize).sum / 1024) + " KB")
 
               val baseMem = Utils.memory
+
               t.t("opening multidf..")
               val (stats, multiDf) =
                 t.iMsLn(
                   using(new MemoryMonitor(100)) { mem: MemoryMonitor =>
+                    val dfs = dfFiles.map(f => Ref(f.openAs[IndexedObjects[ExampleItem]]))
+                    val objs =
+                      Objects[ExampleItem](
+                        MultiDf.donate(dfs.map(e => Ref.mock(e.get.df)), colIdMemRatio))
+                    val index = Index(MultiDf.open(dfs.map(e => Ref.mock(e.get.indexDf)), colIdMemRatio))
                     val df =
                       bind(
-                        IndexedDf.viewMerged(
-                          dfFiles.map(f => Ref(f.openAs[IndexedDf[ExampleItem]])), colIdMemRatio))
+                        IndexedObjects(
+                          Indexed(objs, index)))
                     (Await.result(mem.finish, Duration.Inf), df)
                   })
               t.tln
@@ -187,7 +197,7 @@ class DfPerf extends TestSuite("perf/df") {
               t.tln(f"colIds:       " + multiDf.colIds.lsize )
               t.tln(f"index.colIds: " + multiDf.indexDf.colIds.lsize )
               t.tln
-              tIndexedDfPerf(t, multiDf)
+              tIndexedObjectsPerf(t, multiDf)
             }
           }
         }
@@ -226,7 +236,7 @@ class DfPerf extends TestSuite("perf/df") {
                 val old = t.peekLong
                 t.i(f"$ms ms")
                 old match {
-                  case Some(v) => t.iln(f" (was $v)")
+                  case Some(v) => t.iln(f" (was $v ms)")
                   case None => t.iln("")
                 }
                 val stats =
@@ -237,6 +247,7 @@ class DfPerf extends TestSuite("perf/df") {
                 t.iln(f"  mem base: ${baseMem/M}%.1f MB")
                 t.iln(f"  mem MB:   ${(stats.min-baseMem)/M}%.1f<${(stats.mean-baseMem)/M}%.1f<${(stats.max-baseMem)/M}%.1f (n:${stats.samples})")
                 t.iln(f"  disk:     $diskKb KB")
+                t.iln(f"  speed:    ${diskKb / ms} MB/s")
                 t.tln
 
                 (ms, baseMem, stats, diskKb)
@@ -244,16 +255,17 @@ class DfPerf extends TestSuite("perf/df") {
             }
           t.tln("scaling:")
           t.tln
-          t.iln("  time ms:     " + res.map(_._1).mkString(","))
-          t.iln("  mem MB mean: " + res.map(e => f"${(e._3.mean-e._2)/M}%.1f").mkString(","))
-          t.iln("  mem MB max:  " + res.map(e => f"${(e._3.max-e._2)/M}%.1f").mkString(","))
-          t.tln("  disk KB:     " + res.map(_._4).mkString(","))
+          t.iln( "  time ms:     " + res.map(_._1).mkString(","))
+          t.iln( "  mem MB mean: " + res.map(e => f"${(e._3.mean-e._2)/M}%.1f").mkString(","))
+          t.iln( "  mem MB max:  " + res.map(e => f"${(e._3.max-e._2)/M}%.1f").mkString(","))
+          t.tln( "  disk KB:     " + res.map(_._4).mkString(","))
+          t.iln(f"  speed MB/s:  ${res.map(e => e._4 / e._1).mkString(", ")}")
           t.tln
         }
       }
     }
 
-  testWritingPerf[TypedDf[ExampleItem]]("writing-typed-perf", items => TypedDf(items) )
-  testWritingPerf[IndexedDf[ExampleItem]]("writing-indexed-perf", items => IndexedDf(items, ExampleItem.indexConf))
+  testWritingPerf[Objects[ExampleItem]]("writing-typed-perf", items => Objects(items) )
+  testWritingPerf[IndexedObjects[ExampleItem]]("writing-indexed-perf", items => IndexedObjects(items, ExampleItem.indexConf))
 
 }

@@ -1,0 +1,4 @@
+com.futurice.iodf.util.LSeq[(String, Int)] -> ObjectIoSeqType[(String, Int)]
+com.futurice.iodf.util.LSeq[(String, Any)] -> ObjectIoSeqType[(String, Any)]
+com.futurice.iodf.util.LSeq[Boolean] -> SuperIoType[LSeq[Boolean] -> LBits]
+com.futurice.iodf.util.LBits -> BitsIoType

@@ -5,6 +5,7 @@ import java.util.logging.{Level, Logger}
 
 import com.futurice.iodf.{IoScope, Utils}
 import com.futurice.iodf.Utils._
+import com.futurice.iodf._
 import com.futurice.iodf.io.{DataAccess, DataOutput, DataRef, DataRefView}
 import com.futurice.iodf.util.LSeq
 

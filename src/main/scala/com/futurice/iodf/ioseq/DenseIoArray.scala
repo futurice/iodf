@@ -43,7 +43,8 @@ abstract class IoArray[T](ref:IoRef[IoArray[T]],
     }
 }
 
-abstract class IoArrayType[T]()(implicit ifaceTag:TypeTag[LSeq[T]], instanceTag: TypeTag[IoArray[T]],valueTag:TypeTag[T])
+abstract class IoArrayType[T]()(
+  implicit ifaceTag:TypeTag[LSeq[T]], instanceTag: TypeTag[IoArray[T]],valueTag:TypeTag[T])
   extends SeqIoType[T, LSeq[T], IoArray[T]] {
 
   val interfaceType = ifaceTag.tpe

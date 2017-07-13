@@ -1,12 +1,8 @@
 package com.futurice.iodf.ioseq
 
-import java.io.DataOutputStream
-import java.util
-
-import com.futurice.iodf.Utils._
+import com.futurice.iodf._
 import com.futurice.iodf._
 import com.futurice.iodf.io.{DataAccess, DataOutput, DataRef, IoRef}
-import com.futurice.iodf.store.FileRef
 import com.futurice.iodf.util._
 
 import scala.reflect.runtime.universe._

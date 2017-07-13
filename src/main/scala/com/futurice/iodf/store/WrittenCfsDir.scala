@@ -1,7 +1,6 @@
 package com.futurice.iodf.store
 
-import com.futurice.iodf.{io, _}
-import com.futurice.iodf.Utils._
+import com.futurice.iodf._
 import com.futurice.iodf.io.{DataOutput, _}
 import com.futurice.iodf.ioseq.{IoSeq, SeqIoType, Serializer}
 import com.futurice.iodf.util.LSeq
@@ -12,9 +11,9 @@ import scala.reflect.runtime.universe._
 
 
 object WrittenCfsDir {
-  def open[CfsFileId:TypeTag:ClassTag:Ordering](out:io.DataOutput)(implicit types:IoTypes) = {
-    val fileSeqType  = types.seqTypeOf[CfsFileId]
-    val longSeqType = types.longLSeqType
+  def open[CfsFileId:TypeTag:ClassTag:Ordering](out:DataOutput)(implicit io:IoContext) = {
+    val fileSeqType  = io.types.seqTypeOf[CfsFileId]
+    val longSeqType = io.types.longLSeqType
     new WrittenCfsDir[CfsFileId](out, fileSeqType, longSeqType)
   }
 
@@ -189,9 +188,9 @@ class CfsDir[FileId](_data:DataAccess,
 }
 
 object CfsDir {
-  def open[CfsFileId:TypeTag:ClassTag:Ordering](data:DataAccess)(implicit types:IoTypes) = {
-    val fileSeqType  = types.seqTypeOf[CfsFileId]
-    val longSeqType = types.longLSeqType
+  def open[CfsFileId:TypeTag:ClassTag:Ordering](data:DataAccess)(implicit io:IoContext) = {
+    val fileSeqType  = io.types.seqTypeOf[CfsFileId]
+    val longSeqType = io.types.longLSeqType
     new CfsDir[CfsFileId](data, fileSeqType, longSeqType)
   }
 

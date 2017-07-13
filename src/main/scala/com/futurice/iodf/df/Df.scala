@@ -2,48 +2,31 @@ package com.futurice.iodf.df
 
 import java.io.DataOutputStream
 
-import com.futurice.iodf.Utils._
-import com.futurice.iodf.io.{SizedMerging, _}
+import com.futurice.iodf._
+import com.futurice.iodf.io._
 import com.futurice.iodf.ioseq.{IoSeq, SeqIoType}
 import com.futurice.iodf.store._
 import com.futurice.iodf.util.{LSeq, Ref}
-import com.futurice.iodf.{IoScope, Utils}
+import com.futurice.iodf.{IoContext, IoScope, Utils}
 import org.slf4j.LoggerFactory
 
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 
-
 case class ColKey[ColId, Type](colId:ColId) {}
+
+trait DfSchema[ColId] {
+  def colIds : LSeq[ColId]
+  def colTypes : LSeq[Type]
+  def colCount = colIds.lsize
+}
 
 /*
 trait SortedIoSeq[IoId, ColId <: Ordered[ColId]] extends IoSeq[IoId, ColId] {
 }*/
 
 object Df {
-
-  def emptyIoSchema[ColId] = {
-    new DfMerging[ColId] {
-      override def colMerging(col: ColId) = {
-        throw new IllegalArgumentException
-      }
-
-      override def colMerging(index: Long) = {
-        throw new IllegalArgumentException
-      }
-    }
-  }
-  def ioSchema[ColId](df:Df[ColId])(implicit types: IoTypes) = {
-    new DfMerging[ColId] {
-      def colMerging(colId: ColId) : SizedMerging[LSeq[_]] = {
-        colMerging(df.indexOf(colId))
-      }
-      def colMerging(index: Long) : SizedMerging[LSeq[_]] = {
-        types.seqTypeOf(df.colTypes(index))
-      }
-    }
-  }
 
   def apply[ColId](_colIds   : LSeq[ColId],
                    _colTypes : LSeq[Type],
@@ -65,28 +48,11 @@ object Df {
       override def colIdOrdering: Ordering[ColId] = ord
     }
   }
-
 }
 
-/*
- * This class is a bit problematic.. We basically need some kind of schema object for the multi-df when:
- *
- *   A) merging columns
- *   B) writing columns
- *
- * The challenge with the schema class is that there are basically three kinds of schemas:
- *
- *  1. Fixed columns with fixed types (typed Df)
- *  2. Dynamic columns with fixed type (df index)
- *  3. Dynamic columns with dynamic types (normal df)
- *
- */
-trait DfMerging[ColId] {
-  def colMerging(col:ColId) : SizedMerging[_ <: LSeq[_]]
-  def colMerging(index:Long) : SizedMerging[_ <: LSeq[_]]
-}
-
-trait Df[ColId] extends java.io.Closeable {
+// to change -> Df[ColId, SelfType <: Df[ColId, _ <: SelfType]] ?
+// or maybe -> Df[ColId, Row] with apply[Row] and Iterable[Row] and separate Cols[ColId]
+trait Df[ColId] extends java.io.Closeable with DfSchema[ColId] {
 
   type ColType[T] <: LSeq[T]
 
@@ -97,9 +63,8 @@ trait Df[ColId] extends java.io.Closeable {
 
   def _cols    : LSeq[_ <: ColType[_ <: Any]]
 
-  def colCount = colIds.size
-
   def lsize : Long
+  def size : Int = lsize.toInt
 
   def indexOf(colId:ColId) =
     Utils.binarySearch(colIds, colId)(colIdOrdering)._1
@@ -214,7 +179,7 @@ class DfIoTypeProvider(implicit val types:IoTypes) extends TypeIoProvider {
   }
 }*/
 
-class DfIoType[ColId:ClassTag:TypeTag:Ordering](implicit val types:IoTypes) extends MergeableIoType[Df[ColId], IoDf[ColId]] {
+class DfIoType[ColId:ClassTag:TypeTag:Ordering](implicit val io:IoContext) extends MergeableIoType[Df[ColId], IoDf[ColId]] {
   val l = LoggerFactory.getLogger(getClass)
   override def interfaceType: universe.Type = typeOf[Df[ColId]]
 
@@ -230,7 +195,7 @@ class DfIoType[ColId:ClassTag:TypeTag:Ordering](implicit val types:IoTypes) exte
       val ioCols =
         new LSeq[LSeq[_]] {
           override def apply(l: Long): LSeq[_] =
-            types.openAs[LSeq[_]](dir.indexRef(l))
+            io.types.openAs[LSeq[_]](dir.indexRef(l))
           override def lsize: Long = colIds.lsize
         }
       IoDf[ColId](
@@ -259,7 +224,7 @@ class DfIoType[ColId:ClassTag:TypeTag:Ordering](implicit val types:IoTypes) exte
       cols.foreach { case ((colId, colType), openedCol) =>
         using (openedCol) { col => // this opens the column
           using(dir.create(colId)) { out =>
-            types.write(out, col, types.toLSeqType(colType))
+            io.types.write(out, col, io.types.toLSeqType(colType))
           }
         }
       }
@@ -276,7 +241,6 @@ class DfIoType[ColId:ClassTag:TypeTag:Ordering](implicit val types:IoTypes) exte
   }
 
   override def viewMerged(seqs: Seq[Ref[Df[ColId]]]): Df[ColId] = {
-    val schema = seqs.headOption.map(e => Df.ioSchema(e.get)).getOrElse(Df.emptyIoSchema[ColId])
-    MultiDf.open[ColId](seqs, schema)
+    MultiDf.open[ColId](seqs)
   }
 }

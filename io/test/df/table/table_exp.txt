@@ -1,0 +1,47 @@
+
+
+colIds are: 
+
+  id
+  optionInt
+  property
+  text
+
+columns are: 
+
+  a,b,c
+  Some(4),None,Some(5)
+  true,false,true
+  text here,some text,some things here
+
+contents:
+
+  Row(               a,        text here,             true,          Some(4))
+  Row(               b,        some text,            false,             None)
+  Row(               c, some things here,             true,          Some(5))
+
+
+writing df..47 ms (was 49 ms)
+
+opening df..25 ms (was 24 ms)
+
+colIds are: 
+
+  id
+  optionInt
+  property
+  text
+
+columns are: 
+
+  a,b,c
+  Some(4),None,Some(5)
+  true,false,true
+  text here,some text,some things here
+
+contents:
+
+  Row(               a,        text here,             true,          Some(4))
+  Row(               b,        some text,            false,             None)
+  Row(               c, some things here,             true,          Some(5))
+

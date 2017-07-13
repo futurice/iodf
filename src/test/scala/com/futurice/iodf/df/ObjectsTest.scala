@@ -1,21 +1,25 @@
-package com.futurice.iodf
+package com.futurice.iodf.df
 
-import java.io.{DataOutputStream, File}
-import java.util
+import java.io.File
 
-import com.futurice.testtoys.{TestSuite, TestTool}
-import com.futurice.iodf.store.{MMapDir, MMapFile, RamDir}
+import com.futurice.iodf._
+
 import com.futurice.iodf.Utils._
-import com.futurice.iodf.df._
-import com.futurice.iodf.ioseq._
-import com.futurice.iodf.util.{LBits, LSeq, MergeSortIterator, Tracing}
+import com.futurice.iodf.store.MMapFile
+import com.futurice.iodf.util.{LBits, LSeq, Tracing}
+import com.futurice.iodf.{IoContext, IoScope}
+import com.futurice.testtoys.{TestSuite, TestTool}
 
-import scala.reflect.runtime.universe._
 import scala.util.Random
-import scala.concurrent.duration._
-import scala.concurrent.Await
 
-case class ExampleItem( name:String, property:Boolean, quantity:Int, text:String, bigNumber:Long )
+case class ExampleItem(
+  name:String,
+  property:Boolean,
+  quantity:Int,
+  text:String,
+  bigNumber:Long,
+  optionalInt:Option[Int],
+  optionalText:Option[String])
 
 
 object ExampleItem {
@@ -23,7 +27,12 @@ object ExampleItem {
   val letters = "abcdefghijklmnopqrstuvxyz"
 
   val indexConf =
-    IndexConf[String]().withAnalyzer("text", e => e.asInstanceOf[String].split(" ").toSeq)
+    IndexConf[String]()
+      .withAnalyzer("text", e => e.asInstanceOf[String].split(" ").toSeq)
+      .withAnalyzer("optionalText", _ match  {
+        case Some(t: String) => t.split(" ").toSeq ++ Seq(true)
+        case None => Seq(false)
+      })
 
 
   def nextLetter(rnd:Random) = letters.charAt(rnd.nextInt(letters.size))
@@ -33,7 +42,15 @@ object ExampleItem {
       rnd.nextBoolean(),
       (rnd.nextGaussian() * 5).toInt,
       (0 until rnd.nextInt(4)).map(e => (0 until (1 + rnd.nextInt(2))).map(e => nextLetter(rnd)).mkString).mkString(" "),
-      (rnd.nextGaussian() * 5).toLong * 1000000000L)
+      (rnd.nextGaussian() * 5).toLong * 1000000000L,
+      if (rnd.nextBoolean())
+        Some((rnd.nextGaussian() * 5).toInt)
+      else
+        None,
+      if (rnd.nextBoolean())
+        Some((0 until rnd.nextInt(4)).map(e => (0 until (1 + rnd.nextInt(2))).map(e => nextLetter(rnd)).mkString).mkString(" "))
+      else
+        None)
   }
 
   def makeItems(seed: Int, sz:Int) = {
@@ -53,14 +70,12 @@ object ExampleItem {
 /**
   * Created by arau on 24.11.2016.
   */
-class DfTest extends TestSuite("df") {
+class ObjectsTest extends TestSuite("df/objects") {
+
+  import TestUtil._
 
   def makeIoContext(implicit scope:IoScope) = {
     IoContext().withType[ExampleItem]
-  }
-
-  def tRefCount(t: TestTool) = {
-    t.tln(Tracing.openItems + " refs open.")
   }
 
   def tDir(t: TestTool, dir: File): Unit = {
@@ -72,30 +87,13 @@ class DfTest extends TestSuite("df") {
   }
 
   val items =
-    Seq(ExampleItem("a", true, 3, "some text", 1000000000L),
-        ExampleItem("b", false, 2, "more text", 1L),
-        ExampleItem("c", true, 4, "even more text", 324234L))
+    Seq(ExampleItem("a", true, 3, "some text", 1000000000L, None, None),
+        ExampleItem("b", false, 2, "more text", 1L, Some(4), None),
+        ExampleItem("c", true, 4, "even more text", 324234L, None, Some("extra text")))
   val indexConf = ExampleItem.indexConf
 
-  def tDf[ColId](t:TestTool, df:Df[ColId]) = {
-    t.tln
-    t.tln("colIds are: ")
-    t.tln
-    df.colIds.foreach { id => t.tln("  " + id) }
-    t.tln
-    t.tln("columns are: ")
-    t.tln
-    (0 until df.colCount).map { i =>
-      using(df.openCol[Any](i)) { col =>
-        t.tln("  " + col.map { b: Any =>
-          b.toString
-        }.mkString(","))
-      }
-    }
-    t.tln
-  }
 
-  def tLookUpExampleDf(t:TestTool, df:TypedDf[ExampleItem]) = {
+  def tLookUpExampleDf(t:TestTool, df:Objects[ExampleItem]) = {
     t.tln("item 0 name is " + df("name", 0))
     t.tln("item 1 quantity is " + df("quantity", 1))
     t.tln("item 2 is " + df(2))
@@ -138,13 +136,13 @@ class DfTest extends TestSuite("df") {
     diffs
   }
 
-  test("typed-df") { t =>
+  test("objects") { t =>
     Tracing.trace {
       scoped { implicit bind =>
         val file = MMapFile(new File(t.fileDir, "myDf"))
         implicit val io = makeIoContext
 
-        val df = TypedDf[ExampleItem](items)
+        val df = Objects[ExampleItem](items)
         t.tln
         tDf(t, df)
         tLookUpExampleDf(t, df)
@@ -154,7 +152,7 @@ class DfTest extends TestSuite("df") {
         t.tln
         t.t("opening df..")
         val df2 =
-          t.iMsLn(file.as[TypedDf[ExampleItem]])
+          t.iMsLn(file.as[Objects[ExampleItem]])
         tDf(t, df2)
         tLookUpExampleDf(t, df2)
       }
@@ -163,7 +161,7 @@ class DfTest extends TestSuite("df") {
     tRefCount(t)
   }
 
-  test("indexed-df") { t =>
+  test("indexed-objects") { t =>
     Tracing.trace {
       using(IoScope.open) { implicit bind =>
 
@@ -173,7 +171,7 @@ class DfTest extends TestSuite("df") {
         val df =
           t.iMsLn {
             bind(
-              IndexedDf(ExampleItem.makeItems(0, 16), indexConf))
+              IndexedObjects(ExampleItem.makeItems(0, 16), indexConf))
           }
 
         tDf(t, df.df)
@@ -183,13 +181,13 @@ class DfTest extends TestSuite("df") {
         t.tln
         t.t("writing dataframe..")
         t.iMsLn {
-          file.save(IndexedDf(ExampleItem.makeItems(0, 16), indexConf))
+          file.save(IndexedObjects(ExampleItem.makeItems(0, 16), indexConf))
         }
         t.tln
         t.t("opening dataframe..")
         val df2 =
           t.iMsLn {
-            bind(io.openAs[IndexedDf[ExampleItem]](file))
+            bind(io.openAs[IndexedObjects[ExampleItem]](file))
           }
 
         tDf(t, df2.df)
@@ -198,17 +196,17 @@ class DfTest extends TestSuite("df") {
     }
   }
 
-  def tIndexedDfPerf[T](t:TestTool, view:IndexedDf[T]) = {
-    val df = view.df
-    val index = view.indexDf
+  def tIndexedObjectsPerf[T](t:TestTool, objs:IndexedObjects[T]) = {
+    val df = objs.df
+    val index = objs.indexDf
 
     t.tln
     val b = items.map(i => if (i.property) 1 else 0).sum
-    val b2 = view.f("property" -> true)
+    val b2 = objs.f("property" -> true)
     t.tln(f"  property frequencies: original $b vs index $b2")
 
     val n = items.map(i => if (i.name == "h") 1 else 0).sum
-    val n2 = view.f("name" -> "h")
+    val n2 = objs.f("name" -> "h")
     t.tln(f"  name=h frequencies: original $n vs index $n2")
 
     val ids = index.colIds.toArray
@@ -236,7 +234,7 @@ class DfTest extends TestSuite("df") {
       val (ms, _) = TestTool.ms {
         (0 until n).foreach { i =>
           val co =
-            view.coStats(ids(rnd.nextInt(ids.size)),
+            objs.coStats(ids(rnd.nextInt(ids.size)),
               ids(rnd.nextInt(ids.size)))
           fA += co.fA
           fB += co.fB
@@ -257,7 +255,7 @@ class DfTest extends TestSuite("df") {
         t.i("  opening bitsets (no id lookup)...")
         val bits = t.iMsLn {
           (0 until n).map { i =>
-            view.openIndex(rnd.nextInt(index.colCount))
+            objs.openIndex(rnd.nextInt(index.colCount.toInt))
           }
         }: Seq[LBits]
         try {
@@ -320,7 +318,7 @@ class DfTest extends TestSuite("df") {
 
 
 
-  test("1024-indexed-df") { t =>
+  test("1024-indexed-objects") { t =>
 //    Tracing.trace {
       scoped { implicit scoped =>
         implicit val io = makeIoContext
@@ -332,7 +330,7 @@ class DfTest extends TestSuite("df") {
         t.t("creating heap df..")
         val heapDf =
           t.iMsLn(
-            IndexedDf[ExampleItem](items, ExampleItem.indexConf))
+            IndexedObjects[ExampleItem](items, ExampleItem.indexConf))
         t.tln
         t.t("creating io df..")
         val ioDf = t.iMsLn(file.saved(heapDf))
@@ -340,11 +338,11 @@ class DfTest extends TestSuite("df") {
         t.tln("testing heap df:")
         t.tln
 
-        tIndexedDfPerf(t, heapDf)
+        tIndexedObjectsPerf(t, heapDf)
         t.tln
         t.tln("testing io df:")
         t.tln
-        tIndexedDfPerf(t, ioDf)
+        tIndexedObjectsPerf(t, ioDf)
 
         t.tln("comparing main dfs:")
         t.tln
@@ -431,18 +429,18 @@ class DfTest extends TestSuite("df") {
           t.t("creating dbA..")
           val dbA =
             t.iMsLn(
-              bind(dfs.createIndexedDf(itemsA, dirA)))
+              bind(dfs.createIndexedObjects(itemsA, dirA)))
           t.t("creating dbB..")
           val dbB =
             t.iMsLn(
-              bind(dfs.createIndexedDf(itemsB, dirB)))
+              bind(dfs.createIndexedObjects(itemsB, dirB)))
           t.t("merging dbs..")
           t.iMsLn(
-            dfs.writeMergedIndexedDf(Seq(dbA, dbB), dirM))
+            dfs.writeMergedIndexedObjects(Seq(dbA, dbB), dirM))
           t.t("opening merged db..")
           val dbM =
             t.iMsLn(
-              bind(dfs.openIndexedDf[ExampleItem, String](dirM)))
+              bind(dfs.openIndexedObjects[ExampleItem, String](dirM)))
 
           t.tln
           t.tln("merged db size: " + dbM.lsize)
@@ -531,7 +529,7 @@ class DfTest extends TestSuite("df") {
             }.sum
           t.tln(f"$errs errors found.")
           t.tln
-          tIndexedDfPerf(t, dbM)
+          tIndexedObjectsPerf(t, dbM)
         }
       }
     }
@@ -602,7 +600,7 @@ class DfTest extends TestSuite("df") {
           t.t("opening multi df..")
           val dbM =
             t.iMsLn(
-              bind(dfs.multiIndexedDf[ExampleItem](Array(), 1)))
+              bind(dfs.multiIndexedObjects[ExampleItem](Array(), 1)))
 
           t.tln
           t.t("warming the data frame...")
@@ -649,14 +647,14 @@ class DfTest extends TestSuite("df") {
           t.t("creating dbA..")
           val dbA =
             t.iMsLn(
-              dfs.createIndexedDf(itemsA, dirA))
+              dfs.createIndexedObjects(itemsA, dirA))
           t.t("creating dbB..")
           val dbB =
-            t.iMsLn(dfs.createIndexedDf(itemsB, dirB))
+            t.iMsLn(dfs.createIndexedObjects(itemsB, dirB))
           t.t("opening multi df..")
           val dbM =
             t.iMsLn(
-              bind(dfs.multiIndexedDf(Array(dbA, dbB), 1)))
+              bind(dfs.multiIndexedObjects(Array(dbA, dbB), 1)))
 
           t.tln
           t.t("warming the data frame...")
@@ -767,7 +765,7 @@ class DfTest extends TestSuite("df") {
             }.sum
           t.tln(f"$errs errors found.")
           t.tln
-          tIndexedDfPerf(t, dbM)
+          tIndexedObjectsPerf(t, dbM)
         }
       }
     }*/

@@ -1,0 +1,6 @@
+((String, Any) <:< (String, Int)) == false
+((String, Int) <:< (String, Any)) == true
+
+(com.futurice.iodf.util.LSeq[(String, Any)] <:< com.futurice.iodf.util.LSeq[(String, Int)]) == false
+(com.futurice.iodf.util.LSeq[(String, Int)] <:< com.futurice.iodf.util.LSeq[(String, Any)]) == true
+

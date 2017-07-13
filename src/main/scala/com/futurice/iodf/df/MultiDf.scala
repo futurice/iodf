@@ -2,8 +2,9 @@ package com.futurice.iodf.df
 
 import com.futurice.iodf.io.{IoTypes, SizedMerging}
 import com.futurice.iodf.ioseq.{IoSeq, SeqIoType}
+import com.futurice.iodf._
 import com.futurice.iodf.util._
-import com.futurice.iodf.{IoScope, Utils}
+import com.futurice.iodf.{IoContext, IoScope, Utils}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
@@ -11,14 +12,14 @@ import scala.reflect.runtime.universe._
 
 object MultiDf {
   def DefaultColIdMemRatio = 32
-  def open[ColId](refs:Seq[Ref[_ <: Df[ColId]]], types:DfMerging[ColId], colIdMemRatio:Int = DefaultColIdMemRatio)(
-    implicit colIdOrdering:Ordering[ColId]) : MultiDf[ColId] = {
-    new MultiDf[ColId](refs.toArray, types, colIdMemRatio)
+  def open[ColId:Ordering](refs:Seq[Ref[_ <: Df[ColId]]], colIdMemRatio:Int = DefaultColIdMemRatio)(
+    implicit io:IoContext) : MultiDf[ColId] = {
+    new MultiDf[ColId](refs.toArray, colIdMemRatio)
   }
-  def donate[ColId](refs:Seq[Ref[_ <: Df[ColId]]], types:DfMerging[ColId], colIdMemRatio:Int = DefaultColIdMemRatio)(
-    implicit colIdOrdering:Ordering[ColId]) : MultiDf[ColId] = {
+  def donate[ColId:Ordering](refs:Seq[Ref[_ <: Df[ColId]]], colIdMemRatio:Int = DefaultColIdMemRatio)(
+    implicit io:IoContext) : MultiDf[ColId] = {
     try {
-      new MultiDf[ColId](refs.toArray, types, colIdMemRatio)
+      new MultiDf[ColId](refs.toArray, colIdMemRatio)
     } finally {
       refs.foreach { _.close }
     }
@@ -29,8 +30,8 @@ object MultiDf {
 /**
   * Created by arau on 6.6.2017.
   */
-class MultiDf[ColId](_refs:Array[Ref[_ <: Df[ColId]]], types:DfMerging[ColId], val colIdMemRatio: Int = MultiDf.DefaultColIdMemRatio)(
-  implicit val colIdOrdering:Ordering[ColId]) extends Df[ColId] {
+class MultiDf[ColId](_refs:Array[Ref[_ <: Df[ColId]]], val colIdMemRatio: Int = MultiDf.DefaultColIdMemRatio)(
+  implicit val colIdOrdering:Ordering[ColId], io:IoContext) extends Df[ColId] {
 
   val scope = new IoScope()
 
@@ -38,7 +39,6 @@ class MultiDf[ColId](_refs:Array[Ref[_ <: Df[ColId]]], types:DfMerging[ColId], v
   val dfs = refs.map(_.get)
 
   type ColType[T] = MultiSeq[T, LSeq[T]]
-
 
   override def close(): Unit = {
     scope.close
@@ -145,24 +145,20 @@ class MultiDf[ColId](_refs:Array[Ref[_ <: Df[ColId]]], types:DfMerging[ColId], v
     }
   }
 
-  private def openMultiCol[T](
-     entry:Option[MergeSortEntry[ColId]],
-     colMerging : SizedMerging[LSeq[T]]) = Utils.scoped { implicit bind =>
-    val colMap =
-      entry match {
-        case Some(e) =>
-          val cols = e.sources zip e.sourceIndexes map { case (source, index) =>
-            Ref(dfs(source).openCol[T](index))
-          }
-          (e.sources zip cols).toMap
-        case None =>
-          Map.empty[Int, LSeq[T]]
+  private def openMultiCol[T](entry:MergeSortEntry[ColId]) = scoped { implicit bind =>
+    val colMap = {
+      val cols = entry.sources zip entry.sourceIndexes map { case (source, index) =>
+        Ref(dfs(source).openCol[T](index))
       }
-    colMerging.viewMerged(
+      (entry.sources zip cols).toMap
+    }
+    val entryType = entryToType(entry)
+    val seqType = io.types.seqTypeOf(entryType)
+    seqType.viewMerged(
       (0 until dfs.size).map { i =>
         colMap.getOrElse(i,
-          Ref(colMerging.defaultInstance(dfs(i).lsize).getOrElse {
-            throw new RuntimeException(f"${entry} part $i is missing the data, while type $colMerging doesn't support it")
+          Ref(seqType.defaultInstance(dfs(i).lsize).getOrElse {
+            throw new RuntimeException(f"${entry} part $i is missing the data, while type $seqType doesn't support it")
           })).asInstanceOf[Ref[LSeq[T]]]
       }).asInstanceOf[ColType[T]]
   }
@@ -171,8 +167,7 @@ class MultiDf[ColId](_refs:Array[Ref[_ <: Df[ColId]]], types:DfMerging[ColId], v
     new LSeq[ColType[Any]] {
       // this will open the column
       override def apply(l: Long): ColType[Any] = {
-        openMultiCol[Any](entryOfIndex(l),
-                          types.colMerging(l).asInstanceOf[SizedMerging[LSeq[Any]]])
+        openMultiCol[Any](entryOfIndex(l).get)
       }
       override def lsize: Long = colIdsLsize
       override def iterator =
@@ -181,9 +176,7 @@ class MultiDf[ColId](_refs:Array[Ref[_ <: Df[ColId]]], types:DfMerging[ColId], v
           val i =
             MergeSortIterator[ColId](seqs.map(_.iterator))
           def head = { // dangerous, as this opens the column
-            openMultiCol[Any](
-              i.headOption,
-              types.colMerging(at).asInstanceOf[SizedMerging[LSeq[Any]]])
+            openMultiCol[Any](i.head)
           }
           def hasNext = at < colIdsLsize
           def next = {
@@ -196,8 +189,7 @@ class MultiDf[ColId](_refs:Array[Ref[_ <: Df[ColId]]], types:DfMerging[ColId], v
     }
 
   override def openCol[T <: Any](id:ColId) : ColType[T] = {
-    openMultiCol[T](entryOfId(id),
-                    types.colMerging(id).asInstanceOf[SizedMerging[LSeq[T]]])
+    openMultiCol[T](entryOfId(id).get)
   }
 
   override def view(from:Long, until:Long) = {

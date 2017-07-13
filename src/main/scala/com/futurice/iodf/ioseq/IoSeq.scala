@@ -1,7 +1,7 @@
 package com.futurice.iodf.ioseq
 
 
-import com.futurice.iodf.Utils.using
+import com.futurice.iodf._
 import com.futurice.iodf.util.{LSeq, Ref}
 import com.futurice.iodf.io._
 
@@ -21,9 +21,9 @@ trait SeqIoType[Member, Interface <: LSeq[Member], IoInstance <: IoSeq[Member] w
     }
   }
   def viewAnyMerged(seqs:Seq[Ref[Any]]) : Interface =
-    viewMerged(seqs.map(_.as(_.asInstanceOf[Interface])))
+    viewMerged(seqs.map(_.map(_.asInstanceOf[Interface])))
   def writeAnyMerged(out:DataOutput, ss:Seq[Ref[Any]]) = {
-    writeMerged(out, ss.map(_.as(_.asInstanceOf[Interface])))
+    writeMerged(out, ss.map(_.map(_.asInstanceOf[Interface])))
   }
 }
 

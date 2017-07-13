@@ -10,6 +10,7 @@ import com.futurice.iodf.{IoContext, IoScope}
 import com.futurice.testtoys.{TestSuite, TestTool}
 
 import scala.util.Random
+import com.futurice.iodf._
 
 /**
   * Put the perf tests here, which are too slow to run as sanity checks

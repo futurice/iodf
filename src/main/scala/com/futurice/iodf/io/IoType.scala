@@ -3,7 +3,7 @@ package com.futurice.iodf.io
 import java.io.{DataOutputStream, OutputStream, Writer}
 
 import com.futurice.iodf.IoScope
-import com.futurice.iodf.Utils.using
+import com.futurice.iodf._
 import com.futurice.iodf.store.AllocateOnce
 import com.futurice.iodf.util.Ref
 
@@ -118,7 +118,10 @@ trait IoType[Interface, IoInstance <: Interface] extends IoWriter[Interface] wit
 }
 
 trait Merging[Interface] {
+
+  /* should this be changed to fold, requiring always some base member for the operation? */
   def viewMerged(seqs:Seq[Ref[Interface]]) : Interface
+
 }
 
 trait SizedMerging[Interface] extends Merging[Interface] {
@@ -126,6 +129,7 @@ trait SizedMerging[Interface] extends Merging[Interface] {
 }
 
 trait MergeableIoType[Interface, IoInstance <: Interface] extends IoType[Interface, IoInstance] with Merging[Interface] {
+
   def writeMerged(out:DataOutput, ss:Seq[Ref[Interface]]) = {
     write(out, viewMerged(ss))
   }

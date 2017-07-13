@@ -2,7 +2,7 @@ package com.futurice.iodf.io
 
 import java.io.OutputStream
 
-import com.futurice.iodf.Utils.using
+import com.futurice.iodf._
 
 /**
   * This is basically a more sophisticated output stream for writing data

@@ -20,32 +20,35 @@ trait Ref[+T] extends Handle{
   def isClosed : Boolean
   def get : T
   def openCopy : Ref[T]
-  def openCopyAs[E](f:T => E) : Ref[E] = {
+  def openCopyMap[E](f:T => E) : Ref[E] = {
     val c : Ref[T] = openCopy
     new Ref[E] {
       override def get: E = f(c.get)
-      override def openCopy: Ref[E] = c.openCopyAs(f)
+      override def openCopy: Ref[E] = c.openCopyMap(f)
       override def close(): Unit = c.close
       override def isClosed = c.isClosed
     }
   }
-  def as[E](f:T => E) : Ref[E] = {
+  def openCopyAs[E] = openCopyMap(_.asInstanceOf[E])
+  def map[E](f:T => E) : Ref[E] = {
     val c = this
     new Ref[E] {
       override def get: E = f(c.get)
-      override def openCopy: Ref[E] = c.openCopyAs(f)
+      override def openCopy: Ref[E] = c.openCopyMap(f)
       override def close(): Unit = c.close
       override def isClosed = c.isClosed
     }
   }
+  def as[E] = map(_.asInstanceOf[E])
 
   // helper
   def copy(implicit bind:IoScope): Ref[T] = {
     bind(openCopy)
   }
-  def copyAs[E](f: T => E )(implicit bind:IoScope) : Ref[E] = {
-    bind(openCopyAs(f))
+  def copyMap[E](f: T => E )(implicit bind:IoScope) : Ref[E] = {
+    bind(openCopyMap(f))
   }
+  def copyAs[E](implicit bind:IoScope) = copyMap(_.asInstanceOf[E])
 }
 
 case class RefCount(closer:() => Unit, var v:Int = 0) {

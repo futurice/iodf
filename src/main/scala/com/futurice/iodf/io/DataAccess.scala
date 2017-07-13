@@ -2,6 +2,7 @@ package com.futurice.iodf.io
 
 import java.io.OutputStream
 
+import com.futurice.iodf.IoScope
 import com.futurice.iodf.util.{Handle, Ref, Tracing}
 import org.slf4j.LoggerFactory
 import xerial.larray.buffer.{Memory, UnsafeUtil}
@@ -188,4 +189,6 @@ class DataAccess(val _dataRef:DataRef,
 
   def openView(from:Long, until:Long) =
     new DataAccess(dataRef, ref, this.from + from, Some(this.from + until))
+  def view(from:Long, until:Long)(implicit bind:IoScope)=
+    bind(openView(from, until))
 }

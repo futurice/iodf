@@ -11,17 +11,23 @@ object OrderingProvider {
 
   def orderingOf[T](implicit ord: Ordering[T]) = ord
 
+  // FIXME: copy paste code
+
   def orderingOf(tpe: Type) = {
     (tpe match {
-
       case t if t <:< typeOf[Boolean] => orderingOf[Boolean]
       case t if t <:< typeOf[Int] => orderingOf[Int]
       case t if t <:< typeOf[Long] => orderingOf[Long]
       case t if t <:< typeOf[String] => orderingOf[String]
+      case t if t <:< typeOf[Option[Boolean]] => orderingOf[Option[Boolean]]
+      case t if t <:< typeOf[Option[Int]] => orderingOf[Option[Int]]
+      case t if t <:< typeOf[Option[Long]] => orderingOf[Option[Long]]
+      case t if t <:< typeOf[Option[String]] => orderingOf[Option[String]]
       case v =>
         throw new IllegalArgumentException(v + " is unknown")
     }).asInstanceOf[Ordering[Any]] // TODO: refactor, there has to be a better way
   }
+
   def anyOrdering : Ordering[Any] = new Ordering[Any] {
     val b = orderingOf[Boolean]
     val i = orderingOf[Int]
@@ -37,8 +43,12 @@ object OrderingProvider {
         case (xv: Int, yv:Int) => i.compare(xv, yv)
         case (xv: Long, yv:Long) => l.compare(xv, yv)
         case (xv: String, yv:String) => s.compare(xv, yv)
-        case (x, y) =>
-          throw new IllegalArgumentException("cannot compare " + x + " with " + y)
+        case (None, None) => 0
+        case (None, Some(_)) => 1
+        case (Some(_), None) => -1
+        case (Some(xv), Some(yv)) => compare(xv, yv)
+        case (xv, yv) =>
+          s.compare(xv.getClass.getName, yv.getClass.getName)
       }
     }
   }

@@ -2,7 +2,7 @@ package com.futurice.iodf.io
 
 import com.futurice.iodf.IoScope
 import com.futurice.iodf.util.Handle
-import com.futurice.iodf.Utils._
+import com.futurice.iodf._
 
 /**
   * Io reference refers to an io type

@@ -2,6 +2,7 @@ package com.futurice.iodf.store
 
 import com.futurice.iodf.io.{DataAccess, DataOutput, DataOutputMixin, DataRef}
 import com.futurice.iodf.util.LSeq
+import com.futurice.iodf._
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable

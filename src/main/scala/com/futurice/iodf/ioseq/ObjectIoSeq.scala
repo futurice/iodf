@@ -2,7 +2,7 @@ package com.futurice.iodf.ioseq
 
 import java.io._
 
-import com.futurice.iodf.Utils._
+import com.futurice.iodf._
 import com.futurice.iodf.io.{DataAccess, DataOutput, DataRef, IoRef}
 import com.futurice.iodf.util.{LSeq, MultiSeq, Ref}
 
@@ -56,6 +56,9 @@ class ObjectIoSeqType[T](i:RandomAccessReading[T], o:OutputWriting[T])(
 
   override def viewMerged(seqs: Seq[Ref[LSeq[T]]]): LSeq[T] =
     new MultiSeq[T, LSeq[T]](seqs.toArray)
+
+  override def toString =
+    f"ObjectIoSeqType[${vTag.tpe}]"
 
 }
 

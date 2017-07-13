@@ -4,6 +4,8 @@ colIds are:
 
   bigNumber
   name
+  optionalInt
+  optionalText
   property
   quantity
   text
@@ -12,22 +14,26 @@ columns are:
 
   1000000000,1,324234
   a,b,c
+  None,Some(4),None
+  None,None,Some(extra text)
   true,false,true
   3,2,4
   some text,more text,even more text
 
 item 0 name is a
 item 1 quantity is 2
-item 2 is ExampleItem(c,true,4,even more text,324234)
+item 2 is ExampleItem(c,true,4,even more text,324234,None,Some(extra text))
 
-writing df..36 ms 
+writing df..41 ms 
 
-opening df..24 ms 
+opening df..120 ms 
 
 colIds are: 
 
   bigNumber
   name
+  optionalInt
+  optionalText
   property
   quantity
   text
@@ -36,12 +42,14 @@ columns are:
 
   1000000000,1,324234
   a,b,c
+  None,Some(4),None
+  None,None,Some(extra text)
   true,false,true
   3,2,4
   some text,more text,even more text
 
 item 0 name is a
 item 1 quantity is 2
-item 2 is ExampleItem(c,true,4,even more text,324234)
+item 2 is ExampleItem(c,true,4,even more text,324234,None,Some(extra text))
 
 0 refs open.

@@ -1,0 +1,126 @@
+
+documents:
+
+
+colIds are: 
+
+  bigNumber
+  name
+  number
+  property
+  text
+
+columns are: 
+
+  None,Some(3450324234233242),None
+  Some(a),Some(b),Some(c)
+  Some(3),None,Some(3)
+  Some(true),Some(false),None
+  Some(some text),None,Some(more text here)
+
+index:
+
+
+colIds are: 
+
+  (bigNumber,Some(3450324234233242))
+  (bigNumber,None)
+  (name,Some(a))
+  (name,Some(b))
+  (name,Some(c))
+  (number,Some(3))
+  (number,None)
+  (property,Some(false))
+  (property,Some(true))
+  (property,None)
+  (text,false)
+  (text,true)
+  (text,here)
+  (text,more)
+  (text,some)
+  (text,text)
+
+columns are: 
+
+  false,true,false
+  true,false,true
+  true,false,false
+  false,true,false
+  false,false,true
+  true,false,true
+  false,true,false
+  false,true,false
+  true,false,false
+  false,false,true
+  false,true,false
+  true,false,true
+  false,false,true
+  false,false,true
+  true,false,false
+  true,false,true
+
+writing df..47 ms 
+
+opening df..119 ms 
+documents:
+
+
+colIds are: 
+
+  bigNumber
+  name
+  number
+  property
+  text
+
+columns are: 
+
+  None,Some(3450324234233242),None
+  Some(a),Some(b),Some(c)
+  Some(3),None,Some(3)
+  Some(true),Some(false),None
+  Some(some text),None,Some(more text here)
+
+index:
+
+
+colIds are: 
+
+  (bigNumber,Some(3450324234233242))
+  (bigNumber,None)
+  (name,Some(a))
+  (name,Some(b))
+  (name,Some(c))
+  (number,Some(3))
+  (number,None)
+  (property,Some(false))
+  (property,Some(true))
+  (property,None)
+  (text,false)
+  (text,true)
+  (text,here)
+  (text,more)
+  (text,some)
+  (text,text)
+
+columns are: 
+
+  false,true,false
+  true,false,true
+  true,false,false
+  false,true,false
+  false,false,true
+  true,false,true
+  false,true,false
+  false,true,false
+  true,false,false
+  false,false,true
+  false,true,false
+  true,false,true
+  false,false,true
+  false,false,true
+  true,false,false
+  true,false,true
+
+
+0 refs open.

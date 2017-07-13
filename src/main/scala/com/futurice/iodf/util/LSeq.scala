@@ -4,24 +4,12 @@ import java.io.Closeable
 
 
 /* long sequence interface */
-trait LSeq[T] extends Iterable[T] with PartialFunction[Long, T] with Closeable {
+trait LSeq[+T] extends Iterable[T] with PartialFunction[Long, T] with Closeable {
   def close = {}
   def apply(l:Long) : T
   def lsize : Long
   override def size = lsize.toInt
   def isDefinedAt(l:Long) = l >= 0 && l < size
-  def iterator : PeekIterator[T] = new PeekIterator[T] {
-    var i = 0L
-    override def head : T = apply(i)
-    override def hasNext: Boolean = {
-      i < lsize
-    }
-    override def next(): T = {
-      val rv = apply(i)
-      i += 1
-      rv
-    }
-  }
   def view(from:Long, until:Long) : LSeq[T] = {
     val self = this
     new LSeq[T] {
@@ -37,6 +25,17 @@ trait LSeq[T] extends Iterable[T] with PartialFunction[Long, T] with Closeable {
       override def close = self.close
     }
   }
+  def iterator : Iterator[T] = new Iterator[T] {
+    var i = 0L
+    override def hasNext: Boolean = {
+      i < lsize
+    }
+    override def next(): T = {
+      val rv = apply(i)
+      i += 1
+      rv
+    }
+  }
   override def toString =
     f"LSeq(" + (if (lsize < 8) this.mkString(", ") else this.take(8).mkString(", ") + "..") + ")"
 }
@@ -46,7 +45,10 @@ object LSeq {
       override def apply(l: Long): T = t
       override def lsize: Long = n
   }
-
+  def empty[T] = new LSeq[T] {
+    override def apply(l:Long) = throw new IndexOutOfBoundsException(f"this sequence is empty")
+    override def lsize = 0
+  }
   def apply[T](v:T*) = from[T](v)
   def from[T](v:Seq[T]) = new LSeq[T] {
     override def apply(l: Long): T = v(l.toInt)

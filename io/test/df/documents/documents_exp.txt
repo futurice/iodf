@@ -1,0 +1,53 @@
+
+
+colIds are: 
+
+  bigNumber
+  name
+  number
+  property
+  text
+
+columns are: 
+
+  None,Some(3450324234233242),None
+  Some(a),Some(b),Some(c)
+  Some(3),None,Some(3)
+  Some(true),Some(false),None
+  Some(some text),None,Some(more text here)
+
+contents:
+
+  Document(name -> a, number -> 3, property -> true, text -> some text)
+  Document(bigNumber -> 3450324234233242, name -> b, property -> false)
+  Document(name -> c, number -> 3, text -> more text here)
+
+
+writing df..3 ms (was 43 ms)
+
+opening df..1 ms (was 54 ms)
+
+colIds are: 
+
+  bigNumber
+  name
+  number
+  property
+  text
+
+columns are: 
+
+  None,Some(3450324234233242),None
+  Some(a),Some(b),Some(c)
+  Some(3),None,Some(3)
+  Some(true),Some(false),None
+  Some(some text),None,Some(more text here)
+
+contents:
+
+  Document(name -> a, number -> 3, property -> true, text -> some text)
+  Document(bigNumber -> 3450324234233242, name -> b, property -> false)
+  Document(name -> c, number -> 3, text -> more text here)
+
+
+0 refs open.

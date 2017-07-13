@@ -4,7 +4,7 @@ import java.io.Closeable
 
 import com.futurice.iodf.{IoContext, IoScope}
 import com.futurice.iodf.io.{DataOutput, DataRef}
-import com.futurice.iodf.Utils._
+import com.futurice.iodf._
 
 import scala.reflect.runtime.universe._
 

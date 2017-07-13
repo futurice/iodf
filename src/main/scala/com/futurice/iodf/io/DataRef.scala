@@ -2,7 +2,7 @@ package com.futurice.iodf.io
 
 import com.futurice.iodf.{IoContext, IoScope}
 import com.futurice.iodf.util.{Handle, Ref}
-import com.futurice.iodf.Utils.using
+import com.futurice.iodf._
 import xerial.larray.buffer.Memory
 
 /**

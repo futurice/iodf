@@ -1,12 +1,13 @@
 package com.futurice.iodf.io
 
-import com.futurice.iodf.IoScope
-import com.futurice.iodf.Utils.using
-import com.futurice.iodf.df.{DfIoType, IndexedDf, TypedDf}
+import com.futurice.iodf.{IoContext, IoScope, Utils}
+import com.futurice.iodf._
+import com.futurice.iodf.df._
 import com.futurice.iodf.ioseq._
-import com.futurice.iodf.store.AllocateOnce
-import com.futurice.iodf.util.{LBits, LSeq}
+import com.futurice.iodf.store.{AllocateOnce, RamAllocator}
+import com.futurice.iodf.util.{LBits, LSeq, Ref}
 
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
@@ -110,7 +111,7 @@ class IoTypesImpl(types:Seq[IoType[_, _]]) extends IoTypes {
 
   def +(tpe:IoType[_, _]) = new IoTypesImpl(types ++ Seq[IoType[_, _]](tpe))
 
-  def writerEntryOf(t:Type) : (IoWriter[_], Int) = {
+  def findWriterEntryOf(t:Type) : (IoWriter[_], Int) = {
     reversedWithIndex
       .toStream
       .flatMap(e => e._1.provideWriter(t).map(c => (c, e._2)))
@@ -120,7 +121,7 @@ class IoTypesImpl(types:Seq[IoType[_, _]]) extends IoTypes {
         throw new RuntimeException("no io type for " + t + " / " + t.hashCode() + ". ")
     }
   }
-  def openerEntryOf(t:Type) : (IoOpener[_], Int) = {
+  def findOpenerEntryOf(t:Type) : (IoOpener[_], Int) = {
     reversedWithIndex
       .toStream
       .flatMap(e => e._1.provideOpener(t).map(c => (c, e._2)))
@@ -130,6 +131,18 @@ class IoTypesImpl(types:Seq[IoType[_, _]]) extends IoTypes {
         throw new RuntimeException("no io type for " + t + " / " + t.hashCode() + ". ")
     }
   }
+  val writerEntryLookup = mutable.HashMap[Type, (IoWriter[_], Int)]()
+  val openerEntryLookup = mutable.HashMap[Type, (IoOpener[_], Int)]()
+
+  def writerEntryOf(t:Type) : (IoWriter[_], Int) = {
+    writerEntryLookup.getOrElseUpdate(t,
+      findWriterEntryOf(t))
+  }
+  def openerEntryOf(t:Type) : (IoOpener[_], Int) = {
+    openerEntryLookup.getOrElseUpdate(t,
+      findOpenerEntryOf(t))
+  }
+
   def openerEntryOf[T : TypeTag] : (IoType[_ >: T, _ <: T], Int) = {
     openerEntryOf(typeOf[T]).asInstanceOf[(IoType[_ >: T, _ <: T], Int)]
   }
@@ -137,10 +150,10 @@ class IoTypesImpl(types:Seq[IoType[_, _]]) extends IoTypes {
     writerEntryOf(typeOf[T]).asInstanceOf[(IoType[T, _ <: T], Int)]
   }
   override def ioTypeOf(t:Type) : IoType[_, _] = {
-    types(openerEntryOf(t)._2)
+    types(writerEntryOf(t)._2)
   }
   override def ioTypeOf[T : TypeTag]() : IoType[_ >: T, _ <: T] = {
-    types(openerEntryOf(typeOf[T])._2).asInstanceOf[IoType[_ >: T, _ <: T]]
+    types(writerEntryOf(typeOf[T])._2).asInstanceOf[IoType[_ >: T, _ <: T]]
   }
   override def write(out:DataOutput, v:Any, tpe:Type) = {
     val (typ, id) = writerEntryOf(tpe)
@@ -177,50 +190,84 @@ object IoTypes {
   def apply(types:Seq[IoType[_, _]]) = {
     new IoTypesImpl(types)
   }
-  val (default : IoTypes, stringDfType : DfIoType[String], indexDfType : DfIoType[(String, Any)]) = {
-    val str = new StringIoSeqType
-    val buf = new ArrayBuffer[IoType[_, _]]()
-    implicit val self = apply(buf)
-    val entryIo = new Serializer[(Int, String, Long)] {
-      override def read(b: DataAccess, pos: Long): (Int, String, Long) = {
-        val i = b.getBeInt(pos)
-        val l = b.getBeLong(pos+4)
-        val s = StringIo.read(b, pos+12)
-        (i, s, l)
-      }
-      override def write(o: DataOutput, v: (Int, String, Long)): Unit = {
-        o.writeInt(v._1)
-        o.writeLong(v._3)
-        StringIo.write(o, v._2)
-      }
-      override def size(o: DataAccess, pos: Long): Long = {
-        4+8+StringIo.size(o, pos+4+8)
-      }
-    }
-    val javaIo = new JavaObjectIo[Any]
-    val variantIo = new VariantIo(Array(BooleanIo, IntIo, LongIo, StringIo), javaIo)
-    val tupleIo = new Tuple2Io[String, Any](StringIo, variantIo)
-    val stringIntIo = new Tuple2Io[String, Int](StringIo, IntIo)
-    val bitsIoType =
-      new BitsIoType(// converts Bits
-        new SparseIoBitsType(),
-        new DenseIoBitsType())
-    val dfs = new DfIoType[String]()
-    implicit val indexOrdering = IndexedDf.indexColIdOrdering[String]
-    val indexDfs = new DfIoType[(String, Any)]()
+  val (default : IoTypes, stringDfType : DfIoType[String], indexType : IndexIoType[String]) = {
+    scoped { implicit bind =>
+      val str = new StringIoSeqType
+      val buf = new ArrayBuffer[IoType[_, _]]()
+      val self = apply(buf)
+      implicit val io =
+        bind(new IoContext(self, bind(Ref.open(new RamAllocator()))))
 
-    buf ++=
-      Seq(
-        new ObjectIoSeqType[Any](javaIo, javaIo),
-        new ObjectIoSeqType[(String, Any)](tupleIo, tupleIo),
-        new ObjectIoSeqType[(String, Int)](stringIntIo, stringIntIo),
-        str,
-        new LongIoArrayType,
-        new IntIoArrayType,
-        BitsIoType.booleanSeqIoType(bitsIoType),
-        bitsIoType, // prefer lbits type over seq[boolean] type
-        dfs,
-        indexDfs)
-    (self, dfs, indexDfs)
+      val entryIo = new Serializer[(Int, String, Long)] {
+        override def read(b: DataAccess, pos: Long): (Int, String, Long) = {
+          val i = b.getBeInt(pos)
+          val l = b.getBeLong(pos + 4)
+          val s = StringIo.read(b, pos + 12)
+          (i, s, l)
+        }
+
+        override def write(o: DataOutput, v: (Int, String, Long)): Unit = {
+          o.writeInt(v._1)
+          o.writeLong(v._3)
+          StringIo.write(o, v._2)
+        }
+
+        override def size(o: DataAccess, pos: Long): Long = {
+          4 + 8 + StringIo.size(o, pos + 4 + 8)
+        }
+      }
+      val javaIo = new JavaObjectIo[Any]
+      val variantIo = new VariantIo(Array(BooleanIo, IntIo, LongIo, StringIo), javaIo)
+      val tupleIo = new Tuple2Io[String, Any](StringIo, variantIo)
+      val stringIntIo = new Tuple2Io[String, Int](StringIo, IntIo)
+      val bitsIoType =
+        new BitsIoType(// converts Bits
+          new SparseIoBitsType(),
+          new DenseIoBitsType())
+
+      val longs = new LongIoArrayType
+
+      implicit val stringValueOrdering = Index.indexColIdOrdering[String]
+      implicit val intValueOrdering = Index.indexColIdOrdering[Int]
+      implicit val longValueOrdering = Index.indexColIdOrdering[Long]
+
+      val stringDfs = new DfIoType[String]()
+
+      val stringValueDfs = new DfIoType[(String, Any)]()
+
+      val indexDfs      = new IndexIoType(stringValueDfs)
+      val tables        = new TableIoType(longs, stringDfs)
+      val indexedTables = new IndexedIoType(tables, indexDfs)
+      val documents =     new DocumentsIoType(stringDfs)
+      val indexedDocuments = new IndexedIoType(documents, indexDfs)
+
+      buf ++=
+        Seq(
+          new ObjectIoSeqType[Any](javaIo, javaIo),
+          new ObjectIoSeqType[(String, Any)](tupleIo, tupleIo),
+          new ObjectIoSeqType[(String, Int)](stringIntIo, stringIntIo),
+          str,
+          new IntIoArrayType,
+          longs,
+          BitsIoType.booleanSeqIoType(bitsIoType),
+          bitsIoType, // prefer lbits type over seq[boolean] type
+
+          stringDfs,
+          new DfIoType[Int](),
+          new DfIoType[Long](),
+
+          stringValueDfs,
+          new DfIoType[(Int, Any)](),
+          new DfIoType[(Long, Any)](),
+
+          indexDfs,
+          tables,
+          indexedTables,
+          documents,
+          indexedDocuments,
+
+          indexDfs)
+      (self, stringDfs, indexDfs)
+    }
   }
 }

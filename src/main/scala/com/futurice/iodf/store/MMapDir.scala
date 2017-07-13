@@ -5,6 +5,7 @@ import java.io._
 import com.futurice.iodf.{IoScope, io}
 import com.futurice.iodf.util.{LSeq, Ref}
 import com.futurice.iodf.Utils._
+import com.futurice.iodf._
 import com.futurice.iodf.io.{DataAccess, DataOutputMixin, DataRef}
 import xerial.larray.buffer.{LBufferAPI, Memory}
 import xerial.larray.mmap.{MMapBuffer, MMapMode}
