@@ -1,6 +1,6 @@
 package com.futurice.iodf.store
 
-import java.io.{Closeable, File, FileOutputStream, OutputStream}
+import java.io._
 
 import com.futurice.iodf.IoScope
 import xerial.larray.buffer.LBufferAPI
@@ -21,10 +21,10 @@ class MMapDir(dir:File) extends Dir[String] {
   def file(name:String) = new File(dir, name)
 
 /*  override def create(name: String, length: Long): LBufferAPI = {
-    new MMapBuffer(file(name), 0, length, MMapMode.READ_WRITE)
+    new MMapBuffer(file(nameDe), 0, length, MMapMode.READ_WRITE)
   }*/
   override def openOutput(name: String): OutputStream = {
-    new FileOutputStream(file(name))
+    new BufferedOutputStream(new FileOutputStream(file(name)))
   }
   override def open(name: String, pos:Long, size:Option[Long]): IoData[String] = {
     val f = file(name)

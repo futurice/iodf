@@ -1,6 +1,6 @@
 package com.futurice.iodf
 
-import com.futurice.iodf.utils.{MergeSortIterator, PeekIterator}
+import com.futurice.iodf.utils.{LBits, MergeSortIterator, PeekIterator}
 
 import scala.reflect.{ClassTag, classTag}
 import scala.reflect.runtime.universe._
@@ -33,7 +33,7 @@ class TypedDfView[IoId, T : ClassTag](val df:Df[IoId, String])(
 
   //  lazy val thisColId = indexOf("this")
 
-  val (make, constructorParamNames, constructorParamTypes, fieldNames) = {
+  val (make, constructorParamNames, constructorParamTypes, fieldNames, fieldTypes) = {
 
     val fields =
       tag.tpe.members.filter(!_.isMethod).map { e =>
@@ -60,7 +60,7 @@ class TypedDfView[IoId, T : ClassTag](val df:Df[IoId, String])(
 
     ({ vs : Array[AnyRef] =>
       constructor.newInstance(constructorParamIndexes.map(vs(_)) : _*).asInstanceOf[T]
-    }, constructorParamNames, constructorParamTypes, fields.map(_._2))
+    }, constructorParamNames, constructorParamTypes, fields.map(_._2), fields.map(_._1))
   }
 
   override def apply(i: Long): T = {
@@ -80,8 +80,13 @@ class TypedDfView[IoId, T : ClassTag](val df:Df[IoId, String])(
       def apply(i :Long) =
         if (i < df._cols.size)
           df._cols.apply (i)
-        else
-          LSeq.empty
+        else { // FIXME: hackish
+          if (typeOf[Boolean] <:< fieldTypes(i.toInt)) {
+            LBits.empty(df.lsize).asInstanceOf[LSeq[Any]]
+          } else {
+            LSeq.empty
+          }
+        }
       def lsize = colIds.lsize
     }
 
