@@ -17,12 +17,35 @@ trait LSeq[+T] extends Iterable[T] with PartialFunction[Long, T] with Closeable 
       def apply(l:Long) = self.apply(l+from)
     }
   }
+
+  /**
+   * TODO: rename this, lazy implies cacheing, while we don't cache anything
+   */
+  def lazyMap[B](f: T => B) : LSeq[B] = map[B](f)
   def map[B](f: T => B) : LSeq[B] = {
     val self = this
     new LSeq[B] {
       def apply(l:Long) = f(self.apply(l))
       def lsize : Long = self.lsize
+      override def iterator : Iterator[B] = self.iterator.map(f)
       override def close = self.close
+    }
+  }
+  def zipWithIndex : LSeq[(T, Long)] = {
+    val self = this
+    new LSeq[(T, Long)] {
+      override def apply(l: Long) = (self(l), l)
+      override def lsize = self.lsize
+      override def iterator : Iterator[(T, Long)] = new Iterator[(T, Long)] {
+        val i = self.iterator
+        var at = 0L
+        override def hasNext = i.hasNext
+        override def next() = {
+          val rv = (i.next(), at)
+          at += 1
+          rv
+        }
+      }
     }
   }
   def iterator : Iterator[T] = new Iterator[T] {
@@ -36,8 +59,20 @@ trait LSeq[+T] extends Iterable[T] with PartialFunction[Long, T] with Closeable 
       rv
     }
   }
+  def select(indexes:LSeq[Long]) = {
+    val self = this
+    indexes.map { i : Long => self(i) }
+  }
+  def selectSome(indexes:LSeq[Option[Long]]) = {
+    val self = this
+    indexes.map { e : Option[Long] => e.map { index =>
+        self(index)
+      }
+    }
+  }
   override def toString =
     f"LSeq(" + (if (lsize < 8) this.mkString(", ") else this.take(8).mkString(", ") + "..") + ")"
+
 }
 
 object LSeq {

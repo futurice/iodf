@@ -114,7 +114,7 @@ class ObjectsTest extends TestSuite("df/objects") {
     errors
   }
 
-  def tCompareDfs[ColId](t:TestTool, dfA:Df[ColId], dfB:Df[ColId]) = {
+  def tCompareDfs[ColId](t:TestTool, dfA:Cols[ColId], dfB:Cols[ColId]) = {
     var diffs = 0
     diffs +=
       tCompareSeq(t, dfA.colIds, dfB.colIds)

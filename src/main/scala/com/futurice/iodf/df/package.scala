@@ -7,7 +7,7 @@ import com.futurice.iodf.util.{LSeq, Ref}
   */
 package object df {
 
-  type IndexedDf[ColId] = Indexed[ColId, Df[ColId]]
+  type IndexedDf[ColId] = Indexed[ColId, Cols[ColId]]
   type IndexedDocuments = Indexed[String, Documents]
   type IndexedTable     = Indexed[String, Table]
 

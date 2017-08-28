@@ -5,6 +5,37 @@ import java.util
 import com.futurice.iodf.ioseq.{DenseIoBits, IoBits}
 import com.futurice.iodf._
 
+trait LCondBits extends LSeq[Option[Boolean]] {
+
+  def f : Long
+  def n : Long
+
+  def defined : LBits
+  def states : LBits
+
+}
+
+object LCondBits {
+  def apply(_defined:LBits,
+            _states:LBits) = {
+    new LCondBits {
+      override def f = _states.f
+
+      override def n = _defined.f
+
+      override def defined = _defined
+
+      override def states = _states
+
+      override def apply(l: Long) =
+        _defined(l) match {
+          case false => None
+          case true => Some(_states(l))
+        }
+      override def lsize = _defined.lsize
+    }
+  }
+}
 
 /**
   * Created by arau on 31.5.2017.
@@ -17,8 +48,17 @@ trait LBits extends LSeq[Boolean] {
   def trues : Scannable[Long, Long]
   def f : Long
   def n = lsize
-  override def view(from:Long, until:Long) : LBits = new BitsView(this, from, until)
+  override def view(from:Long, until:Long) : LBits =
+    new BitsView(this, from, until)
 
+  override def select(indexes:LSeq[Long]) = {
+    LBits.from(indexes.lazyMap(i => apply(i)))
+  }
+  override def selectSome(indexes:LSeq[Option[Long]]) = {
+    LCondBits(
+      LBits.from(indexes.lazyMap(_.isDefined)),
+      LBits.from(indexes.lazyMap(e => e.isDefined && apply(e.get))))
+  }
   def fAnd(bits:LBits) = {
     LBits.fAnd(this, bits)
   }
@@ -71,6 +111,13 @@ trait LBits extends LSeq[Boolean] {
     scope.bind(createMerged(b))
   }
 
+  override def toString = {
+    val rv = new StringBuffer()
+    iterator.foreach { i =>
+      rv.append(if (i) '1' else '0')
+    }
+    rv.toString
+  }
 
 }
 

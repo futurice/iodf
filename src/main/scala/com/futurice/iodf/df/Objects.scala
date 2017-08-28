@@ -3,18 +3,25 @@ package com.futurice.iodf.df
 import java.util
 
 import com.futurice.iodf.IoContext
-import com.futurice.iodf.df.MultiDf.DefaultColIdMemRatio
-import com.futurice.iodf.util.{LBits, LSeq, PeekIterator, Ref}
+import com.futurice.iodf.df.MultiCols.DefaultColIdMemRatio
+import com.futurice.iodf.util._
 import com.futurice.iodf.io._
 import com.futurice.iodf._
-
 import com.futurice.iodf.ioseq.{IoSeq, SeqIoType}
 
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 import scala.reflect.{ClassTag, classTag}
 
-case class ObjectSchema[T:TypeTag:ClassTag](fields : Seq[(Type, String)]) extends DfSchema[String] {
+/** FIXME: why this class is exist? */
+trait ObjectsApi[T] extends LSeq[T] {
+  def fieldNames   : Array[String]
+  def fieldIndexes : Array[Int]
+}
+
+case class ObjectSchema[T:TypeTag:ClassTag](fields : Seq[(Type, String)]) extends ColSchema[String] {
+
+  val sorted = fields.sortBy(_._2)
 
   def tTag = typeTag[T]
   def clazz = classTag[T].runtimeClass
@@ -37,35 +44,30 @@ case class ObjectSchema[T:TypeTag:ClassTag](fields : Seq[(Type, String)]) extend
         if (typ <:< typeOf[Boolean]) {
           val bitset = new util.BitSet(items.size)
           items.zipWithIndex.foreach { case (item, i) =>
-            bitset.set(i, accessor.invoke(item).asInstanceOf[Boolean])
+            bitset.set(i.toInt, accessor.invoke(item).asInstanceOf[Boolean])
           }
           LBits.from(bitset, items.size)
         } else {
           val rv = new Array[Any](items.size)
           items.zipWithIndex.foreach { case (item, i) =>
-            rv(i) = accessor.invoke(item)
+            rv(i.toInt) = accessor.invoke(item)
           }
           LSeq.from(rv)
         }
       })
 
   override val colIds: LSeq[String] =
-    LSeq.from(fields.map(_._2))
+    LSeq.from(sorted.map(_._2))
 
   override def colTypes: LSeq[universe.Type] =
-    LSeq.from(fields.map(_._1))
+    LSeq.from(sorted.map(_._1))
 
+  override def colMeta = LSeq.fill(fields.size, KeyMap.empty)
 }
 
-trait ObjectsApi[T] extends LSeq[T] {
+trait Objects[T] extends Df[T] with ObjectsApi[T] {
 
-  def fieldNames : Array[String]
-  def fieldIndexes : Array[Int]
-}
-
-trait Objects[T] extends Df[String] with ObjectsApi[T] {
-
-  def df : Df[String]
+  def df : Cols[String]
 
   def schema : ObjectSchema[T]
 
@@ -74,14 +76,15 @@ trait Objects[T] extends Df[String] with ObjectsApi[T] {
   override def size = lsize.toInt
   override def view(from:Long, until:Long) =
     Objects(schema, df.view(from, until))
-
+  override def select(indexes:LSeq[Long]) =
+    Objects(schema, df.select(indexes))
 }
 
 object Objects {
 
   def viewMerged[T:TypeTag:ClassTag](dfs:Seq[Ref[Objects[T]]],
                                      colIdMemRatio:Int = DefaultColIdMemRatio)(implicit io:IoContext) : Objects[T] = {
-    Objects.apply[T](MultiDf.open[String](dfs))
+    Objects.apply[T](MultiCols.open[String](dfs))
   }
 
   val TypeRef(seqPkg, seqSymbol, anyArgs) = typeOf[scala.Seq[Any]]
@@ -99,11 +102,11 @@ object Objects {
     new ObjectSchema[T](fields)
   }
 
-  def apply[T:TypeTag:ClassTag](d:Df[String]) : Objects[T] = {
+  def apply[T:TypeTag:ClassTag](d:Cols[String]) : Objects[T] = {
     apply(typeSchema[T], d)
   }
 
-  def apply[T](objectSchema:ObjectSchema[T], d:Df[String]) : Objects[T] = {
+  def apply[T](objectSchema:ObjectSchema[T], d:Cols[String]) : Objects[T] = {
     new Objects[T] {
 
       override def df = d
@@ -113,10 +116,10 @@ object Objects {
       override def schema = objectSchema
 
       def as[E : ClassTag](implicit tag2:TypeTag[E]) : Objects[E] = {
-        Objects[E](new DfRef(df))
+        Objects[E](new ColsRef(df))
       }
 
-      val (make, constructorParamNames, constructorParamTypes, fieldNames, fieldTypes) = {
+      val (make, constructorParamNames, constructorParamTypes) = {
 
         val fields =
           schema.tTag.tpe.members.filter(!_.isMethod).map { e =>
@@ -143,7 +146,7 @@ object Objects {
 
         ({ vs : Array[AnyRef] =>
           constructor.newInstance(constructorParamIndexes.map(vs(_)) : _*).asInstanceOf[T]
-        }, constructorParamNames, constructorParamTypes, fields.map(_._2), fields.map(_._1))
+        }, constructorParamNames, constructorParamTypes)
       }
 
       override def apply(i: Long): T = {
@@ -154,10 +157,13 @@ object Objects {
 
       override def colIdOrdering = df.colIdOrdering
 
-      override def colIds = LSeq.from(fieldNames)
+      override def colIds = objectSchema.colIds
 
-      override def colTypes = LSeq.from(fieldTypes)
+      override def colTypes = objectSchema.colTypes
 
+      override def colMeta = LSeq.fill(fieldNames.size, KeyMap.empty)
+
+      override def fieldNames = colIds.toArray
       override def fieldIndexes = (0 until colIds.size).toArray //.filter(_ != thisColIndex)
 
       override def _cols =
@@ -174,9 +180,10 @@ object Objects {
   def from[T:ClassTag:TypeTag](items:LSeq[T]) : Objects[T] = {
     val t = typeSchema[T]
     apply(
-      Df[String](
+      Cols[String](
         LSeq.from(t.fields.map(_._2)), // names
         LSeq.from(t.fields.map(_._1)), // types
+        LSeq.fill(t.fields.size, KeyMap.empty),
         t.toColumns(items),
         items.size))
   }
@@ -185,7 +192,7 @@ object Objects {
   }
 }
 
-class ObjectsIoType[T : ClassTag:TypeTag](dfType:DfIoType[String])(implicit io:IoContext) extends MergeableIoType[Objects[T], Objects[T]] {
+class ObjectsIoType[T : ClassTag:TypeTag](dfType:ColsIoType[String])(implicit io:IoContext) extends MergeableIoType[Objects[T], Objects[T]] {
   override def interfaceType: universe.Type = typeOf[Objects[T]]
   override def ioInstanceType: universe.Type = typeOf[Objects[T]]
   override def open(data: DataAccess): Objects[T] = {
@@ -197,7 +204,7 @@ class ObjectsIoType[T : ClassTag:TypeTag](dfType:DfIoType[String])(implicit io:I
   }
   override def viewMerged(dfs: Seq[Ref[Objects[T]]]): Objects[T] = {
     implicit val io = dfType.io
-    Objects[T](MultiDf.open[String](dfs))
+    Objects[T](MultiCols.open[String](dfs))
   }
 }
 

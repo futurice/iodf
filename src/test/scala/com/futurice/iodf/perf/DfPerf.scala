@@ -5,7 +5,7 @@ import java.io.File
 
 import com.futurice.iodf.Utils._
 import com.futurice.iodf._
-import com.futurice.iodf.df.{MultiDf, _}
+import com.futurice.iodf.df.{MultiCols, _}
 import com.futurice.iodf.io.MergeableIoType
 import com.futurice.iodf.providers.OrderingProvider
 import com.futurice.iodf.store.{AllocateOnce, MMapDir, MMapFile}
@@ -179,8 +179,8 @@ class DfPerf extends TestSuite("perf/df") {
                     val dfs = dfFiles.map(f => Ref(f.openAs[IndexedObjects[ExampleItem]]))
                     val objs =
                       Objects[ExampleItem](
-                        MultiDf.donate(dfs.map(e => Ref.mock(e.get.df)), colIdMemRatio))
-                    val index = Index(MultiDf.open(dfs.map(e => Ref.mock(e.get.indexDf)), colIdMemRatio))
+                        MultiCols.donate(dfs.map(e => Ref.mock(e.get.df)), colIdMemRatio))
+                    val index = Index(MultiCols.open(dfs.map(e => Ref.mock(e.get.indexDf)), colIdMemRatio))
                     val df =
                       bind(
                         IndexedObjects(

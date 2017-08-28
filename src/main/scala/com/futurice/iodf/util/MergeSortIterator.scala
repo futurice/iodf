@@ -18,9 +18,13 @@ trait PeekIterator[T] extends Iterator[T] {
       case true => Some(head)
       case false => None
     }
-  def scan(t:T)(implicit ord:Ordering[T]) : Boolean= {
+  def scan(t:T)(implicit ord:Ordering[T]) : Boolean = {
     while (hasNext && ord.lt(head, t)) next
     head == t
+  }
+  def scanUntil(until:T => Boolean)(implicit ord:Ordering[T]) : Boolean = {
+    while (hasNext && !until(head)) next
+    hasNext && until(head)
   }
   def scanned(t:T)(implicit ord:Ordering[T]) : PeekIterator[T] = {
     scan(t)

@@ -1,0 +1,86 @@
+
+df.select result
+
+colIds are: 
+
+  id
+  optionInt
+  property
+  text
+
+columns are: 
+
+  c,a
+  Some(5),Some(4)
+  true,true
+  some things here,text here
+
+
+df.indexDf.select result
+
+colIds are: 
+
+  (id,a)
+  (id,b)
+  (id,c)
+  (optionInt,Some(4))
+  (optionInt,Some(5))
+  (optionInt,None)
+  (property,false)
+  (property,true)
+  (text,here)
+  (text,some)
+  (text,text)
+  (text,things)
+
+columns are: 
+
+  false,true
+  false,false
+  true,false
+  false,true
+  true,false
+  false,false
+  false,false
+  true,true
+  true,true
+  true,false
+  false,true
+  true,false
+
+
+df.indexDf.selectSome result
+
+colIds are: 
+
+  (id,a)
+  (id,b)
+  (id,c)
+  (optionInt,Some(4))
+  (optionInt,Some(5))
+  (optionInt,None)
+  (property,false)
+  (property,true)
+  (text,here)
+  (text,some)
+  (text,text)
+  (text,things)
+
+columns are: 
+
+  false,false,false,false
+  true,false,false,true
+  false,false,true,false
+  false,false,false,false
+  false,false,true,false
+  true,false,false,true
+  true,false,false,true
+  false,false,true,false
+  false,false,true,false
+  true,false,true,true
+  true,false,false,true
+  false,false,true,false
+
+
+
+0 refs open.

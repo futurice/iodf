@@ -64,6 +64,16 @@ trait IoTypes {
     bind(openSave(ref, t))
   }
 
+  def openSave(ref:AllocateOnce, t:Any, typ:Type) = {
+    using (ref.create) { out =>
+      write(out, t, typ)
+      out.openDataRef
+    }
+  }
+  def save(ref:AllocateOnce, t:Any, typ:Type)(
+    implicit bind:IoScope): DataRef = {
+    bind(openSave(ref, t, typ))
+  }
   def getIoTypeId(t:IoType[_, _]) : Option[Int]
 
   def ioTypeId(t:IoType[_, _]) = {
@@ -190,7 +200,7 @@ object IoTypes {
   def apply(types:Seq[IoType[_, _]]) = {
     new IoTypesImpl(types)
   }
-  val (default : IoTypes, stringDfType : DfIoType[String], indexType : IndexIoType[String]) = {
+  val (default : IoTypes, stringDfType : ColsIoType[String], indexType : IndexIoType[String]) = {
     scoped { implicit bind =>
       val str = new StringIoSeqType
       val buf = new ArrayBuffer[IoType[_, _]]()
@@ -240,9 +250,9 @@ object IoTypes {
       implicit val intValueOrdering = Index.indexColIdOrdering[Int]
       implicit val longValueOrdering = Index.indexColIdOrdering[Long]
 
-      val stringDfs = new DfIoType[String]()
+      val stringDfs = new ColsIoType[String]()
 
-      val stringValueDfs = new DfIoType[(String, Any)]()
+      val stringValueDfs = new ColsIoType[(String, Any)]()
 
       val indexDfs      = new IndexIoType(stringValueDfs)
       val tables        = new TableIoType(longs, stringDfs)
@@ -273,12 +283,12 @@ object IoTypes {
           OptionIoSeqType(str, longs),
 
           stringDfs,
-          new DfIoType[Int](),
-          new DfIoType[Long](),
+          new ColsIoType[Int](),
+          new ColsIoType[Long](),
 
           stringValueDfs,
-          new DfIoType[(Int, Any)](),
-          new DfIoType[(Long, Any)](),
+          new ColsIoType[(Int, Any)](),
+          new ColsIoType[(Long, Any)](),
 
           indexDfs,
           tables,

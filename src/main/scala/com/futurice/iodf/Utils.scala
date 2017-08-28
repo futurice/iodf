@@ -8,7 +8,7 @@ import com.futurice.iodf.ioseq._
 import com.futurice.iodf.store._
 import com.futurice.iodf.util.{LBits, LSeq, Ref}
 import com.futurice.iodf.Utils._
-import com.futurice.iodf.df.{DfIoType, IndexedIoType, IndexedObjectsIoType, ObjectsIoType}
+import com.futurice.iodf.df.{ColsIoType, IndexedIoType, IndexedObjectsIoType, ObjectsIoType}
 import xerial.larray.buffer.LBufferConfig
 
 import scala.annotation.tailrec

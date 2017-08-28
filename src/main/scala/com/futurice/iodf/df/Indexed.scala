@@ -2,7 +2,7 @@ package com.futurice.iodf.df
 
 import com.futurice.iodf.IoContext
 import com.futurice.iodf._
-import com.futurice.iodf.df.MultiDf.DefaultColIdMemRatio
+import com.futurice.iodf.df.MultiCols.DefaultColIdMemRatio
 import com.futurice.iodf.io.{DataAccess, DataOutput, MergeableIoType}
 import com.futurice.iodf.store.{CfsDir, WrittenCfsDir}
 import com.futurice.iodf.util.{LBits, LSeq, Ref}
@@ -11,17 +11,20 @@ import scala.reflect.ClassTag
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 
-trait Indexed[ColId, T <: Df[ColId]] extends Df[ColId] with IndexApi[ColId] {
+trait Indexed[ColId, T <: Cols[ColId]] extends Cols[ColId] with IndexApi[ColId] {
   def df : T
   def indexDf : Index[ColId]
 
-  def view(from:Long, until:Long) =
-    Indexed[ColId, T](df.view(from, until).asInstanceOf[T],
+  override def view(from:Long, until:Long) =
+    Indexed[ColId, T](df.view(from, until).asInstanceOf[T], // FIXME: can scala type system help here?
                       indexDf.view(from, until))
+  override def select(indexes:LSeq[Long]) =
+    Indexed[ColId, T](df.select(indexes).asInstanceOf[T], // FIXME: can scala type system help here?
+                      indexDf.select(indexes))
 }
 
 object Indexed {
-  def viewMerged[ColId, T <: Df[ColId]: TypeTag](dfs:Seq[Ref[Indexed[ColId, T]]])(
+  def viewMerged[ColId, T <: Cols[ColId]: TypeTag](dfs:Seq[Ref[Indexed[ColId, T]]])(
     implicit io:IoContext, tag:TypeTag[Index[ColId]]) : Indexed[ColId, T]= {
     val dfType = io.types.ioTypeOf[T].asInstanceOf[MergeableIoType[T, _ <: T]]
     val indexType = io.types.ioTypeOf[Index[ColId]].asInstanceOf[MergeableIoType[Index[ColId], _ <: ColId]]
@@ -31,13 +34,13 @@ object Indexed {
       indexType.viewMerged(dfs.map(_.map(_.indexDf))))
   }
 
-  def from[ColId:Ordering, T <: Df[ColId]](df:T, conf:IndexConf[ColId]) : Indexed[ColId, T] = {
+  def from[ColId:Ordering, T <: Cols[ColId]](df:T, conf:IndexConf[ColId]) : Indexed[ColId, T] = {
     Indexed(df, Index.from(df, conf))
   }
 
-  def apply[ColId, T <: Df[ColId]](df:T,
-                                   indexDf:Index[ColId],
-                                    closer: () => Unit = () => Unit) : Indexed[ColId, T] = {
+  def apply[ColId, T <: Cols[ColId]](df:T,
+                                     indexDf:Index[ColId],
+                                     closer: () => Unit = () => Unit) : Indexed[ColId, T] = {
     def d = df
     def i = indexDf
     new Indexed[ColId, T] {
@@ -67,11 +70,11 @@ object Indexed {
           df.view(from, until).asInstanceOf[T], // TODO: refactor
           indexDf.view(from, until))
 
-      override def colNameValues[T](colId: ColId): LSeq[(ColId, T)] =
-        indexDf.colNameValues(colId)
+      override def colIdValues[T](colId: ColId): LSeq[(ColId, T)] =
+        indexDf.colIdValues(colId)
 
-      override def colNameValuesWithIndex[T](colId: ColId): Iterable[((ColId, T), Long)] =
-        indexDf.colNameValuesWithIndex(colId)
+      override def colIdValuesWithIndex[T](colId: ColId): Iterable[((ColId, T), Long)] =
+        indexDf.colIdValuesWithIndex(colId)
 
       override def openIndex(idValue: (ColId, Any)): LBits =
         indexDf.openIndex(idValue)
@@ -79,12 +82,13 @@ object Indexed {
       override def openIndex(i: Long): LBits =
         indexDf.openIndex(i)
 
+      override def colMeta = df.colMeta
     }
   }
 }
 
-class IndexedIoType[ColId, T <: Df[ColId]](dfType:MergeableIoType[T, _ <: T],
-                                           indexType:IndexIoType[ColId])(
+class IndexedIoType[ColId, T <: Cols[ColId]](dfType:MergeableIoType[T, _ <: T],
+                                             indexType:IndexIoType[ColId])(
   implicit io:IoContext, tag:TypeTag[Indexed[ColId, T]])
   extends MergeableIoType[Indexed[ColId, T], Indexed[ColId, T]] {
 
@@ -120,7 +124,7 @@ class IndexedIoType[ColId, T <: Df[ColId]](dfType:MergeableIoType[T, _ <: T],
     scoped { implicit bind =>
       val dir = bind(WrittenCfsDir.open[CfsFileId](out))
       dfType.write(out, df)
-      indexType.dfType.writeAsDf(
+      indexType.dfType.writeAsCols(
         out,
         df.lsize,
         Index.indexIterator[ColId](df, indexConf).map { case (colId, bits) =>

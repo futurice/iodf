@@ -3,7 +3,7 @@ package com.futurice.iodf.df
 import com.futurice.iodf._
 import com.futurice.iodf.Utils._
 import com.futurice.iodf.io.{DataAccess, DataOutput, MergeableIoType}
-import com.futurice.iodf.util.{LSeq, PeekIterator, Ref}
+import com.futurice.iodf.util.{KeyMap, LSeq, PeekIterator, Ref}
 
 import scala.collection.immutable.TreeMap
 import scala.collection.mutable
@@ -28,12 +28,14 @@ object Document {
   }
 }
 
-trait Documents extends Df[String] with LSeq[Document] {
+trait Documents extends Df[Document] {
   def apply(i:Long) : Document
-  def df : Df[String]
+  def df : Cols[String]
   override def size = lsize.toInt
   override def view(from:Long, until:Long) =
-    Documents(new DfView[String](df, from, until))
+    Documents(new ColsView[String](df, from, until))
+  override def select(indexes:LSeq[Long]) =
+    Documents(df.select(indexes))
 }
 
 object Documents {
@@ -71,8 +73,9 @@ object Documents {
 
     val sz = docs.size.toLong
 
-    apply(Df(LSeq.from(colIds),
+    apply(Cols(LSeq.from(colIds),
              LSeq.from(colTypes),
+             LSeq.fill(sortedFields.length, KeyMap.empty), // FIXME, allow type meta
              new LSeq[LSeq[_]] {
                def apply(i:Long) = LSeq.from(cols(i.toInt))
                def lsize = colIds.size
@@ -80,7 +83,7 @@ object Documents {
              sz))
   }
 
-  def apply(d:Df[String]) : Documents = new Documents() {
+  def apply(d:Cols[String]) : Documents = new Documents() {
     override val df = d
     override def apply(i: Long): Document =
       Document(
@@ -100,6 +103,8 @@ object Documents {
 
     override def colTypes: LSeq[universe.Type] = df.colTypes
 
+    override def colMeta = df.colMeta
+
     override def colIdOrdering: Ordering[String] = df.colIdOrdering
 
     override def _cols: LSeq[_ <: ColType[_]] = df._cols
@@ -107,7 +112,7 @@ object Documents {
 
 }
 
-class DocumentsIoType(dfType:DfIoType[String]) extends MergeableIoType[Documents, Documents] {
+class DocumentsIoType(dfType:ColsIoType[String]) extends MergeableIoType[Documents, Documents] {
 
   override def interfaceType: universe.Type = typeOf[Documents]
 

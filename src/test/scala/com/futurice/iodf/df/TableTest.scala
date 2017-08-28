@@ -5,7 +5,7 @@ import java.io.File
 import com.futurice.iodf.TestUtil._
 import com.futurice.iodf.store.MMapFile
 import com.futurice.iodf.{IoContext, scoped}
-import com.futurice.iodf.util.Tracing
+import com.futurice.iodf.util.{Key, LSeq, Tracing}
 import com.futurice.testtoys.TestSuite
 
 /**
@@ -13,12 +13,15 @@ import com.futurice.testtoys.TestSuite
   */
 class TableTest extends TestSuite("df/table") {
 
+  val comment =
+    Key[String]("comment")
+
   val schema =
     TableSchema()
       .withCol[String]("id")
       .withCol[String]("text")
       .withCol[Boolean]("property")
-      .withCol[Option[Int]]("optionInt")
+      .withCol[Option[Int]]("optionInt", comment -> "cake")
 
   val items = Array(
     Row("a", "text here",        true,  Some(4)),
@@ -88,5 +91,29 @@ class TableTest extends TestSuite("df/table") {
     t.tln
     tRefCount(t)
   }
+
+  test("select") { t =>
+    Tracing.trace {
+      scoped { implicit bind =>
+        val file = MMapFile(new File(t.fileDir, "myDf"))
+        implicit val io = IoContext()
+
+        val df = Indexed.from(Table.from(schema, items), indexConf)
+        t.tln
+        t.tln("df.select result")
+        tDf(t, df.select(LSeq(2L, 0L)))
+        t.tln
+        t.tln("df.indexDf.select result")
+        tDf(t, df.indexDf.select(LSeq(2L, 0L)))
+        t.tln
+        t.tln("df.indexDf.selectSome result")
+        tDf(t, df.indexDf.selectSome(LSeq(Some(1L), None, Some(2L), Some(1L))))
+        t.tln
+      }
+    }
+    t.tln
+    tRefCount(t)
+  }
+
 
 }

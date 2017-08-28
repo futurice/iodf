@@ -1,6 +1,6 @@
 package com.futurice.iodf
 
-import com.futurice.iodf.df.Df
+import com.futurice.iodf.df.Cols
 import com.futurice.iodf.util.{LSeq, Tracing}
 import com.futurice.testtoys.TestTool
 
@@ -21,7 +21,7 @@ object TestUtil {
     t.tln
   }
 
-  def tDf[ColId](t:TestTool, df:Df[ColId]) = {
+  def tDf[ColId](t:TestTool, df:Cols[ColId]) = {
     t.tln
     t.tln("colIds are: ")
     t.tln

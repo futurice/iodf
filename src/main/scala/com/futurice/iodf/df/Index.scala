@@ -4,12 +4,12 @@ import java.io.Closeable
 
 import com.futurice.iodf.{IoContext, IoScope}
 import com.futurice.iodf._
-import com.futurice.iodf.df.MultiDf.DefaultColIdMemRatio
+import com.futurice.iodf.df.MultiCols.DefaultColIdMemRatio
 import com.futurice.iodf.io._
 import com.futurice.iodf.ml.CoStats
 import com.futurice.iodf.providers.OrderingProvider
 import com.futurice.iodf.store.{CfsDir, WrittenCfsDir}
-import com.futurice.iodf.util.{LBits, LSeq, Ref}
+import com.futurice.iodf.util.{KeyMap, LBits, LSeq, Ref}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
@@ -43,15 +43,15 @@ trait IndexApi[ColId] {
 
   // Core API
 
-  def colNameValues[T <: Any](colId:ColId) : LSeq[(ColId, T)]
-  def colNameValuesWithIndex[T <: Any](colId:ColId) : Iterable[((ColId, T), Long)]
+  def colIdValues[T <: Any](colId:ColId) : LSeq[(ColId, T)]
+  def colIdValuesWithIndex[T <: Any](colId:ColId) : Iterable[((ColId, T), Long)]
   def openIndex(idValue:(ColId, Any)) : LBits
   def openIndex(i:Long) : LBits
 
   // Helper functions
 
   def colValues[T  <: Any](colId:ColId) = {
-    colNameValues[T](colId).map[T](_._2)
+    colIdValues[T](colId).map[T](_._2)
   }
   def index(idValue:(ColId, Any))(implicit scope:IoScope) : LBits = {
     scope.bind(openIndex(idValue))
@@ -87,6 +87,12 @@ trait IndexApi[ColId] {
 
 object Index {
 
+  def empty[ColId](lsize:Long)(implicit ord: Ordering[(ColId, Any)]) : Index[ColId] = {
+    new Index[ColId](
+      Cols.empty[(ColId, Any)](lsize),
+      () => Unit)
+  }
+
   def index(col:LSeq[_], analyzer:Any => Seq[Any], ordering:Ordering[Any]) : Array[(Any, LBits)] = {
     val distinct = col.toArray.flatMap(analyzer(_)).distinct.sorted(ordering)
     val rv = Array.fill(distinct.size)(new ArrayBuffer[Long]())
@@ -100,21 +106,22 @@ object Index {
     (distinct zip rv).map { case (value, trues) => (value, LBits.from(trues, col.lsize))}
   }
 
-  def apply[ColId:Ordering](indexDf:Df[(ColId, Any)]) = {
+  def apply[ColId:Ordering](indexDf:Cols[(ColId, Any)]) = {
     new Index[ColId](indexDf)
   }
 
-  def from[ColId:Ordering](df:Df[ColId], conf:IndexConf[ColId]) : Index[ColId] = {
+  def from[ColId:Ordering](df:Cols[ColId], conf:IndexConf[ColId]) : Index[ColId] = {
     val indexes = indexIterator(df, conf).toArray
     Index[ColId](
-      Df[(ColId, Any)](
+      Cols[(ColId, Any)](
         LSeq.from(indexes.map(_._1)),
         LSeq.fill(indexes.length, typeOf[Boolean]),
+        LSeq.fill(indexes.length, KeyMap.empty),
         LSeq.from(indexes.map(_._2)),
         df.lsize)(indexColIdOrdering[ColId]))
   }
 
-  def indexIterator[ColId](df:Df[ColId], conf:IndexConf[ColId]) = {
+  def indexIterator[ColId](df:Cols[ColId], conf:IndexConf[ColId]) = {
     val ordering = OrderingProvider.anyOrdering
 
     new Iterator[((ColId, Any), LBits)] {
@@ -177,16 +184,16 @@ object Index {
 /**
   * Created by arau on 12.7.2017.
   */
-class Index[ColId](val df:Df[(ColId, Any)],
+class Index[ColId](val df:Cols[(ColId, Any)],
                    closer : () => Unit = () => Unit)
-  extends Df[(ColId, Any)] with IndexApi[ColId] {
+  extends Cols[(ColId, Any)] with IndexApi[ColId] {
 
   /**
     * All dataframes should be of form LBits :-/
     */
   type ColType[T] = LSeq[T]
 
-  def view(from:Long, until:Long) : Index[ColId] =
+  override def view(from:Long, until:Long) : Index[ColId] =
     new Index[ColId](
       df.view(from, until))
 
@@ -195,6 +202,7 @@ class Index[ColId](val df:Df[(ColId, Any)],
       override def apply(l: Long): universe.Type = typeOf[Boolean]
       override def lsize: Long = df.colCount
     }
+  override def colMeta = df.colMeta
 
   override def colIdOrdering: Ordering[(ColId, Any)] = df.colIdOrdering
   override def _cols: LSeq[_ <: LSeq[Any]] = df._cols
@@ -203,19 +211,19 @@ class Index[ColId](val df:Df[(ColId, Any)],
   override def col[T <: Any](id:(ColId, Any))(implicit scope:IoScope) = df.col[T](id)
   override def col[T <: Any](i:Long)(implicit scope:IoScope) = df.col[T](i)
 
-  def colNameValues[T <: Any](colId:ColId) : LSeq[(ColId, T)] = {
+  def colIdValues[T <: Any](colId:ColId) : LSeq[(ColId, T)] = {
     val from =
       df.indexFloorAndCeil(colId -> MinBound())._3
     val until =
       df.indexFloorAndCeil(colId -> MaxBound())._3
     df.colIds.view(from, until).map[(ColId, T)] { case (key, value) => (key, value.asInstanceOf[T]) }
   }
-  def colNameValuesWithIndex[T <: Any](colId:ColId) : Iterable[((ColId, T), Long)] = {
+  def colIdValuesWithIndex[T <: Any](colId:ColId) : LSeq[((ColId, T), Long)] = {
     val from =
       df.indexFloorAndCeil(colId -> MinBound())._3
     val until =
       df.indexFloorAndCeil(colId -> MaxBound())._3
-    df.colIds.view(from, until).zipWithIndex.map {
+    df.colIds.view(from, until).zipWithIndex.lazyMap {
       case ((key, value), index) =>
         ((key, value.asInstanceOf[T]), index + from)
     }
@@ -240,9 +248,33 @@ class Index[ColId](val df:Df[(ColId, Any)],
     closer()
   }
 
+  override def select(indexes:LSeq[Long]) =
+    new Index(df.select(indexes))
+  def selectSome(indexes:LSeq[Option[Long]]) = {
+    new Index(
+      Cols[(ColId, Any)](
+        colIds,
+        colTypes,
+        colMeta,
+        _cols.map { c : LSeq[_ <: Any] =>
+          c.asInstanceOf[LBits].selectSome(indexes).states // from bits to bits
+        },
+        lsize,
+        () => this.close())(colIdOrdering))
+  }
+  def mapColIds[ColId2](f : ColId => ColId2)(implicit ord2:Ordering[(ColId2, Any)]) = {
+    new Index(
+      Cols[(ColId2, Any)](
+        colIds.lazyMap { case (key, value) => (f(key), value) },
+        colTypes,
+        colMeta,
+        _cols,
+        lsize,
+        () => this.close()))
+  }
 }
 
-class IndexIoType[ColId:TypeTag:Ordering](val dfType:DfIoType[(ColId, Any)])
+class IndexIoType[ColId:TypeTag:Ordering](val dfType:ColsIoType[(ColId, Any)])
   extends MergeableIoType[Index[ColId], Index[ColId]] {
 
   override def interfaceType: universe.Type = typeOf[Index[ColId]]

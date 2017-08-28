@@ -5,28 +5,29 @@ import java.io.Closeable
 import com.futurice.iodf._
 import com.futurice.iodf.io.{DataAccess, DataOutput, IoType, MergeableIoType}
 import com.futurice.iodf.ioseq.SeqIoType
-import com.futurice.iodf.util.{LSeq, Ref}
+import com.futurice.iodf.util._
 
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 
-trait TableSchema extends DfSchema[String] {
+trait TableSchema extends ColSchema[String] {
 
   def orderIndex : LSeq[Long]
   def colOrder : LSeq[Long]
 
-  def withCol[T:TypeTag](colId:String) = {
+  def withCol[T:TypeTag](colId:String, meta:KeyValue[_]*) = {
     val colType = typeOf[T]
     val colEntries =
-      ((colIds zip (colOrder zip colTypes)) ++
-        Seq((colId, (colOrder.lsize, colType))))
+      ((colIds zip (colOrder zip (colTypes zip colMeta))) ++
+        Seq((colId, (colOrder.lsize, (colType, KeyMap(meta : _*))))))
         .toArray.sortBy(_._1)
 
     TableSchema(
       LSeq.from(colEntries.map(_._2._1)),
       LSeq.from(colEntries.map(_._1)),
-      LSeq.from(colEntries.map(_._2._2)))
+      LSeq.from(colEntries.map(_._2._2._1)),
+      LSeq.from(colEntries.map(_._2._2._2)))
   }
 
 }
@@ -34,14 +35,16 @@ trait TableSchema extends DfSchema[String] {
 object TableSchema {
   def apply(_colOrder:LSeq[Long] = LSeq.empty,
             _colIds:LSeq[String] = LSeq.empty,
-            _colTypes:LSeq[Type]= LSeq.empty) = new TableSchema() {
+            _colTypes:LSeq[Type] = LSeq.empty,
+            _colMeta:LSeq[KeyMap] = LSeq.empty) = new TableSchema() {
     override lazy val orderIndex =
       LSeq.from(_colOrder.toArray.zipWithIndex.sortBy(_._1).map(_._2.toLong))
     override val colOrder = _colOrder
     override val colIds   = _colIds
     override val colTypes = _colTypes
+    override val colMeta = _colMeta
   }
-  def from(_colOrder:LSeq[Long], df:Df[String]) = {
+  def from(_colOrder:LSeq[Long], df:Cols[String]) = {
     apply(_colOrder, df.colIds, df.colTypes)
   }
 }
@@ -66,13 +69,15 @@ object Row {
 /**
   * Created by arau on 11.7.2017.
   */
-class Table(val schema:TableSchema, val df:Df[String]) extends Df[String] with LSeq[Row] {
+class Table(val schema:TableSchema, val df:Cols[String]) extends Df[Row] {
 
   override type ColType[T] = LSeq[T]
 
   override val colIds: LSeq[String] = schema.colIds
 
   override val colTypes: LSeq[universe.Type] = schema.colTypes
+
+  override val colMeta = schema.colMeta
 
   override def colIdOrdering: Ordering[String] = implicitly[Ordering[String]]
 
@@ -84,6 +89,8 @@ class Table(val schema:TableSchema, val df:Df[String]) extends Df[String] with L
 
   override def view(from: Long, until: Long): Table =
     Table(schema, df.view(from, until))
+  override def select(indexes:LSeq[Long]) =
+    Table(schema, df.select(indexes))
 
   override def close(): Unit = df.close
 
@@ -114,21 +121,22 @@ object Table {
 
     val sz = rows.size.toLong
     apply(schema,
-          Df(colIds,
+          Cols(colIds,
              colTypes,
+             schema.colMeta,
              new LSeq[LSeq[_]] {
                def apply(i:Long) = LSeq.from(cols(i.toInt))
                def lsize = colIds.size
              },
              sz))
   }
-  def apply(schema:TableSchema, df:Df[String]) = {
+  def apply(schema:TableSchema, df:Cols[String]) = {
     new Table(schema, df)
   }
 }
 
 class TableIoType(longType:SeqIoType[Long, LSeq[Long], _ <: LSeq[Long]],
-                  dfType:DfIoType[String]) extends MergeableIoType[Table, Table] {
+                  dfType:ColsIoType[String]) extends MergeableIoType[Table, Table] {
 
   override def interfaceType: universe.Type = typeOf[Table]
 

@@ -30,6 +30,8 @@ class IndexedObjects[T](val wrapped:Indexed[String, Objects[T]])
 
   override def view(from:Long, until:Long) =
     new IndexedObjects[T](wrapped.view(from, until))
+  override def select(indexes:LSeq[Long]) =
+    new IndexedObjects[T](wrapped.select(indexes))
 
   override def df: Objs[T] = wrapped.df
 
@@ -51,15 +53,17 @@ class IndexedObjects[T](val wrapped:Indexed[String, Objects[T]])
 
   override def colTypes: LSeq[universe.Type] = wrapped.colTypes
 
+  override def colMeta = wrapped.colMeta
+
   override def colIdOrdering: Ordering[String] = wrapped.colIdOrdering
 
   override def _cols: LSeq[_ <: ColType[_]] = wrapped._cols
 
-  override def colNameValues[T](colId: String): LSeq[(String, T)] =
-    wrapped.colNameValues(colId)
+  override def colIdValues[T](colId: String): LSeq[(String, T)] =
+    wrapped.colIdValues(colId)
 
-  override def colNameValuesWithIndex[T](colId: String): Iterable[((String, T), Long)] =
-    wrapped.colNameValuesWithIndex(colId)
+  override def colIdValuesWithIndex[T](colId: String): Iterable[((String, T), Long)] =
+    wrapped.colIdValuesWithIndex(colId)
 
   override def openIndex(idValue: (String, Any)): LBits =
     wrapped.openIndex(idValue)
@@ -76,7 +80,7 @@ object IndexedObjects {
   def from[T:TypeTag:ClassTag](data:Seq[T], conf:IndexConf[String]) : IndexedObjects[T] = {
     IndexedObjects(Indexed.from(Objects.from(data), conf))
   }
-  def viewMerged[T:TypeTag](seqs: Seq[Ref[IndexedObjs[T]]], colIdMemRatio:Int = MultiDf.DefaultColIdMemRatio)(implicit io:IoContext)
+  def viewMerged[T:TypeTag](seqs: Seq[Ref[IndexedObjs[T]]], colIdMemRatio:Int = MultiCols.DefaultColIdMemRatio)(implicit io:IoContext)
   : IndexedObjs[T] =
     IndexedObjects(Indexed.viewMerged(seqs))
 }

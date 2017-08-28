@@ -21,7 +21,7 @@ import com.futurice.iodf.util.LBits
   *
   * Created by arau on 22.3.2017.
   */
-class Knn[ColId](df:Indexed[ColId, _ <: Df[ColId]],
+class Knn[ColId](df:Indexed[ColId, _ <: Cols[ColId]],
                  select:LBits,
                  indexConf:IndexConf[ColId],
                  keyValueW:Map[(ColId, Any), (Double, Double)])(implicit ioContext:IoContext) {
@@ -74,11 +74,11 @@ class Knn[ColId](df:Indexed[ColId, _ <: Df[ColId]],
 
 object Knn {
 
-  def keyValueWeights[ColId]( df:Indexed[ColId, _ <: Df[ColId]],
-                          in:Set[ColId],
-                          outTrues:LBits,
-                          outDefined:LBits,
-                          varDFilter:Double)(implicit ioContext:IoContext)
+  def keyValueWeights[ColId](df:Indexed[ColId, _ <: Cols[ColId]],
+                             in:Set[ColId],
+                             outTrues:LBits,
+                             outDefined:LBits,
+                             varDFilter:Double)(implicit ioContext:IoContext)
     : Map[(ColId, Any), (Double, Double)] =
     df.indexDf.colIds.zipWithIndex.filter(e => in.contains(e._1._1)).map { case (keyValue, index) =>
       using (df.openIndex(index)) { case bits =>
@@ -91,7 +91,7 @@ object Knn {
       }
     }.filter(_._2._1 >= varDFilter).toMap
 
-  def keyValueWeights[ColId](df:Indexed[ColId, _ <: Df[ColId]],
+  def keyValueWeights[ColId](df:Indexed[ColId, _ <: Cols[ColId]],
                              in:Set[ColId],
                              predicted:(ColId,Any),
                              varDFilter:Double)(
@@ -105,7 +105,7 @@ object Knn {
         LBits.from((0 until df.size).map(i => true)))), // true vector
       varDFilter)
 
-  def apply[ColId](df:Indexed[ColId, _ <: Df[ColId]],
+  def apply[ColId](df:Indexed[ColId, _ <: Cols[ColId]],
                    indexConf:IndexConf[ColId],
                    in:Set[ColId],
                    predicted:(ColId, Any),
