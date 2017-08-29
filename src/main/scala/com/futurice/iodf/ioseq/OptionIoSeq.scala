@@ -39,7 +39,7 @@ class OptionIoSeq[T](ref:IoRef[OptionIoSeq[T]], indexes:LSeq[Long], values:LSeq[
     override def hasNext: Boolean = at < lsize
 
     override def next(): Option[T] = {
-      if (at == i.head) {
+      if (i.hasNext && at == i.head) {
         i.next
         val rv = v.next
         at += 1

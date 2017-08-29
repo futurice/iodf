@@ -77,7 +77,13 @@ object PeekIterator {
     private var peek : Option[T] = peekNext
 
     override def headOption = peek
-    def head = peek.get
+    def head = {
+      peek match {
+        case Some(v) => v
+        case None =>
+          throw new NoSuchElementException("PeekIterator.head @ " + i.toString())
+      }
+    }
     def hasNext = {
       peek.isDefined
     }
