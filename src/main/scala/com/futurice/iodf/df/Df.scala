@@ -50,10 +50,7 @@ trait Df[RowType] extends Cols[String] with LSeq[RowType] {
     val self = this
     new Df[RowType] {
       override type ColType[T] = LSeq[T]
-      override def colIds = self.colIds
-      override def colTypes = self.colTypes
-      override def colMeta = self.colMeta
-      override def colIdOrdering = self.colIdOrdering
+      override def schema = self.schema
       override def apply(l: Long) = self.apply(indexes(l))
       override def _cols = self._cols.lazyMap { e => e.select(indexes) }
       override def lsize = indexes.lsize

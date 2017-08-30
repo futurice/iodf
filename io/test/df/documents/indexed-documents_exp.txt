@@ -4,11 +4,11 @@ documents:
 
 colIds are: 
 
-  bigNumber
-  name
-  number
-  property
-  text
+  bigNumber 
+  name 
+  number 
+  property 
+  text 
 
 columns are: 
 
@@ -23,22 +23,22 @@ index:
 
 colIds are: 
 
-  (bigNumber,Some(3450324234233242))
-  (bigNumber,None)
-  (name,Some(a))
-  (name,Some(b))
-  (name,Some(c))
-  (number,Some(3))
-  (number,None)
-  (property,Some(false))
-  (property,Some(true))
-  (property,None)
-  (text,false)
-  (text,true)
-  (text,here)
-  (text,more)
-  (text,some)
-  (text,text)
+  (bigNumber,Some(3450324234233242)) 
+  (bigNumber,None) 
+  (name,Some(a)) 
+  (name,Some(b)) 
+  (name,Some(c)) 
+  (number,Some(3)) 
+  (number,None) 
+  (property,Some(false)) 
+  (property,Some(true)) 
+  (property,None) 
+  (text,false) 
+  (text,true) 
+  (text,here) 
+  (text,more) 
+  (text,some) 
+  (text,text) 
 
 columns are: 
 
@@ -59,19 +59,19 @@ columns are:
   true,false,false
   true,false,true
 
-writing df..47 ms 
+writing df..3 ms (was 47 ms)
 
-opening df..119 ms 
+opening df..3 ms (was 119 ms)
 documents:
 
 
 colIds are: 
 
-  bigNumber
-  name
-  number
-  property
-  text
+  bigNumber 
+  name 
+  number 
+  property 
+  text 
 
 columns are: 
 
@@ -86,22 +86,22 @@ index:
 
 colIds are: 
 
-  (bigNumber,Some(3450324234233242))
-  (bigNumber,None)
-  (name,Some(a))
-  (name,Some(b))
-  (name,Some(c))
-  (number,Some(3))
-  (number,None)
-  (property,Some(false))
-  (property,Some(true))
-  (property,None)
-  (text,false)
-  (text,true)
-  (text,here)
-  (text,more)
-  (text,some)
-  (text,text)
+  (bigNumber,Some(3450324234233242)) 
+  (bigNumber,None) 
+  (name,Some(a)) 
+  (name,Some(b)) 
+  (name,Some(c)) 
+  (number,Some(3)) 
+  (number,None) 
+  (property,Some(false)) 
+  (property,Some(true)) 
+  (property,None) 
+  (text,false) 
+  (text,true) 
+  (text,here) 
+  (text,more) 
+  (text,some) 
+  (text,text) 
 
 columns are: 
 

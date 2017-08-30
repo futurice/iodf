@@ -4,7 +4,7 @@ import java.io._
 
 import com.futurice.iodf._
 import com.futurice.iodf.io.{DataAccess, DataOutput, DataRef, IoRef}
-import com.futurice.iodf.util.{LSeq, MultiSeq, Ref}
+import com.futurice.iodf.util._
 
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.runtime.universe
@@ -221,8 +221,7 @@ class VariantIo(_tpes:Array[_ <: TypedSerializer[_]], fallback:Serializer[Any]) 
     tpe(o.getByte(pos)).read(o, pos+1)
   }
   override def size(o: DataAccess, pos: Long): Long = {
-    val t = tpes(o.getByte(pos))
-    tpe(o.getBeInt(pos)).size(o,pos+1)
+    tpe(o.getByte(pos)).size(o,pos+1)
   }
 }
 
@@ -297,6 +296,46 @@ object StringIo extends SingleTypedSerializer[String] {
     o.getBeInt(pos) + 4
   }
   override def clazz = classOf[String]
+}
+
+class KeyMapIo(stringIo:Serializer[String],
+               anyIo:Serializer[Any]) extends SingleTypedSerializer[KeyMap] {
+
+  override def read(o: DataAccess, pos: Long) : KeyMap = {
+    var at = pos
+    o.getBeInt(at) match {
+      case 0 => KeyMap.empty
+      case entries =>
+        at += 4
+        KeyMap(
+          (0 until entries) map { i =>
+            val key = stringIo.read(o, at)
+            at += stringIo.size(o, at)
+            val value = anyIo.read(o, at)
+            at += anyIo.size(o, at)
+            Key[Any](key) -> value
+          } :_*)
+    }
+  }
+
+  override def write(o: DataOutput, v: KeyMap): Unit = {
+    o.writeInt(v.size)
+    v.foreach { kv =>
+      stringIo.write(o, kv.key.name)
+      anyIo.write(o, kv.value)
+    }
+  }
+  override def size(o: DataAccess, pos: Long): Long = {
+    var at = pos
+    val entries = o.getBeInt(at)
+    at += 4
+    (0 until entries) foreach { i =>
+      at += stringIo.size(o, at)
+      at += anyIo.size(o, at)
+    }
+    at
+  }
+  override def clazz = classOf[KeyMap]
 }
 
 class OptionIo[T](io:Serializer[T]) extends TypedSerializer[Option[T]] {

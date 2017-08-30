@@ -20,6 +20,8 @@ class RamDir[FileId:Ordering](implicit t:ClassTag[FileId]) extends MutableDir[Fi
 
   var topId : Option[FileId] = None
 
+  def lsize = dir.size
+
   override def create(id:FileId) = {
     val self = this
     val creator = allocator.create

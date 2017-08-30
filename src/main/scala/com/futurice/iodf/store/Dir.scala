@@ -38,6 +38,9 @@ class MutableFileRef[Id:Ordering](dir:MutableDir[Id], id:Id) extends WritableFil
 
 trait Dir[Id] extends Closeable {
 
+  /** entry count */
+  def lsize : Long
+
   /* this list must be sorted */
   def list : LSeq[Id]
   def byteSize(id:Id) : Long

@@ -65,6 +65,12 @@ object Documents {
     val colTypes = sortedFields.map(_._2)
     val cols = Array.fill(docFields.size)(Array.fill[Option[Any]](docs.size)(None))
 
+    val schema =
+      ColSchema[String](
+        LSeq.from(colIds),
+        LSeq.from(colTypes),
+        LSeq.fill(sortedFields.length, KeyMap.empty))
+
     docs.zipWithIndex.foreach { case (doc, index) =>
       doc.foreach { case (id, value) =>
         cols(idToIndex(id))(index) = Some(value)
@@ -73,14 +79,14 @@ object Documents {
 
     val sz = docs.size.toLong
 
-    apply(Cols(LSeq.from(colIds),
-             LSeq.from(colTypes),
-             LSeq.fill(sortedFields.length, KeyMap.empty), // FIXME, allow type meta
-             new LSeq[LSeq[_]] {
-               def apply(i:Long) = LSeq.from(cols(i.toInt))
-               def lsize = colIds.size
-             },
-             sz))
+    apply(
+      Cols(
+        schema,
+        new LSeq[LSeq[_]] {
+          def apply(i:Long) = LSeq.from(cols(i.toInt))
+          def lsize = colIds.size
+        },
+        sz))
   }
 
   def apply(d:Cols[String]) : Documents = new Documents() {
@@ -99,13 +105,7 @@ object Documents {
 
     override type ColType[T] = df.ColType[T]
 
-    override def colIds: LSeq[String] = df.colIds
-
-    override def colTypes: LSeq[universe.Type] = df.colTypes
-
-    override def colMeta = df.colMeta
-
-    override def colIdOrdering: Ordering[String] = df.colIdOrdering
+    override val schema = df.schema
 
     override def _cols: LSeq[_ <: ColType[_]] = df._cols
   }

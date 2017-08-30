@@ -2,10 +2,10 @@
 
 colIds are: 
 
-  id
-  optionInt
-  property
-  text
+  id 
+  optionInt comment:cake
+  property 
+  text 
 
 columns are: 
 
@@ -21,16 +21,16 @@ contents:
   Row(               c, some things here,             true,          Some(5))
 
 
-writing df..47 ms (was 49 ms)
+writing df..89 ms (was 373 ms)
 
-opening df..25 ms (was 24 ms)
+opening df..39 ms (was 46 ms)
 
 colIds are: 
 
-  id
-  optionInt
-  property
-  text
+  id 
+  optionInt comment:cake
+  property 
+  text 
 
 columns are: 
 

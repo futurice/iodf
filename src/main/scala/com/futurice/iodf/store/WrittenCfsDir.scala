@@ -34,6 +34,8 @@ class WrittenCfsDir[MyFileId](_out:DataOutput,
 
   var ready = true
 
+  def lsize = pos.size
+
   //  def create(id:Id, length:Long) : IoData[Id]
   override def create(id: MyFileId) : io.DataOutput = {
     if (!ready) throw new IllegalStateException("cfd dir can be written one file at a time.")
@@ -146,6 +148,8 @@ class CfsDir[FileId](_data:DataAccess,
         bind(longSeqType.open(bind(data.openView(posSeqPos, data.size)))))
     rv
   }
+
+  def lsize = idSeq.lsize
 
   override def indexRef(i:Long)  = {
     new DataRef {

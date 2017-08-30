@@ -26,11 +26,16 @@ object MultiCols {
   }
 }
 
-class MergedColSchema[ColId](dfs:Array[_ <: ColSchema[ColId]], colIdMemRatio : Int)(implicit colIdOrdering:Ordering[ColId]) {
+class MergedColSchema[ColId](dfs:Array[_ <: ColSchema[ColId]],
+                             colIdMemRatio : Int,
+                             closer : () => Unit = () => Unit)(implicit val colIdOrdering:Ordering[ColId])
+  extends ColSchema[ColId] {
 
   val colIdSeqs : Array[LSeq[ColId]] = dfs.map(_.colIds)
 
   type ColType[T] = MultiSeq[T, LSeq[T]]
+
+  def close = closer()
 
   // form cache
   val jumpEntries = new ArrayBuffer[MergeSortEntry[ColId]]
@@ -119,8 +124,10 @@ class MergedColSchema[ColId](dfs:Array[_ <: ColSchema[ColId]], colIdMemRatio : I
 }
 
 
-class JoinedCols[ColId](_refs:Array[Ref[_ <: Cols[ColId]]], override val lsize:Long, val colIdMemRatio: Int = MultiCols.DefaultColIdMemRatio)(
-  implicit val colIdOrdering:Ordering[ColId]) extends Cols[ColId] {
+class JoinedCols[ColId](_refs:Array[Ref[_ <: Cols[ColId]]],
+                        override val lsize:Long,
+                        val colIdMemRatio: Int = MultiCols.DefaultColIdMemRatio)(
+  implicit override val colIdOrdering:Ordering[ColId]) extends Cols[ColId] {
 
   val dfs = _refs.map(_.get)
 
@@ -133,7 +140,7 @@ class JoinedCols[ColId](_refs:Array[Ref[_ <: Cols[ColId]]], override val lsize:L
   val scope = new IoScope()
   _refs.map(_.copy(scope))
 
-  val schema = new MergedColSchema[ColId](dfs, colIdMemRatio)
+  override val schema = new MergedColSchema[ColId](dfs, colIdMemRatio)
 
   override def indexOf(id: ColId): Long =
     schema.indexOf(id)
@@ -155,7 +162,7 @@ class JoinedCols[ColId](_refs:Array[Ref[_ <: Cols[ColId]]], override val lsize:L
   * Created by arau on 6.6.2017.
   */
 class MultiCols[ColId](_refs:Array[Ref[_ <: Cols[ColId]]], val colIdMemRatio: Int = MultiCols.DefaultColIdMemRatio)(
-  implicit val colIdOrdering:Ordering[ColId], io:IoContext) extends Cols[ColId] {
+  implicit override val colIdOrdering:Ordering[ColId], io:IoContext) extends Cols[ColId] {
 
   val scope = new IoScope()
 
@@ -168,7 +175,7 @@ class MultiCols[ColId](_refs:Array[Ref[_ <: Cols[ColId]]], val colIdMemRatio: In
     scope.close
   }
 
-  val schema = new MergedColSchema[ColId](dfs, colIdMemRatio)
+  override val schema = new MergedColSchema[ColId](dfs, colIdMemRatio)
 
   override def indexOf(id: ColId): Long =
     schema.indexOf(id)

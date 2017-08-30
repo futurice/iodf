@@ -2,13 +2,13 @@
 
 colIds are: 
 
-  bigNumber
-  name
-  optionalInt
-  optionalText
-  property
-  quantity
-  text
+  bigNumber 
+  name 
+  optionalInt 
+  optionalText 
+  property 
+  quantity 
+  text 
 
 columns are: 
 
@@ -24,19 +24,19 @@ item 0 name is a
 item 1 quantity is 2
 item 2 is ExampleItem(c,true,4,even more text,324234,None,Some(extra text))
 
-writing df..41 ms 
+writing df..37 ms (was 41 ms)
 
-opening df..120 ms 
+opening df..26 ms (was 120 ms)
 
 colIds are: 
 
-  bigNumber
-  name
-  optionalInt
-  optionalText
-  property
-  quantity
-  text
+  bigNumber 
+  name 
+  optionalInt 
+  optionalText 
+  property 
+  quantity 
+  text 
 
 columns are: 
 

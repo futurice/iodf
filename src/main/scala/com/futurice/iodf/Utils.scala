@@ -21,6 +21,16 @@ import scala.reflect.ClassTag
   */
 class IoScope extends Closeable{
   val closeables = ArrayBuffer[Closeable]()
+
+  /** transfer ownership of all closeable resources to a new IoScope
+    * TODO: think of the naming
+    */
+  def adopt() = {
+    val rv = new IoScope()
+    closeables.foreach { rv.bind(_) }
+    closeables.clear()
+    rv
+  }
   override def close(): Unit = {
     closeables.foreach(_.close)
     closeables.clear()
@@ -29,7 +39,7 @@ class IoScope extends Closeable{
     v match {
       case c : Closeable =>
         closeables += c
-      case None =>
+      case _ =>
     }
     v
   }
@@ -100,6 +110,10 @@ object IoContext {
   * Created by arau on 24.11.2016.
   */
 object Utils {
+
+  val dummyCloseable = new Closeable {
+    override def close() = {}
+  }
 
   def binarySearch[T](sortedSeq:LSeq[T], target:T, from:Long = 0, until:Long = Long.MaxValue)(implicit ord:Ordering[T]) : (Long, Long, Long)= {
     @tailrec

@@ -4,6 +4,7 @@ import java.io.{DataOutputStream, OutputStream, Writer}
 
 import com.futurice.iodf.IoScope
 import com.futurice.iodf._
+import com.futurice.iodf.ioseq.{OutputWriting, RandomAccessReading, Serializer}
 import com.futurice.iodf.store.AllocateOnce
 import com.futurice.iodf.util.Ref
 
@@ -115,6 +116,23 @@ trait IoType[Interface, IoInstance <: Interface] extends IoWriter[Interface] wit
     }
   }
 
+}
+
+case class ValueIoType[T:TypeTag](i:RandomAccessReading[T],
+                                  o:OutputWriting[T]) extends IoType[T, T] {
+  override def interfaceType: universe.Type = typeOf[T]
+
+  override def ioInstanceType: universe.Type = typeOf[T]
+
+  override def open(ref: DataAccess): T = i.read(ref, 0)
+
+  override def write(out: DataOutput, iface: T): Unit = o.write(out, iface)
+}
+
+object ValueIoType {
+  def apply[T:TypeTag](io:Serializer[T]) : ValueIoType[T] = {
+    ValueIoType[T](io, io)
+  }
 }
 
 trait Merging[Interface] {

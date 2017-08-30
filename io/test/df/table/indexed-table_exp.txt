@@ -4,10 +4,10 @@ documents:
 
 colIds are: 
 
-  id
-  optionInt
-  property
-  text
+  id 
+  optionInt comment:cake
+  property 
+  text 
 
 columns are: 
 
@@ -21,18 +21,18 @@ index:
 
 colIds are: 
 
-  (id,a)
-  (id,b)
-  (id,c)
-  (optionInt,Some(4))
-  (optionInt,Some(5))
-  (optionInt,None)
-  (property,false)
-  (property,true)
-  (text,here)
-  (text,some)
-  (text,text)
-  (text,things)
+  (id,a) 
+  (id,b) 
+  (id,c) 
+  (optionInt,Some(4)) 
+  (optionInt,Some(5)) 
+  (optionInt,None) 
+  (property,false) 
+  (property,true) 
+  (text,here) 
+  (text,some) 
+  (text,text) 
+  (text,things) 
 
 columns are: 
 
@@ -49,18 +49,18 @@ columns are:
   true,true,false
   false,false,true
 
-writing df..12 ms 
+writing df..21 ms (was 12 ms)
 
-opening df..3 ms 
+opening df..6 ms (was 3 ms)
 documents:
 
 
 colIds are: 
 
-  id
-  optionInt
-  property
-  text
+  id 
+  optionInt comment:cake
+  property 
+  text 
 
 columns are: 
 
@@ -74,18 +74,18 @@ index:
 
 colIds are: 
 
-  (id,a)
-  (id,b)
-  (id,c)
-  (optionInt,Some(4))
-  (optionInt,Some(5))
-  (optionInt,None)
-  (property,false)
-  (property,true)
-  (text,here)
-  (text,some)
-  (text,text)
-  (text,things)
+  (id,a) 
+  (id,b) 
+  (id,c) 
+  (optionInt,Some(4)) 
+  (optionInt,Some(5)) 
+  (optionInt,None) 
+  (property,false) 
+  (property,true) 
+  (text,here) 
+  (text,some) 
+  (text,text) 
+  (text,things) 
 
 columns are: 
 

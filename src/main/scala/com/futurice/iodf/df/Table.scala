@@ -33,19 +33,25 @@ trait TableSchema extends ColSchema[String] {
 }
 
 object TableSchema {
-  def apply(_colOrder:LSeq[Long] = LSeq.empty,
-            _colIds:LSeq[String] = LSeq.empty,
-            _colTypes:LSeq[Type] = LSeq.empty,
-            _colMeta:LSeq[KeyMap] = LSeq.empty) = new TableSchema() {
+  def empty = apply(LSeq.empty, LSeq.empty, LSeq.empty, LSeq.empty)
+  def apply() : TableSchema = empty
+  def apply(_colOrder:LSeq[Long],
+            _colIds:LSeq[String],
+            _colTypes:LSeq[Type],
+            _colMeta:LSeq[KeyMap] = LSeq.empty,
+            closer : () => Unit = () => Unit) : TableSchema  = new TableSchema() {
     override lazy val orderIndex =
       LSeq.from(_colOrder.toArray.zipWithIndex.sortBy(_._1).map(_._2.toLong))
     override val colOrder = _colOrder
     override val colIds   = _colIds
     override val colTypes = _colTypes
     override val colMeta = _colMeta
+    override val colIdOrdering = implicitly[Ordering[String]]
+
+    override def close = closer()
   }
   def from(_colOrder:LSeq[Long], df:Cols[String]) = {
-    apply(_colOrder, df.colIds, df.colTypes)
+    apply(_colOrder, df.colIds, df.colTypes, df.colMeta)
   }
 }
 
@@ -106,7 +112,7 @@ class Table(val schema:TableSchema, val df:Cols[String]) extends Df[Row] {
 }
 
 object Table {
-  def empty = Table.from(TableSchema(), Seq.empty)
+  def empty = Table.from(TableSchema.empty, Seq.empty)
   def from(schema:TableSchema, rows:Seq[Row]) = {
     val orderIndex = schema.orderIndex
     val colIds = schema.colIds
@@ -121,14 +127,13 @@ object Table {
 
     val sz = rows.size.toLong
     apply(schema,
-          Cols(colIds,
-             colTypes,
-             schema.colMeta,
-             new LSeq[LSeq[_]] {
-               def apply(i:Long) = LSeq.from(cols(i.toInt))
-               def lsize = colIds.size
-             },
-             sz))
+          Cols(
+            schema,
+            new LSeq[LSeq[_]] {
+              def apply(i:Long) = LSeq.from(cols(i.toInt))
+              def lsize = colIds.size
+            },
+            sz))
   }
   def apply(schema:TableSchema, df:Cols[String]) = {
     new Table(schema, df)

@@ -1,7 +1,9 @@
 package com.futurice.iodf.util
 
 import com.futurice.iodf.IoScope
+import com.futurice.iodf.io.{DataAccess, DataOutput, IoType, MergeableIoType}
 
+import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 
 /**
@@ -15,7 +17,7 @@ import scala.reflect.runtime.universe._
   *      ints/longs for random lookups & efficiency
   *      Paths for sequential lookups through a hierachy of environments
   */
-case class Key[Type](name:String)(implicit val typeTag:TypeTag[Type]) {
+case class Key[Type](name:String) {
   def ->(value:Type) = {
     new KeyValue[Type](this, value)
   }
@@ -24,9 +26,7 @@ case class Key[Type](name:String)(implicit val typeTag:TypeTag[Type]) {
   override def equals(obj: scala.Any): Boolean = {
     obj match {
       case k : Key[_]
-        if k.name == name
-           && k.typeTag.tpe <:< typeTag.tpe
-           && typeTag.tpe <:< k.typeTag.tpe =>
+        if k.name == name =>
         true
       case _ =>
         false
@@ -43,16 +43,19 @@ case class KeyValue[Type](key:Key[Type], value:Type) {
   }
 }
 
-trait KeyMap {
+trait KeyMap extends Iterable[KeyValue[_]] {
   def get[Type](key:Key[Type]) : Option[Type]
   def apply[Type](key:Key[Type]) = get(key).get
   def keys : Iterable[Key[_]]
+  def size : Int
 }
 
 object KeyMap {
   val empty = new KeyMap {
     override def get[Type](key: Key[Type]) = None
     override def keys: Set[Key[_]] = Set.empty[Key[_]]
+    override def size = 0
+    override def iterator = Iterator.empty
   }
   def apply(keyValues:KeyValue[_]*) = new KeyMap {
     // FIXME: O(N) complexity
@@ -60,6 +63,8 @@ object KeyMap {
       keyValues.view.map(_.get(key)).collectFirst { case Some(s) => s }
     override def keys =
       keyValues.map(_.key)
+    override def size = keyValues.size
+    override def iterator = keyValues.iterator
   }
 }
 

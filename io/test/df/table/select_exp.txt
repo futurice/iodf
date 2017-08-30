@@ -3,10 +3,10 @@ df.select result
 
 colIds are: 
 
-  id
-  optionInt
-  property
-  text
+  id 
+  optionInt comment:cake
+  property 
+  text 
 
 columns are: 
 
@@ -20,18 +20,18 @@ df.indexDf.select result
 
 colIds are: 
 
-  (id,a)
-  (id,b)
-  (id,c)
-  (optionInt,Some(4))
-  (optionInt,Some(5))
-  (optionInt,None)
-  (property,false)
-  (property,true)
-  (text,here)
-  (text,some)
-  (text,text)
-  (text,things)
+  (id,a) 
+  (id,b) 
+  (id,c) 
+  (optionInt,Some(4)) 
+  (optionInt,Some(5)) 
+  (optionInt,None) 
+  (property,false) 
+  (property,true) 
+  (text,here) 
+  (text,some) 
+  (text,text) 
+  (text,things) 
 
 columns are: 
 
@@ -53,18 +53,18 @@ df.indexDf.selectSome result
 
 colIds are: 
 
-  (id,a)
-  (id,b)
-  (id,c)
-  (optionInt,Some(4))
-  (optionInt,Some(5))
-  (optionInt,None)
-  (property,false)
-  (property,true)
-  (text,here)
-  (text,some)
-  (text,text)
-  (text,things)
+  (id,a) 
+  (id,b) 
+  (id,c) 
+  (optionInt,Some(4)) 
+  (optionInt,Some(5)) 
+  (optionInt,None) 
+  (property,false) 
+  (property,true) 
+  (text,here) 
+  (text,some) 
+  (text,text) 
+  (text,things) 
 
 columns are: 
 

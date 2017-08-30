@@ -24,7 +24,7 @@ class Tracing() {
       case None =>
         _closed.get(trace) match {
           case Some(e) =>
-            l.error( trace + " was create here", e._1)
+            l.error( trace + " was created here", e._1)
             l.error( "then " + trace + " was deleted here", e._2)
           case None =>
             l.error("either non-traced item was reported closed or we forgot deletion?")

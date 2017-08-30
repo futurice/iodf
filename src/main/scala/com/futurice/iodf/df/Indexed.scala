@@ -5,7 +5,7 @@ import com.futurice.iodf._
 import com.futurice.iodf.df.MultiCols.DefaultColIdMemRatio
 import com.futurice.iodf.io.{DataAccess, DataOutput, MergeableIoType}
 import com.futurice.iodf.store.{CfsDir, WrittenCfsDir}
-import com.futurice.iodf.util.{LBits, LSeq, Ref}
+import com.futurice.iodf.util.{KeyMap, LBits, LSeq, Ref}
 
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe
@@ -55,11 +55,7 @@ object Indexed {
 
       override type ColType[T] = df.ColType[T]
 
-      override def colIds: LSeq[ColId] = df.colIds
-
-      override def colTypes: LSeq[universe.Type] = df.colTypes
-
-      override def colIdOrdering: Ordering[ColId] = df.colIdOrdering
+      override def schema = df.schema
 
       override def _cols: LSeq[_ <: df.ColType[_]] = df._cols
 
@@ -123,12 +119,14 @@ class IndexedIoType[ColId, T <: Cols[ColId]](dfType:MergeableIoType[T, _ <: T],
   def writeIndexed(out:DataOutput, df:T, indexConf:IndexConf[ColId]) : Unit =
     scoped { implicit bind =>
       val dir = bind(WrittenCfsDir.open[CfsFileId](out))
+
+      val booleanType = typeOf[Boolean]
       dfType.write(out, df)
-      indexType.dfType.writeAsCols(
+      indexType.dfType.writeStream(
         out,
         df.lsize,
         Index.indexIterator[ColId](df, indexConf).map { case (colId, bits) =>
-          (colId, typeOf[Boolean]) -> bits
+          ((colId, booleanType, KeyMap.empty), bits)
         })
     }
 

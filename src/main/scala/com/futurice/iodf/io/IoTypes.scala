@@ -5,7 +5,7 @@ import com.futurice.iodf._
 import com.futurice.iodf.df._
 import com.futurice.iodf.ioseq._
 import com.futurice.iodf.store.{AllocateOnce, RamAllocator}
-import com.futurice.iodf.util.{LBits, LSeq, Ref}
+import com.futurice.iodf.util.{KeyMap, LBits, LSeq, Ref}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -28,10 +28,10 @@ trait IoTypes {
 
   //
 
-  def ioTypeOf(t : Type)      : IoType[_, _]
   def ioTypeOf[T : TypeTag]() : IoType[_ >: T, _ <: T]
 
-
+  def ioTypeOf(t : Type)      : IoType[_, _]
+  def ioTypeOf(data:DataAccess)       : IoType[_, _]
 
   def write(out:DataOutput, t:Any, tpe:Type) : Unit
 
@@ -82,6 +82,8 @@ trait IoTypes {
       case None => throw new RuntimeException("type " + t + " of ClassLoader " + t.getClass.getClassLoader + " not found for type scheme " + this + " of ClassLoader " + IoTypes.this.getClass.getClassLoader)
     }
   }
+  def typeId(tpe:Type) =
+    ioTypeId(ioTypeOf(tpe))
   def idIoType(i:Int) : IoType[_, _]
 
   // shortcuts: reconsider
@@ -173,6 +175,9 @@ class IoTypesImpl(types:Seq[IoType[_, _]]) extends IoTypes {
   override def write[From : TypeTag](out:DataOutput, v:From) = {
     write(out, v, typeOf[From])
   }
+  override def ioTypeOf(data:DataAccess) = {
+    types(data.getBeInt(0))
+  }
   override def open(data : DataAccess) = {
 //    val (typ, id) = openerEntryOf[From]
     val id = data.getBeInt(0)
@@ -202,7 +207,7 @@ object IoTypes {
   }
   val (default : IoTypes, stringDfType : ColsIoType[String], indexType : IndexIoType[String]) = {
     scoped { implicit bind =>
-      val str = new StringIoSeqType
+      val strSeq = new StringIoSeqType
       val buf = new ArrayBuffer[IoType[_, _]]()
       val self = apply(buf)
       implicit val io =
@@ -228,59 +233,74 @@ object IoTypes {
       }
       val javaIo = new JavaObjectIo[Any]
       val rootIo = new IoVar[Any](None)
+      val keyMapIo = new KeyMapIo(StringIo, rootIo)
       val variantIo =
         new VariantIo(
           Array(BooleanIo,
                 IntIo,
                 LongIo,
                 StringIo,
+                keyMapIo,
                 new OptionIo[Any](rootIo)), javaIo)
       rootIo.io = Some(variantIo)
 
       val tupleIo = new Tuple2Io[String, Any](StringIo, variantIo)
       val stringIntIo = new Tuple2Io[String, Int](StringIo, IntIo)
+
       val bitsIoType =
         new BitsIoType(// converts Bits
           new SparseIoBitsType(),
           new DenseIoBitsType())
 
-      val longs = new LongIoArrayType
+      val longSeq = new LongIoArrayType
 
       implicit val stringValueOrdering = Index.indexColIdOrdering[String]
       implicit val intValueOrdering = Index.indexColIdOrdering[Int]
       implicit val longValueOrdering = Index.indexColIdOrdering[Long]
+
+      val stringSchema = new ColSchemaIoType[String]()
+      val stringValueSchema = new ColSchemaIoType[(String, Any)]()
+      val lseqLSeq = new ColIoType()
 
       val stringDfs = new ColsIoType[String]()
 
       val stringValueDfs = new ColsIoType[(String, Any)]()
 
       val indexDfs      = new IndexIoType(stringValueDfs)
-      val tables        = new TableIoType(longs, stringDfs)
+      val tables        = new TableIoType(longSeq, stringDfs)
       val indexedTables = new IndexedIoType(tables, indexDfs)
       val documents =     new DocumentsIoType(stringDfs)
       val indexedDocuments = new IndexedIoType(documents, indexDfs)
 
-      val ints = new IntIoArrayType
-      val bools = BitsIoType.booleanSeqIoType(bitsIoType)
+      val intSeq = new IntIoArrayType
+      val boolSeq = BitsIoType.booleanSeqIoType(bitsIoType)
 
-      val anys = new ObjectIoSeqType[Any](javaIo, javaIo)
+      val anySeq = new ObjectIoSeqType[Any](javaIo, javaIo)
 
       buf ++=
         Seq(
-          anys,
-          OptionIoSeqType(anys, longs),
+          ValueIoType(variantIo), // any value, backed up by Java serialization
+
+          ValueIoType(BooleanIo),
+          ValueIoType(IntIo),
+          ValueIoType(LongIo),
+          ValueIoType(StringIo),
+
+          anySeq, // sequence of any value
+          OptionIoSeqType(anySeq, longSeq), // sequence of any optional value
           new ObjectIoSeqType[(String, Any)](tupleIo, tupleIo),
           new ObjectIoSeqType[(String, Int)](stringIntIo, stringIntIo),
-          str,
-          ints,
-          longs,
-          bools,
+          new ObjectIoSeqType[KeyMap](keyMapIo, keyMapIo),
+          strSeq,
+          intSeq,
+          longSeq,
+          boolSeq,
           bitsIoType, // prefer lbits type over seq[boolean] type
 
-          OptionIoSeqType(bools, longs),
-          OptionIoSeqType(ints, longs),
-          OptionIoSeqType(longs, longs),
-          OptionIoSeqType(str, longs),
+          OptionIoSeqType(boolSeq, longSeq),
+          OptionIoSeqType(intSeq, longSeq),
+          OptionIoSeqType(longSeq, longSeq),
+          OptionIoSeqType(strSeq, longSeq),
 
           stringDfs,
           new ColsIoType[Int](),
@@ -289,6 +309,11 @@ object IoTypes {
           stringValueDfs,
           new ColsIoType[(Int, Any)](),
           new ColsIoType[(Long, Any)](),
+
+          lseqLSeq,
+
+          stringSchema,
+          stringValueSchema,
 
           indexDfs,
           tables,

@@ -63,15 +63,19 @@ case class ObjectSchema[T:TypeTag:ClassTag](fields : Seq[(Type, String)]) extend
     LSeq.from(sorted.map(_._1))
 
   override def colMeta = LSeq.fill(fields.size, KeyMap.empty)
+
+  override val colIdOrdering = implicitly[Ordering[String]]
+
+  override def close = { /* TODO */ }
 }
 
 trait Objects[T] extends Df[T] with ObjectsApi[T] {
 
   def df : Cols[String]
 
-  def schema : ObjectSchema[T]
-
   def as[E : ClassTag](implicit tag:TypeTag[E]) : Objects[E]
+
+  override def schema : ObjectSchema[T]
 
   override def size = lsize.toInt
   override def view(from:Long, until:Long) =
@@ -181,9 +185,7 @@ object Objects {
     val t = typeSchema[T]
     apply(
       Cols[String](
-        LSeq.from(t.fields.map(_._2)), // names
-        LSeq.from(t.fields.map(_._1)), // types
-        LSeq.fill(t.fields.size, KeyMap.empty),
+        t,
         t.toColumns(items),
         items.size))
   }

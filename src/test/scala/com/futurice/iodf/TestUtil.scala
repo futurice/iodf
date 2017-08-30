@@ -25,7 +25,10 @@ object TestUtil {
     t.tln
     t.tln("colIds are: ")
     t.tln
-    df.colIds.foreach { id => t.tln("  " + id) }
+    df.colIds.zipWithIndex.foreach {
+      case (id, index) =>
+        t.tln("  " + id + " " + df.colMeta(index).map( kv => kv.key.name + ":" + kv.value).mkString(", "))
+    }
     t.tln
     t.tln("columns are: ")
     t.tln

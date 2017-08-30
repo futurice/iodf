@@ -114,11 +114,12 @@ object Index {
     val indexes = indexIterator(df, conf).toArray
     Index[ColId](
       Cols[(ColId, Any)](
-        LSeq.from(indexes.map(_._1)),
-        LSeq.fill(indexes.length, typeOf[Boolean]),
-        LSeq.fill(indexes.length, KeyMap.empty),
+        ColSchema(
+          LSeq.from(indexes.map(_._1)),
+          LSeq.fill(indexes.length, typeOf[Boolean]),
+          LSeq.fill(indexes.length, KeyMap.empty))(indexColIdOrdering[ColId]),
         LSeq.from(indexes.map(_._2)),
-        df.lsize)(indexColIdOrdering[ColId]))
+        df.lsize))
   }
 
   def indexIterator[ColId](df:Cols[ColId], conf:IndexConf[ColId]) = {
@@ -197,14 +198,15 @@ class Index[ColId](val df:Cols[(ColId, Any)],
     new Index[ColId](
       df.view(from, until))
 
-  override def colTypes: LSeq[universe.Type] =
+  val schema = ColSchema( // optimize type lookups
+    df.schema.colIds,
     new LSeq[Type] {
-      override def apply(l: Long): universe.Type = typeOf[Boolean]
+      val booleanType = typeOf[Boolean]
+      override def apply(l: Long): universe.Type = booleanType
       override def lsize: Long = df.colCount
-    }
-  override def colMeta = df.colMeta
+    },
+    df.colMeta)(df.colIdOrdering)
 
-  override def colIdOrdering: Ordering[(ColId, Any)] = df.colIdOrdering
   override def _cols: LSeq[_ <: LSeq[Any]] = df._cols
 
   override def colIds = df.colIds
@@ -253,21 +255,21 @@ class Index[ColId](val df:Cols[(ColId, Any)],
   def selectSome(indexes:LSeq[Option[Long]]) = {
     new Index(
       Cols[(ColId, Any)](
-        colIds,
-        colTypes,
-        colMeta,
+        schema,
         _cols.map { c : LSeq[_ <: Any] =>
           c.asInstanceOf[LBits].selectSome(indexes).states // from bits to bits
         },
         lsize,
-        () => this.close())(colIdOrdering))
+        () => this.close()))
   }
+  /* TODO: should this be renamed to mapIndexKeys */
   def mapColIds[ColId2](f : ColId => ColId2)(implicit ord2:Ordering[(ColId2, Any)]) = {
     new Index(
       Cols[(ColId2, Any)](
-        colIds.lazyMap { case (key, value) => (f(key), value) },
-        colTypes,
-        colMeta,
+        ColSchema[(ColId2, Any)](
+          colIds.lazyMap { case (key, value) => (f(key), value) },
+          colTypes,
+          colMeta)(ord2),
         _cols,
         lsize,
         () => this.close()))

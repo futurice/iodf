@@ -40,6 +40,8 @@ class MMapDir(dir:File) extends MutableDir[String] {
 
   def file(name:String) = new File(dir, name)
 
+  def lsize = dir.list().size
+
   override def create(name: String) =
     new io.DataOutput with DataOutputMixin {
       val tmp =
