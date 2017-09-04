@@ -36,8 +36,8 @@ class Tracing() {
   def report = {
     if (open.size > 0) {
       l.error(open.size + " resouces leaked.")
-      open.take(2).map { t =>
-        l.error(t._1 + " leaked!", t._2)
+      open.groupBy(_._1.getClass).toArray.sortBy(-_._2.size).foreach { case (typ, errs) =>
+        l.error(errs.size + " instances of " + typ + " leaked", errs.head._2);
       }
     }
   }

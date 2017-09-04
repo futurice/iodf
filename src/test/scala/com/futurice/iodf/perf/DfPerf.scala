@@ -27,7 +27,6 @@ class DfPerf extends TestSuite("perf/df") {
     IoContext().withType[ExampleItem]
   }
 
-
   def tIndexedObjectsPerf[IoId, T](t:TestTool, view:IndexedObjects[T])(implicit io:IoContext) = {
     val df = view.df
     val index = view.indexDf

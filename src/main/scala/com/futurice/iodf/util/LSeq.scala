@@ -36,6 +36,7 @@ trait LSeq[+T] extends Iterable[T] with PartialFunction[Long, T] with Closeable 
     new LSeq[(T, Long)] {
       override def apply(l: Long) = (self(l), l)
       override def lsize = self.lsize
+
       override def iterator : Iterator[(T, Long)] = new Iterator[(T, Long)] {
         val i = self.iterator
         var at = 0L
@@ -53,10 +54,13 @@ trait LSeq[+T] extends Iterable[T] with PartialFunction[Long, T] with Closeable 
     val a = this
     new LSeq[(T, E)] {
       override def apply(l: Long) = (a.apply(l), b.apply(l))
-
       override def lsize = a.lsize
-
-      override def iterator = a.iterator zip b.iterator
+      override def iterator = new Iterator[(T, E)] {
+        val ai = a.iterator
+        val bi = b.iterator
+        override def hasNext = ai.hasNext && bi.hasNext
+        override def next() = (ai.next, bi.next)
+      }
     }
   }
 

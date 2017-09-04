@@ -89,7 +89,7 @@ object Cols {
  *   3. it has meta information
  *
  */
-trait Cols[ColId] extends java.io.Closeable with ColSchema[ColId] {
+trait Cols[ColId] extends java.io.Closeable {
 
   type ColType[T] <: LSeq[T]
 
@@ -98,6 +98,7 @@ trait Cols[ColId] extends java.io.Closeable with ColSchema[ColId] {
   def colIds   : LSeq[ColId] = schema.colIds
   def colTypes : LSeq[Type] = schema.colTypes
   def colMeta : LSeq[KeyMap] = schema.colMeta
+  def colCount = schema.colCount
   def colIdOrdering : Ordering[ColId] = schema.colIdOrdering
 
   def _cols    : LSeq[_ <: ColType[_ <: Any]]
@@ -199,7 +200,7 @@ class DfIoTypeProvider(implicit val types:IoTypes) extends TypeIoProvider {
 }*/
 
 class ColSchemaIoType[ColId:ClassTag:TypeTag:Ordering](implicit val io:IoContext)
-  extends IoType[ColSchema[ColId], ColSchema[ColId]] {
+  extends MergeableIoType[ColSchema[ColId], ColSchema[ColId]] {
 
   val l = LoggerFactory.getLogger(getClass)
 
@@ -226,6 +227,14 @@ class ColSchemaIoType[ColId:ClassTag:TypeTag:Ordering](implicit val io:IoContext
       io.save(dir.ref(1), v.colTypes.lazyMap { t => io.types.typeId(t) } )
       io.save(dir.ref(2), v.colMeta)
     }
+  }
+
+  override def viewMerged(seqs: Seq[Ref[ColSchema[ColId]]]) = {
+    val openRefs = seqs.map(_.openCopy)
+    new MergedColSchema[ColId](
+      openRefs.map(_.get).toArray,
+      MultiCols.DefaultColIdMemRatio,
+      () => openRefs.foreach(_.close()))
   }
 }
 
@@ -255,7 +264,8 @@ class ColIoType(implicit val io:IoContext)
 
   def writeStream(out: DataOutput, i: Iterator[(Type, LSeq[Any])]): Unit = scoped { implicit bind =>
     using (WrittenOrderDir.open(out)) { dir =>
-      i.foreach { case (tpe, openedSeq) =>
+      while (i.hasNext) {
+        val (tpe, openedSeq) = i.next
         using (openedSeq) { seq =>
           io.types.save(dir.lastRef, seq, io.types.toLSeqType(tpe))
         }
@@ -389,7 +399,8 @@ class ColsIoType[ColId:ClassTag:TypeTag:Ordering](implicit val io:IoContext)
 
   override def write(out: DataOutput, df: Cols[ColId]): Unit = scoped { implicit bind =>
     val dir = WrittenOrderDir(out)
-    dir.ref(0).save(df.schema.colTypes zip df._cols.asInstanceOf[LSeq[LSeq[Any]]] : LSeq[(Type, LSeq[Any])])
+    dir.ref(0).save(
+      df.schema.colTypes zip df._cols.asInstanceOf[LSeq[LSeq[Any]]] : LSeq[(Type, LSeq[Any])])
     dir.ref(1).save(df.lsize)
     dir.ref(2).save(df.schema)
   }

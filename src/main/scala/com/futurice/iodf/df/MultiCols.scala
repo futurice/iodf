@@ -26,12 +26,12 @@ object MultiCols {
   }
 }
 
-class MergedColSchema[ColId](dfs:Array[_ <: ColSchema[ColId]],
-                             colIdMemRatio : Int,
+class MergedColSchema[ColId](schemas:Array[_ <: ColSchema[ColId]],
+                             colIdMemRatio : Int = MultiCols.DefaultColIdMemRatio,
                              closer : () => Unit = () => Unit)(implicit val colIdOrdering:Ordering[ColId])
   extends ColSchema[ColId] {
 
-  val colIdSeqs : Array[LSeq[ColId]] = dfs.map(_.colIds)
+  val colIdSeqs : Array[LSeq[ColId]] = schemas.map(_.colIds)
 
   type ColType[T] = MultiSeq[T, LSeq[T]]
 
@@ -113,11 +113,11 @@ class MergedColSchema[ColId](dfs:Array[_ <: ColSchema[ColId]],
 
   val colIds: LSeq[ColId] = mergeEntries.lazyMap(_.value)
   def entryToType(e:MergeSortEntry[ColId]) = {
-    dfs(e.sources.head).colTypes(e.sourceIndexes.head)
+    schemas(e.sources.head).colTypes(e.sourceIndexes.head)
   }
   val colTypes: LSeq[Type] = mergeEntries.lazyMap(entryToType)
   def entryToMeta(e:MergeSortEntry[ColId]) = {
-    dfs(e.sources.head).colMeta(e.sourceIndexes.head)
+    schemas(e.sources.head).colMeta(e.sourceIndexes.head)
   }
   val colMeta: LSeq[KeyMap] = mergeEntries.lazyMap(entryToMeta)
 
@@ -128,6 +128,8 @@ class JoinedCols[ColId](_refs:Array[Ref[_ <: Cols[ColId]]],
                         override val lsize:Long,
                         val colIdMemRatio: Int = MultiCols.DefaultColIdMemRatio)(
   implicit override val colIdOrdering:Ordering[ColId]) extends Cols[ColId] {
+
+  Tracing.opened(this)
 
   val dfs = _refs.map(_.get)
 
@@ -140,7 +142,8 @@ class JoinedCols[ColId](_refs:Array[Ref[_ <: Cols[ColId]]],
   val scope = new IoScope()
   _refs.map(_.copy(scope))
 
-  override val schema = new MergedColSchema[ColId](dfs, colIdMemRatio)
+  override val schema =
+    new MergedColSchema[ColId](dfs.map(_.schema), colIdMemRatio)
 
   override def indexOf(id: ColId): Long =
     schema.indexOf(id)
@@ -151,11 +154,16 @@ class JoinedCols[ColId](_refs:Array[Ref[_ <: Cols[ColId]]],
   override type ColType[T] = LSeq[T]
 
   override def _cols = schema.mergeEntries.lazyMap { e =>
-    if (e.sources.size != 1) throw new IllegalStateException("joined dataframes at indexes " + e.sources.mkString(", ") + " shared a column id " + e.value)
-    dfs(e.sources.head)._cols(e.sourceIndexes.head) // there should be exactly one
+    if (e.sources.size != 1)
+      throw new IllegalStateException("joined dataframes at indexes " + e.sources.mkString(", ") + " shared a column id " + e.value)
+    val df = dfs(e.sources.head)
+    df._cols(e.sourceIndexes.head) // there should be exactly one
   }
 
-  override def close() = scope.close
+  override def close() = {
+    Tracing.closed(this)
+    scope.close
+  }
 }
 
 /**
@@ -175,7 +183,7 @@ class MultiCols[ColId](_refs:Array[Ref[_ <: Cols[ColId]]], val colIdMemRatio: In
     scope.close
   }
 
-  override val schema = new MergedColSchema[ColId](dfs, colIdMemRatio)
+  override val schema = new MergedColSchema[ColId](dfs.map(_.schema), colIdMemRatio)
 
   override def indexOf(id: ColId): Long =
     schema.indexOf(id)

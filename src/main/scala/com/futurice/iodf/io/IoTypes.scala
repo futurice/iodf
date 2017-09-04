@@ -267,7 +267,7 @@ object IoTypes {
       val stringValueDfs = new ColsIoType[(String, Any)]()
 
       val indexDfs      = new IndexIoType(stringValueDfs)
-      val tables        = new TableIoType(longSeq, stringDfs)
+      val tables        = new TableIoType
       val indexedTables = new IndexedIoType(tables, indexDfs)
       val documents =     new DocumentsIoType(stringDfs)
       val indexedDocuments = new IndexedIoType(documents, indexDfs)
@@ -302,6 +302,10 @@ object IoTypes {
           OptionIoSeqType(longSeq, longSeq),
           OptionIoSeqType(strSeq, longSeq),
 
+          stringSchema,
+          stringValueSchema,
+          new TableSchemaIoType(),
+
           stringDfs,
           new ColsIoType[Int](),
           new ColsIoType[Long](),
@@ -312,9 +316,6 @@ object IoTypes {
 
           lseqLSeq,
 
-          stringSchema,
-          stringValueSchema,
-
           indexDfs,
           tables,
           indexedTables,
@@ -322,6 +323,7 @@ object IoTypes {
           indexedDocuments,
 
           indexDfs)
+
       (self, stringDfs, indexDfs)
     }
   }

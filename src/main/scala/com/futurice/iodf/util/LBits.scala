@@ -1,5 +1,6 @@
 package com.futurice.iodf.util
 
+import java.io.Closeable
 import java.util
 
 import com.futurice.iodf.ioseq.{DenseIoBits, IoBits}
@@ -42,6 +43,20 @@ object LCondBits {
   */
 trait LBits extends LSeq[Boolean] {
 
+  def bind(closeable:Closeable = Utils.dummyCloseable ) : LBits  = {
+    val self = this
+    new LBits {
+      val f = self.f
+      def lsize = self.lsize
+      def apply(i: Long) = self(i.toInt)
+      def trues = self.trues
+      override def close = {
+        self.close
+        closeable.close()
+      }
+    }
+  }
+
   def isDense = LBits.isDense(f, n)
   def isSparse = LBits.isSparse(f, n)
 
@@ -53,6 +68,9 @@ trait LBits extends LSeq[Boolean] {
 
   override def select(indexes:LSeq[Long]) = {
     LBits.from(indexes.lazyMap(i => apply(i)))
+  }
+  def selectSomeStates(indexes:LSeq[Option[Long]]) = {
+    LBits.from(indexes.lazyMap(e => e.isDefined && apply(e.get)))
   }
   override def selectSome(indexes:LSeq[Option[Long]]) = {
     LCondBits(
@@ -208,7 +226,7 @@ object LBits {
   def from(bools:Seq[Boolean]) : LBits = {
     from(LSeq.from(bools))
   }
-  def from(bools:LSeq[Boolean]) : LBits  = {
+  def from(bools:LSeq[Boolean], closeable:Closeable = Utils.dummyCloseable ) : LBits  = {
     new LBits {
       val f = bools.iterator.count(b => b).toLong
       def lsize = bools.size
@@ -238,6 +256,9 @@ object LBits {
       }
       override def trues = new Scannable[Long, Long] {
         def iterator = truesFrom(0)
+      }
+      override def close = {
+        closeable.close()
       }
     }
   }

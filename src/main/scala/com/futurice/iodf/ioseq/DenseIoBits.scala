@@ -139,12 +139,17 @@ class DenseIoBits(_openRef:IoRef[DenseIoBits], _origBuf:DataAccess)
 
   val origBuf = _origBuf.openCopy
 
+  Tracing.opened(this)
+
   val bitSize = origBuf.getBeLong(0)
   override val longCount = DenseIoBits.bitsToLongCount(bitSize)
 
   val buf = origBuf.openView(8, 8 + longCount*8)
 
-  override def close = { _openRef.close; origBuf.close; buf.close } //close both handles
+  override def close = {
+    Tracing.closed(this)
+    _openRef.close; origBuf.close; buf.close
+  } //close both handles
 
   def openRef = _openRef.openCopy
 

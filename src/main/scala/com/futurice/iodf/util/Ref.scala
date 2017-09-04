@@ -111,8 +111,13 @@ object Ref {
     open[T](value, new RefCount(closer, 0))
   }
 
-  def open[T <: Closeable](value:T): Ref[T] = {
-    open[T](value, () => value.close)
+  def open[T](value:T): Ref[T] = {
+    value match {
+      case c: Closeable =>
+        open[T](value, () => c.close)
+      case v =>
+        open[T](value, () => {})
+    }
   }
 
   def apply[T <: Closeable](value:T)(implicit bind:IoScope)  = {

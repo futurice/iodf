@@ -5,6 +5,7 @@ import java.io.Closeable
 import com.futurice.iodf._
 import com.futurice.iodf.io.{DataAccess, DataOutput, IoType, MergeableIoType}
 import com.futurice.iodf.ioseq.SeqIoType
+import com.futurice.iodf.store.{OrderDir, WrittenOrderDir}
 import com.futurice.iodf.util._
 
 import scala.reflect.ClassTag
@@ -25,33 +26,31 @@ trait TableSchema extends ColSchema[String] {
 
     TableSchema(
       LSeq.from(colEntries.map(_._2._1)),
-      LSeq.from(colEntries.map(_._1)),
-      LSeq.from(colEntries.map(_._2._2._1)),
-      LSeq.from(colEntries.map(_._2._2._2)))
+      ColSchema(
+        LSeq.from(colEntries.map(_._1)),
+        LSeq.from(colEntries.map(_._2._2._1)),
+        LSeq.from(colEntries.map(_._2._2._2))))
   }
 
 }
 
 object TableSchema {
-  def empty = apply(LSeq.empty, LSeq.empty, LSeq.empty, LSeq.empty)
+  def empty = apply(LSeq.empty, ColSchema.empty)
   def apply() : TableSchema = empty
   def apply(_colOrder:LSeq[Long],
-            _colIds:LSeq[String],
-            _colTypes:LSeq[Type],
-            _colMeta:LSeq[KeyMap] = LSeq.empty,
-            closer : () => Unit = () => Unit) : TableSchema  = new TableSchema() {
+            schema :ColSchema[String],
+            closer : Closeable = Utils.dummyCloseable) : TableSchema  = new TableSchema() {
     override lazy val orderIndex =
       LSeq.from(_colOrder.toArray.zipWithIndex.sortBy(_._1).map(_._2.toLong))
     override val colOrder = _colOrder
-    override val colIds   = _colIds
-    override val colTypes = _colTypes
-    override val colMeta = _colMeta
-    override val colIdOrdering = implicitly[Ordering[String]]
-
-    override def close = closer()
+    override val colIds   = schema.colIds
+    override val colTypes = schema.colTypes
+    override val colMeta = schema.colMeta
+    override val colIdOrdering = schema.colIdOrdering
+    override def close = closer.close
   }
   def from(_colOrder:LSeq[Long], df:Cols[String]) = {
-    apply(_colOrder, df.colIds, df.colTypes, df.colMeta)
+    apply(_colOrder, df.schema)
   }
 }
 
@@ -75,7 +74,7 @@ object Row {
 /**
   * Created by arau on 11.7.2017.
   */
-class Table(val schema:TableSchema, val df:Cols[String]) extends Df[Row] {
+class Table(val schema:TableSchema, val df:Cols[String], closer:Closeable = Utils.dummyCloseable) extends Df[Row] {
 
   override type ColType[T] = LSeq[T]
 
@@ -98,7 +97,7 @@ class Table(val schema:TableSchema, val df:Cols[String]) extends Df[Row] {
   override def select(indexes:LSeq[Long]) =
     Table(schema, df.select(indexes))
 
-  override def close(): Unit = df.close
+  override def close(): Unit = closer.close
 
   override def apply(i:Long) = {
     val byColIndex =
@@ -140,34 +139,51 @@ object Table {
   }
 }
 
-class TableIoType(longType:SeqIoType[Long, LSeq[Long], _ <: LSeq[Long]],
-                  dfType:ColsIoType[String]) extends MergeableIoType[Table, Table] {
+class TableSchemaIoType(implicit io:IoContext) extends IoType[TableSchema, TableSchema] {
+  override def interfaceType: universe.Type = typeOf[TableSchema]
+  override def ioInstanceType: universe.Type = typeOf[TableSchema]
+
+  override def open(ref: DataAccess): TableSchema = scoped { implicit bind =>
+    val dir = OrderDir(ref)
+    val colOrder = dir.ref(0).as[LSeq[Long]]
+    val colSchema = dir.ref(1).as[ColSchema[String]]
+    TableSchema(colOrder, colSchema, bind.adopt)
+  }
+
+  override def write(out: DataOutput, iface: TableSchema): Unit = scoped { implicit bind =>
+    val dir = WrittenOrderDir(out)
+    dir.ref(0).save(iface.colOrder)
+    dir.ref(1).save(iface : ColSchema[String])
+  }
+}
+
+class TableIoType(implicit io:IoContext) extends MergeableIoType[Table, Table] {
 
   override def interfaceType: universe.Type = typeOf[Table]
 
   override def ioInstanceType: universe.Type = typeOf[Table]
 
   override def open(ref: DataAccess): Table = scoped { implicit bind =>
-    val dfPos = ref.getBeLong(ref.size-8)
-    val colOrder = bind(longType.open(ref.view(0, dfPos)))
-    val df = dfType.open(ref.view(dfPos, ref.size-8))
-    new Table(
-      TableSchema.from(LSeq.from(colOrder.toArray), df), df)
+    val dir = OrderDir(ref)
+    val schema = dir.ref(0).as[TableSchema]
+    val cols = dir.ref(1).as[Cols[String]]
+    new Table(schema, cols, bind.adopt())
   }
 
-  override def write(out: DataOutput, iface: Table): Unit = {
-    val begin = out.pos
-    longType.write(out, iface.schema.colOrder)
-    val dfPos = out.pos - begin
-    dfType.write(out, iface.df)
-    out.writeLong(dfPos)
+  override def write(out: DataOutput, iface: Table): Unit = scoped { implicit bind =>
+    val dir = WrittenOrderDir(out)
+    dir.ref(0).save(iface.schema)
+    dir.ref(1).save(iface.df)
   }
+
+  lazy val dfType =
+    io.types.ioTypeOf[Cols[String]].asInstanceOf[MergeableIoType[Cols[String], _ <: Cols[String]]]
 
   override def viewMerged(seqs: Seq[Ref[Table]]): Table = {
     if (seqs.size == 0) {
       Table.empty // is there better way?
     } else {
-      Table(seqs.head.get.schema, dfType.viewMerged(seqs.map(_.map(_.df))))
+       Table(seqs.head.get.schema, dfType.viewMerged(seqs.map(_.map(_.df))))
     }
   }
 

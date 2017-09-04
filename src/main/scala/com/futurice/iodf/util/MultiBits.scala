@@ -42,7 +42,7 @@ class MultiBits(_refs:Array[Ref[_ <: LBits]]) extends MultiSeq[Boolean, LBits](_
 
   override def leLongs : Iterable[Long] = new Iterable[Long] {
     def iterator = new Iterator[Long] {
-      val is = PeekIterator((bits.map(_.leLongs.iterator)  zip ranges).iterator)
+      val is = PeekIterator((bits.map(_.leLongs.iterator) zip ranges).iterator)
 
       var overbits = 0L
       var overflow = 0L

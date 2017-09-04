@@ -62,12 +62,15 @@ class SparseIoBitsType
 class SparseIoBits(val _openRef:IoRef[SparseIoBits],
                    val indexes:LongIoArray,
                    val lsize : Long) extends IoBits {
+  Tracing.opened(this)
+
   override def openRef = _openRef.openCopy
   override def apply(l: Long): Boolean = {
     val e = Utils.binarySearch(indexes, l, 0, l+1)
     e._1 != -1
   }
   override def close(): Unit = {
+    Tracing.closed(this)
     _openRef.close
     indexes.close
   }

@@ -8,11 +8,14 @@ class MultiSeq[T, S <: LSeq[T]](_refs:Array[Ref[_ <: S]]) extends LSeq[T] with C
 
   val scope = new IoScope()
 
+  Tracing.opened(this)
+
   val refs = _refs.map(_.copy(scope))
   val seqs = refs.map(_.get)
 
   override def close(): Unit = {
     scope.close()
+    Tracing.closed(this)
   }
 
   val (ranges, lsize) = {

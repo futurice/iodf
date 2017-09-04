@@ -106,8 +106,8 @@ object Index {
     (distinct zip rv).map { case (value, trues) => (value, LBits.from(trues, col.lsize))}
   }
 
-  def apply[ColId:Ordering](indexDf:Cols[(ColId, Any)]) = {
-    new Index[ColId](indexDf)
+  def apply[ColId:Ordering](indexDf:Cols[(ColId, Any)], closer:Closeable = Utils.dummyCloseable) = {
+    new Index[ColId](indexDf, closer)
   }
 
   def from[ColId:Ordering](df:Cols[ColId], conf:IndexConf[ColId]) : Index[ColId] = {
@@ -186,7 +186,7 @@ object Index {
   * Created by arau on 12.7.2017.
   */
 class Index[ColId](val df:Cols[(ColId, Any)],
-                   closer : () => Unit = () => Unit)
+                   closer : Closeable = Utils.dummyCloseable)
   extends Cols[(ColId, Any)] with IndexApi[ColId] {
 
   /**
@@ -247,21 +247,23 @@ class Index[ColId](val df:Cols[(ColId, Any)],
 
   override def close(): Unit = {
     df.close
-    closer()
+    closer.close()
   }
 
   override def select(indexes:LSeq[Long]) =
     new Index(df.select(indexes))
+
   def selectSome(indexes:LSeq[Option[Long]]) = {
     new Index(
       Cols[(ColId, Any)](
         schema,
-        _cols.map { c : LSeq[_ <: Any] =>
-          c.asInstanceOf[LBits].selectSome(indexes).states // from bits to bits
+        _cols.lazyMap { c =>
+          c.asInstanceOf[LBits].selectSomeStates(indexes).bind(c)
         },
         lsize,
         () => this.close()))
   }
+
   /* TODO: should this be renamed to mapIndexKeys */
   def mapColIds[ColId2](f : ColId => ColId2)(implicit ord2:Ordering[(ColId2, Any)]) = {
     new Index(

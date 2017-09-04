@@ -43,6 +43,13 @@ class IoScope extends Closeable{
     }
     v
   }
+  def unbind[T](v:T) = {
+    closeables.indexOf(v) match {
+      case -1 =>
+      case v => closeables.remove(v)
+    }
+    v
+  }
   def cleanup(closer:  => Unit) = {
     closeables += new Closeable {
       def close = closer
