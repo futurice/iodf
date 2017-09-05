@@ -260,7 +260,7 @@ class Index[ColId](val df:Cols[(ColId, Any)],
         _cols.lazyMap { c =>
           c.asInstanceOf[LBits].selectSomeStates(indexes).bind(c)
         },
-        lsize,
+        indexes.lsize,
         () => this.close()))
   }
 

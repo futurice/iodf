@@ -205,7 +205,7 @@ class MultiCols[ColId](_refs:Array[Ref[_ <: Cols[ColId]]], val colIdMemRatio: In
       (0 until dfs.size).map { i =>
         colMap.getOrElse(i,
           Ref(seqType.defaultInstance(dfs(i).lsize).getOrElse {
-            throw new RuntimeException(f"${entry} part $i is missing the data, while type $seqType doesn't support it")
+            throw new RuntimeException(f"${entry} part $i is missing the data, while seq type $seqType of $entryType doesn't support it")
           })).asInstanceOf[Ref[LSeq[T]]]
       }).asInstanceOf[ColType[T]]
   }

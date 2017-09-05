@@ -51,7 +51,7 @@ trait Ref[+T] extends Handle{
   def copyAs[E](implicit bind:IoScope) = copyMap(_.asInstanceOf[E])
 }
 
-case class RefCount(closer:() => Unit, var v:Int = 0) {
+case class RefCount(trace:Any , closer:() => Unit, var v:Int = 0) {
   var isClosed = false
 //  Tracing.opened(this)
   def inc = synchronized { v += 1 }
@@ -64,7 +64,7 @@ case class RefCount(closer:() => Unit, var v:Int = 0) {
       isClosed = true
     }
   }
-  override def toString = f"RefCount($closer, $v)"
+  override def toString = f"RefCount($trace, $v)"
 }
 
 object Ref {
@@ -108,7 +108,7 @@ object Ref {
   }
 
   def open[T](value:T, closer:() => Unit ): Ref[T] = {
-    open[T](value, new RefCount(closer, 0))
+    open[T](value, new RefCount(value, closer, 0))
   }
 
   def open[T](value:T): Ref[T] = {
