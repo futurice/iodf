@@ -9,7 +9,7 @@ import com.futurice.iodf.io._
 import com.futurice.iodf.ml.CoStats
 import com.futurice.iodf.providers.OrderingProvider
 import com.futurice.iodf.store.{CfsDir, WrittenCfsDir}
-import com.futurice.iodf.util.{KeyMap, LBits, LSeq, Ref}
+import com.futurice.iodf.util._
 
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
@@ -189,6 +189,8 @@ class Index[ColId](val df:Cols[(ColId, Any)],
                    closer : Closeable = Utils.dummyCloseable)
   extends Cols[(ColId, Any)] with IndexApi[ColId] {
 
+  Tracing.opened(this)
+
   /**
     * All dataframes should be of form LBits :-/
     */
@@ -246,6 +248,7 @@ class Index[ColId](val df:Cols[(ColId, Any)],
   def n = df.lsize
 
   override def close(): Unit = {
+    Tracing.closed(this)
     df.close
     closer.close()
   }
@@ -253,19 +256,22 @@ class Index[ColId](val df:Cols[(ColId, Any)],
   override def select(indexes:LSeq[Long]) =
     new Index(df.select(indexes))
 
-  def selectSome(indexes:LSeq[Option[Long]]) = {
+  def openSelectSome(indexes:LSeq[Option[Long]]) = {
     new Index(
       Cols[(ColId, Any)](
         schema,
         _cols.lazyMap { c =>
           c.asInstanceOf[LBits].selectSomeStates(indexes).bind(c)
         },
-        indexes.lsize,
-        () => this.close()))
+        indexes.lsize))
+  }
+
+  def selectSome(indexes:LSeq[Option[Long]])(implicit bind:IoScope) = {
+    bind(openSelectSome(indexes))
   }
 
   /* TODO: should this be renamed to mapIndexKeys */
-  def mapColIds[ColId2](f : ColId => ColId2)(implicit ord2:Ordering[(ColId2, Any)]) = {
+  def openMapColIds[ColId2](f : ColId => ColId2)(implicit ord2:Ordering[(ColId2, Any)]) = {
     new Index(
       Cols[(ColId2, Any)](
         ColSchema[(ColId2, Any)](
@@ -273,8 +279,11 @@ class Index[ColId](val df:Cols[(ColId, Any)],
           colTypes,
           colMeta)(ord2),
         _cols,
-        lsize,
-        () => this.close()))
+        lsize))
+  }
+
+  def mapColIds[ColId2](f : ColId => ColId2)(implicit ord:Ordering[(ColId2, Any)], bind:IoScope) = {
+    bind(openMapColIds[ColId2](f)(ord))
   }
 }
 

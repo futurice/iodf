@@ -26,6 +26,8 @@ class Tracing() {
           case Some(e) =>
             l.error( trace + " was created here", e._1)
             l.error( "then " + trace + " was deleted here", e._2)
+            /*            l.error( "was created here", e._1)
+            l.error( "then deleted here", e._2)*/
           case None =>
             l.error("either non-traced item was reported closed or we forgot deletion?")
         }
@@ -35,10 +37,18 @@ class Tracing() {
   }
   def report = {
     if (open.size > 0) {
-      l.error(open.size + " resouces leaked.")
       open.groupBy(_._1.getClass).toArray.sortBy(-_._2.size).foreach { case (typ, errs) =>
         l.error(errs.size + " instances of " + typ + " leaked", errs.head._2);
+        open.filter(o => o._1 match {
+          case Ref(e) if errs.exists(_._1 == e) =>
+            true
+          case _ =>
+            false
+        }).take(2).foreach { o =>
+          l.error("open references created here ", o._2)
+        }
       }
+      l.error(open.size + " resouces leaked.")
     }
   }
 }
@@ -68,6 +78,18 @@ object Tracing {
     }
     openItems -= 1
   }
+  def report(trace:Any) = {
+    Tracing.tracing.foreach { tr =>
+      tr.open.get(trace).foreach { e =>
+        l.error( trace + " was opened here ", e)
+      }
+      tr._closed.get(trace).foreach { e =>
+        l.error( trace + " was created here", e._1)
+        l.error( "then " + trace + " was deleted here", e._2)
+      }
+    }
+  }
+
   def lightTrace[T](f : => T) : T = {
     val openItemsBefore = openItems
     try {
@@ -92,4 +114,5 @@ object Tracing {
       tracing = tracesBefore
     }
   }
+
 }

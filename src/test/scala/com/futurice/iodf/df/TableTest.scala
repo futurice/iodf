@@ -107,7 +107,7 @@ class TableTest extends TestSuite("df/table") {
         tDf(t, df.indexDf.select(LSeq(2L, 0L)))
         t.tln
         t.tln("df.indexDf.selectSome result")
-        tDf(t, df.indexDf.selectSome(LSeq(Some(1L), None, Some(2L), Some(1L))))
+        tDf(t, df.indexDf.openSelectSome(LSeq(Some(1L), None, Some(2L), Some(1L))))
         t.tln
       }
     }

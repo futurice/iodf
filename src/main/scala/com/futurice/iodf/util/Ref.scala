@@ -49,18 +49,25 @@ trait Ref[+T] extends Handle{
     bind(openCopyMap(f))
   }
   def copyAs[E](implicit bind:IoScope) = copyMap(_.asInstanceOf[E])
+
 }
 
-case class RefCount(trace:Any , closer:() => Unit, var v:Int = 0) {
+class RefCount(trace:Any , closer:() => Unit, var v:Int = 0) {
   var isClosed = false
-//  Tracing.opened(this)
-  def inc = synchronized { v += 1 }
+  Tracing.opened(this)
+  def inc = synchronized {
+    if (isClosed) {
+      Tracing.report(this)
+      throw new RuntimeException("incrementing already closed refcount " + this + "!")
+    }
+    v += 1
+  }
   def dec = synchronized {
     v -= 1
     if (v == 0) {
-      if (isClosed) throw new RuntimeException("double closing!")
+      Tracing.closed(this)
+//      if (isClosed) throw new RuntimeException("double closing of " + trace + "!")
       closer()
-//      Tracing.closed(this)
       isClosed = true
     }
   }
@@ -69,7 +76,7 @@ case class RefCount(trace:Any , closer:() => Unit, var v:Int = 0) {
 
 object Ref {
 
-  def unapply[T](value:Ref[_]) : Option[T] = {
+  def unapply[T](value:Ref[T]) : Option[T] = {
     if (value.get.isInstanceOf[T]) {
       Some(value.get.asInstanceOf[T])
     } else {
@@ -79,22 +86,34 @@ object Ref {
 
   def open[T](value:T, refCount:RefCount) : Ref[T] = new Ref[T] {
     var _isClosed = false
+//    var _opened = new RuntimeException("opened here")
 
     refCount.inc
     Tracing.opened(this)
     override def get: T = {
-      if (refCount.isClosed) throw new RuntimeException("closed " + value + " accessed")
+      if (refCount.isClosed) {
+        Tracing.report(refCount)
+        throw new RuntimeException("closed " + value + " accessed")
+      }
       value
     }
     override def openCopy: Ref[T] = Ref.open[T](value, refCount)
     override def isClosed = _isClosed || refCount.isClosed
     override def close(): Unit = {
+      Tracing.closed(this)
       refCount.dec
       _isClosed = true
-      Tracing.closed(this)
     }
     override def toString =
       value.toString + "@" + refCount
+    /*   override def toString() : String = {
+      val str = new StringWriter()
+      val buf = new PrintWriter(str)
+      buf.append(value.toString + "@" + refCount)
+      _opened.printStackTrace(buf)
+      buf.flush()
+      str.toString
+    }*/
   }
 
   def mock[T](value:T) : Ref[T] = new Ref[T] {
@@ -120,7 +139,7 @@ object Ref {
     }
   }
 
-  def apply[T <: Closeable](value:T)(implicit bind:IoScope)  = {
+  def apply[T](value:T)(implicit bind:IoScope)  = {
     bind(open[T](value))
   }
 

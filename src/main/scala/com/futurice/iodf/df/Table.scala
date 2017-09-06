@@ -76,6 +76,8 @@ object Row {
   */
 class Table(val schema:TableSchema, val df:Cols[String], closer:Closeable = Utils.dummyCloseable) extends Df[Row] {
 
+  Tracing.opened(this)
+
   override type ColType[T] = LSeq[T]
 
   override val colIds: LSeq[String] = schema.colIds
@@ -97,7 +99,10 @@ class Table(val schema:TableSchema, val df:Cols[String], closer:Closeable = Util
   override def select(indexes:LSeq[Long]) =
     Table(schema, df.select(indexes))
 
-  override def close(): Unit = closer.close
+  override def close(): Unit = {
+    Tracing.closed(this)
+    closer.close
+  }
 
   override def apply(i:Long) = {
     val byColIndex =
@@ -134,8 +139,8 @@ object Table {
             },
             sz))
   }
-  def apply(schema:TableSchema, df:Cols[String]) = {
-    new Table(schema, df)
+  def apply(schema:TableSchema, df:Cols[String], closer:Closeable = Utils.dummyCloseable) = {
+    new Table(schema, df, closer)
   }
 }
 
@@ -183,7 +188,10 @@ class TableIoType(implicit io:IoContext) extends MergeableIoType[Table, Table] {
     if (seqs.size == 0) {
       Table.empty // is there better way?
     } else {
-       Table(seqs.head.get.schema, dfType.viewMerged(seqs.map(_.map(_.df))))
+      val bind = IoScope.open
+      val df = bind(dfType.viewMerged(seqs.map(_.map(_.df))))
+      seqs.foreach { e => bind(e.openCopy) }
+      Table(seqs.head.get.schema, df, bind)
     }
   }
 

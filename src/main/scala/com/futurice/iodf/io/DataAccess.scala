@@ -77,26 +77,10 @@ class DataAccess(val _dataRef:DataRef,
     if (offset < 0 || offset + sz > size) {
       throw new RuntimeException(offset + s" is outside the range [0, $size]")
     } else if (isClosed) {
-      Tracing.tracing.foreach {
-        _._closed.get(this).foreach { e =>
-          System.out.println("this reference was closed before")
-          System.out.println("it was created here")
-          e._1.printStackTrace()
-          System.out.println("and closed here for first time")
-          e._2.printStackTrace()
-        }
-      }
+      Tracing.report(this)
       throw new RuntimeException("this reference was to memory resource " + m.address + " closed")
     } else if (ref.isClosed) {
-      Tracing.tracing.foreach {
-        _._closed.get(this.ref).foreach { e =>
-          System.out.println("memory resource "  + m.address + " was closed before")
-          System.out.println("it was created here")
-          e._1.printStackTrace()
-          System.out.println("and closed here for first time")
-          e._2.printStackTrace()
-        }
-      }
+      Tracing.report(this.ref)
       throw new RuntimeException("memory resource " + m.address + " is closed")
     }
   }

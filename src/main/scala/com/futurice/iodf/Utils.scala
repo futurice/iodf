@@ -32,7 +32,7 @@ class IoScope extends Closeable{
     rv
   }
   override def close(): Unit = {
-    closeables.foreach(_.close)
+    closeables.foreach( _.close)
     closeables.clear()
   }
   def bind[T](v:T) = {
