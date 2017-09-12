@@ -187,7 +187,7 @@ object Index {
   */
 class Index[ColId](val df:Cols[(ColId, Any)],
                    closer : Closeable = Utils.dummyCloseable)
-  extends Cols[(ColId, Any)] with IndexApi[ColId] {
+  extends Cols[(ColId, Any)] with IndexApi[ColId] with ColsWrap[(ColId, Any), Cols[(ColId, Any)]] {
 
   Tracing.opened(this)
 

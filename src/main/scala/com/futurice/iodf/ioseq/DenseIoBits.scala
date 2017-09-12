@@ -262,6 +262,7 @@ class DenseIoBits(_openRef:IoRef[DenseIoBits], _origBuf:DataAccess)
     def copy = truesFromBit(n)
 
     def prepareNext() {
+      // FIXME: this would be faster with longs instead of bytes
       while (v == 0 && l + 1 < (lsize+7)/ 8) {
         l += 1
         v = buf.getByte(l)
@@ -302,8 +303,30 @@ class DenseIoBits(_openRef:IoRef[DenseIoBits], _origBuf:DataAccess)
     }
   }
 
-  val trues = new Scannable[Long, Long]{
+  val trues = new ScannableLSeq[Long, Long]{
     override def iterator = truesFromBit(0)
+
+    override def apply(l: Long) : Long = {
+      var left = l
+      var i = 0L
+      while (true) {
+        var word = buf.getNativeLong(i)
+        val f = java.lang.Long.bitCount(word)
+        if (left < f) {
+          while (true) {
+            val truePos = java.lang.Long.numberOfTrailingZeros(word)
+            if (left == 0) return (i*64) + truePos
+            word = word & (0xffffffffffffffffL << (truePos+1)) // clear the found bit
+          }
+        } else {
+          left -= f
+          i += 1
+        }
+      }
+      throw new RuntimeException("unreachable")
+    }
+
+    override def lsize = f
   }
 
   def update(i:Long, v:Boolean) = {

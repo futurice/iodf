@@ -122,6 +122,16 @@ object Utils {
     override def close() = {}
   }
 
+  /**
+    * Returns three values, that are (match, ceil, floor)
+    * @param sortedSeq
+    * @param target
+    * @param from
+    * @param until
+    * @param ord
+    * @tparam T
+    * @return
+    */
   def binarySearch[T](sortedSeq:LSeq[T], target:T, from:Long = 0, until:Long = Long.MaxValue)(implicit ord:Ordering[T]) : (Long, Long, Long)= {
     @tailrec
     def recursion(low:Long, high:Long):(Long, Long, Long) = (low+high)/2 match{

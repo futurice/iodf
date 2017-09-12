@@ -181,8 +181,22 @@ class MultiBits(_refs:Array[Ref[_ <: LBits]]) extends MultiSeq[Boolean, LBits](_
 
     }
   }
-  override def trues = new Scannable[Long, Long] {
+  override val trues = new ScannableLSeq[Long, Long] {
     override def iterator = truesWith(bits.map(_.trues.iterator))
+
+    override def apply(l: Long) : Long = {
+      var at = l
+      bits.foreach { b =>
+        val lsz = b.trues.lsize
+        if (at < lsz) {
+          return b.trues(at)
+        } else {
+          at -= lsz
+        }
+      }
+      throw new RuntimeException("out of bounds!")
+    }
+    override def lsize = bits.map(_.trues.lsize).sum
   }
 
   override def createAnd(b:LBits)(implicit io:IoContext) = {

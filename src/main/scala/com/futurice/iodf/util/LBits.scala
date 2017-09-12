@@ -6,7 +6,7 @@ import java.util
 import com.futurice.iodf.ioseq.{DenseIoBits, IoBits}
 import com.futurice.iodf._
 
-trait LCondBits extends LSeq[Option[Boolean]] {
+trait LCondBits extends OptionLSeq[Boolean] {
 
   def f : Long
   def n : Long
@@ -25,6 +25,13 @@ object LCondBits {
       override def n = _defined.f
 
       override def defined = _defined
+
+      override def definedStates = states.select(LSeq.from(defined.trues.toArray))
+
+      override def definedStatesWithIndex: LSeq[(Boolean, Long)] = {
+        val indexes = LSeq.from(defined.trues.toArray)
+        states.select(indexes) zip indexes
+      }
 
       override def states = _states
 
@@ -60,7 +67,10 @@ trait LBits extends LSeq[Boolean] {
   def isDense = LBits.isDense(f, n)
   def isSparse = LBits.isSparse(f, n)
 
-  def trues : Scannable[Long, Long]
+  /**
+    * WARNING: trues may not be random accessible. Expect O(N) worst case behavior!
+    */
+  def trues : ScannableLSeq[Long, Long]
   def f : Long
   def n = lsize
   override def view(from:Long, until:Long) : LBits =
@@ -145,7 +155,7 @@ class BitsView(bits:LBits, from:Long, until:Long) extends LBits {
     rv.seek(from)
     rv
   }
-  lazy val f = trues.size.toLong
+  lazy val f = trues.lsize
 
   def lsize = (until-from)
   def apply(v:Long) = trues.iterator.seek(v)
@@ -163,8 +173,14 @@ class BitsView(bits:LBits, from:Long, until:Long) extends LBits {
   }
 
   def trues =
-    new Scannable[Long, Long] {
-      def iterator = truesView(truesBegin.copy)
+    new ScannableLSeq[Long, Long] {
+      override def iterator = truesView(truesBegin.copy)
+      override def apply(l: Long) = {
+        val i = iterator
+        (0L until l).foreach { _ => i.next }
+        i.next
+      }
+      override lazy val lsize = iterator.size
     }
 }
 
@@ -254,8 +270,16 @@ object LBits {
           }
         }
       }
-      override def trues = new Scannable[Long, Long] {
-        def iterator = truesFrom(0)
+      override def trues = new ScannableLSeq[Long, Long] {
+        override def iterator = truesFrom(0)
+
+        override def apply(l: Long) = {
+          val i = iterator
+          (0L until l).foreach { _ => i.next }
+          i.next()
+        }
+
+        override def lsize = f
       }
       override def close = {
         closeable.close()
@@ -297,8 +321,15 @@ object LBits {
           }
         }
       }
-      override def trues = new Scannable[Long, Long]{
+      override def trues = new ScannableLSeq[Long, Long] {
         override def iterator = truesFromBit(0)
+        override def apply(l: Long) = {
+          // nth true index
+          val i = truesFromBit(0)
+          (0L until l).foreach { _ => i.next }
+          i.next()
+        }
+        override def lsize = f
       }
     }
   }
@@ -310,14 +341,16 @@ object LBits {
       override def f: Long = 0
       override def fAnd(bits: LBits): Long = 0
       override def trues =
-        new Scannable[Long, Long] {
-          def iterator = new Scanner[Long, Long] {
+        new ScannableLSeq[Long, Long] {
+          override def iterator = new Scanner[Long, Long] {
             override def head = throw new IllegalStateException()
             override def copy = this
             override def seek(t: Long): Boolean = false
             override def hasNext: Boolean = false
             override def next(): Long = -1
           }
+          override def apply(l: Long) = throw new IndexOutOfBoundsException("empty list")
+          override def lsize = 0
         }
 
       override def leLongs = new Iterable[Long] {
@@ -334,6 +367,65 @@ object LBits {
         }
       }
       override def apply(l: Long): Boolean = false
+    }
+  }
+
+  def trues(n:Long) = {
+    val thisn = n
+    new LBits {
+      override def lsize = thisn
+      override def f: Long = thisn
+      override def fAnd(bits: LBits): Long = bits.f
+      def truesFrom(from: Long): Scanner[Long, Long] =
+        new Scanner[Long, Long] {
+          var at = from
+          override def head = throw new IllegalStateException()
+          override def copy = truesFrom(at)
+          override def seek(t: Long): Boolean = {
+            if (t < lsize) {
+              at = t
+              return true;
+            } else {
+              return false
+            }
+          }
+          override def hasNext: Boolean = at < lsize
+          override def next(): Long = {
+            var rv = at
+            at += 1
+            rv
+          }
+        }
+      override def &(b:LBits)(implicit io:IoContext, scope:IoScope) : LBits = {
+        b // just return the bits
+      }
+      override def &~(b:LBits)(implicit io:IoContext, scope:IoScope) : LBits = {
+        ~b // revert the bits
+      }
+      override def ~(implicit io:IoContext, scope:IoScope) : LBits = {
+        empty(n)
+      }
+      override def trues =
+        new ScannableLSeq[Long, Long] {
+
+          override def iterator = truesFrom(0)
+
+          override def apply(l: Long) = l
+
+          override def lsize = n
+        }
+      override def leLongs = new Iterable[Long] {
+        def iterator = new Iterator[Long] {
+          var l = 0
+          val max = DenseIoBits.bitsToLongCount(lsize)
+          def hasNext = l < max
+          def next = {
+            l += 1
+            0xFFFFFFFFFFFFFFFFL
+          }
+        }
+      }
+     override def apply(l: Long): Boolean = true
     }
   }
 
@@ -374,8 +466,10 @@ object LBits {
         }
       }
 
-      override def trues = new Scannable[Long, Long] {
+      override def trues = new ScannableLSeq[Long, Long] {
         override def iterator = truesFromTrue(0)
+        override def apply(l: Long) = trueIndexes(l.toInt)
+        override def lsize = trueIndexes.size
       }
 
       override def iterator = new PeekIterator[Boolean] {

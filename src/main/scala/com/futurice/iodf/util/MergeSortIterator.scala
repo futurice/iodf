@@ -2,10 +2,13 @@ package com.futurice.iodf.util
 
 import com.futurice.iodf.Utils
 
-trait SeekIterator[+T, S] extends Iterator[T] {
-  /* seeks the position after the given position */
-  def seek(t:S) : Boolean
-  def seeked(t:S) = {
+/**
+  *
+  */
+trait SeekIterator[+T, Key] extends Iterator[T] {
+  /* seeks the position at or after the given value */
+  def seek(t:Key) : Boolean
+  def seeked(t:Key) = {
     seek(t)
     this
   }
@@ -35,9 +38,14 @@ trait PeekIterator[T] extends Iterator[T] {
 trait PeekIterable[T] extends Iterable[T] {
   def iterator : PeekIterator[T]
 }
-trait Scanner[T, S] extends SeekIterator[T, S] with PeekIterator[T] {
-  def copy : Scanner[T, S]
+trait Scanner[T, Key] extends SeekIterator[T, Key] with PeekIterator[T] {
+  def copy : Scanner[T, Key]
 }
+trait PositionedScanner[T, Key] extends Scanner[T, Key] {
+  def pos : Long
+  def seekPos(l:Long) : PositionedScanner[T, Key]
+}
+
 object Scanner {
   def apply[T](orderedSeq:LSeq[T], from:Long = 0L)(implicit ord:Ordering[T]) : Scanner[T, T]= {
     new Scanner[T, T] {

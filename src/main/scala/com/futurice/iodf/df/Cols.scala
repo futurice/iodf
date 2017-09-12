@@ -147,6 +147,10 @@ trait Cols[ColId] extends java.io.Closeable {
   }
 }
 
+trait ColsWrap[ColId, T <: Cols[ColId]] {
+  def wrappedCols : T
+}
+
 class ColsRef[ColId](val df:Cols[ColId]) extends Cols[ColId] {
 
   override def schema = df.schema

@@ -115,8 +115,12 @@ class SparseIoBits(val _openRef:IoRef[SparseIoBits],
     }
   }
 
-  def trues = new Scannable[Long, Long] {
-    def iterator = truesFromTrue(0)
+  def trues = new ScannableLSeq[Long, Long] {
+    override def iterator = truesFromTrue(0)
+    override def apply(l: Long) = {
+      indexes(l)
+    }
+    override def lsize = indexes.lsize
   }
 
   def indexAfter(from:Long, target:Long) = {

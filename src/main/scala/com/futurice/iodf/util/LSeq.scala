@@ -2,6 +2,8 @@ package com.futurice.iodf.util
 
 import java.io.Closeable
 
+import com.futurice.iodf.Utils
+
 
 /* long sequence interface */
 trait LSeq[+T] extends Iterable[T] with PartialFunction[Long, T] with Closeable {
@@ -113,3 +115,46 @@ object LSeq {
   }
 }
 
+
+trait OptionLSeq[T] extends LSeq[Option[T]] {
+  def defined : LBits
+  def definedStates : LSeq[T]
+  def definedStatesWithIndex : LSeq[(T, Long)]
+}
+
+object OptionLSeq {
+  def mask[T](mask:LBits, values:LSeq[T]) =
+    new OptionLSeq[T] {
+      override lazy val defined = mask
+      lazy val definedIndexes = mask.trues
+      override lazy val definedStates = definedIndexes.lazyMap { values(_) }
+      override def definedStatesWithIndex = definedIndexes.lazyMap { i =>
+        (values(i), i)
+      }
+      override def apply(l: Long) = {
+        mask(l) match {
+          case true => Some(values(l))
+          case false => None
+        }
+      }
+      override def lsize = mask.lsize
+    }
+  def from[T](_defined:LBits, _definedValues:LSeq[T]) =
+    new OptionLSeq[T] {
+      override lazy val defined = _defined
+      lazy val definedIndexes = _defined.trues
+      override lazy val definedStates = _definedValues
+      override def definedStatesWithIndex = _definedValues zip _defined.trues
+      override def apply(l: Long) = {
+        _definedValues(l) match {
+          case true => Some(_definedValues(_defined.trues(l)))
+          case false => None
+        }
+      }
+      override def lsize = _defined.lsize
+    }
+}
+
+trait ScannableLSeq[T, Key] extends Scannable[T, Key] with LSeq[T] {
+  override def iterator : Scanner[T, Key] = throw new NotImplementedError()
+}

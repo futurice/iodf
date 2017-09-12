@@ -18,8 +18,6 @@ import scala.reflect.runtime.universe._
   */
 trait IoBits extends IoSeq[Boolean] with LBits {
 
-  def trues : Scannable[Long, Long]
-
   override def n = lsize
   def f : Long = trues.size
   def apply(index:Long)= {
