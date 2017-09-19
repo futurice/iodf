@@ -42,7 +42,7 @@ class TableTest extends TestSuite("df/table") {
         val file = MMapFile(new File(t.fileDir, "myDf"))
         implicit val io = IoContext()
 
-        val df = Table.from(schema, items)
+        val df = bind(Table.from(schema, items))
 
         t.tln
         tDf(t, df)
@@ -66,7 +66,7 @@ class TableTest extends TestSuite("df/table") {
         val file = MMapFile(new File(t.fileDir, "myDf"))
         implicit val io = IoContext()
 
-        val df = Indexed.from(Table.from(schema, items), indexConf)
+        val df = bind(Indexed.from(Table.from(schema, items), indexConf))
         t.tln
         t.tln("documents:")
         t.tln
@@ -89,7 +89,6 @@ class TableTest extends TestSuite("df/table") {
       }
     }
     t.tln
-    tRefCount(t)
   }
 
   test("select") { t =>
@@ -98,16 +97,16 @@ class TableTest extends TestSuite("df/table") {
         val file = MMapFile(new File(t.fileDir, "myDf"))
         implicit val io = IoContext()
 
-        val df = Indexed.from(Table.from(schema, items), indexConf)
+        val df = bind(Indexed.from(Table.from(schema, items), indexConf))
         t.tln
         t.tln("df.select result")
-        tDf(t, df.select(LSeq(2L, 0L)))
+        tDf(t, bind(df.openSelect(LSeq(2L, 0L))))
         t.tln
         t.tln("df.indexDf.select result")
-        tDf(t, df.indexDf.select(LSeq(2L, 0L)))
+        tDf(t, bind(df.indexDf.openSelect(LSeq(2L, 0L))))
         t.tln
         t.tln("df.indexDf.selectSome result")
-        tDf(t, df.indexDf.openSelectSome(LSeq(Some(1L), None, Some(2L), Some(1L))))
+        tDf(t, bind(df.indexDf.openSelectSome(LSeq(Some(1L), None, Some(2L), Some(1L)))))
         t.tln
       }
     }

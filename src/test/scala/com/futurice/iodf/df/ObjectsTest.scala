@@ -181,7 +181,7 @@ class ObjectsTest extends TestSuite("df/objects") {
         t.tln
         t.t("writing dataframe..")
         t.iMsLn {
-          file.save(IndexedObjects.from(ExampleItem.makeItems(0, 16), indexConf))
+          file.save(bind(IndexedObjects.from(ExampleItem.makeItems(0, 16), indexConf)))
         }
         t.tln
         t.t("opening dataframe..")
@@ -196,7 +196,7 @@ class ObjectsTest extends TestSuite("df/objects") {
     }
   }
 
-  def tIndexedObjectsPerf[T](t:TestTool, objs:IndexedObjects[T]) = {
+  def tIndexedObjectsPerf[T](t:TestTool, objs:IndexedObjects[T]) = Tracing.lightTrace {
     val df = objs.df
     val index = objs.indexDf
 
@@ -319,8 +319,8 @@ class ObjectsTest extends TestSuite("df/objects") {
 
 
   test("1024-indexed-objects") { t =>
-//    Tracing.trace {
-      scoped { implicit scoped =>
+    Tracing.lightTrace {
+      scoped { implicit bind =>
         implicit val io = makeIoContext
 
         val file = MMapFile(t.fileDir, "df")
@@ -330,7 +330,7 @@ class ObjectsTest extends TestSuite("df/objects") {
         t.t("creating heap df..")
         val heapDf =
           t.iMsLn(
-            IndexedObjects.from(items, ExampleItem.indexConf))
+            bind(IndexedObjects.from(items, ExampleItem.indexConf)))
         t.tln
         t.t("creating io df..")
         val ioDf = t.iMsLn(file.saved(heapDf))
@@ -355,7 +355,8 @@ class ObjectsTest extends TestSuite("df/objects") {
 
         t.tln
       }
- //   }
+    tRefCount(t)
+   }
   }
 
   /*

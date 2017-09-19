@@ -231,7 +231,7 @@ class MultiCols[ColId](_refs:Array[Ref[_ <: Cols[ColId]]], val colIdMemRatio: In
     openMultiCol[T](schema.entryOfId(id).get)
   }
 
-  override def view(from:Long, until:Long) = {
+  override def openView(from:Long, until:Long) = {
     new ColsView[ColId](this, from, until)
   }
 

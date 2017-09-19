@@ -2,7 +2,7 @@ package com.futurice.iodf.util
 
 import java.io.Closeable
 
-import com.futurice.iodf.Utils
+import com.futurice.iodf.{IoScope, Utils}
 
 
 /* long sequence interface */
@@ -77,11 +77,11 @@ trait LSeq[+T] extends Iterable[T] with PartialFunction[Long, T] with Closeable 
       rv
     }
   }
-  def select(indexes:LSeq[Long]) = {
+  def openSelect(indexes:LSeq[Long]) = {
     val self = this
     indexes.map { i : Long => self(i) }
   }
-  def selectSome(indexes:LSeq[Option[Long]]) = {
+  def openSelectSome(indexes:LSeq[Option[Long]]) = {
     val self = this
     indexes.map { e : Option[Long] => e.map { index =>
         self(index)

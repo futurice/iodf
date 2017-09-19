@@ -60,7 +60,7 @@ class DocumentsTest extends TestSuite("df/documents") {
         val file = MMapFile(new File(t.fileDir, "myDf"))
         implicit val io = IoContext()
 
-        val df = Indexed.from(Documents.from(items), indexConf)
+        val df = bind(Indexed.from(Documents.from(items), indexConf))
         t.tln
         t.tln("documents:")
         t.tln

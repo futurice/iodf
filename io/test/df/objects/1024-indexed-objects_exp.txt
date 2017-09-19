@@ -1,6 +1,6 @@
-creating heap df..42 ms 
+creating heap df..29 ms (was 42 ms)
 
-creating io df..332 ms 
+creating io df..66 ms (was 332 ms)
 
 testing heap df:
 
@@ -8,32 +8,32 @@ testing heap df:
   property frequencies: original 2 vs index 491
   name=h frequencies: original 0 vs index 44
 
-  searching 1024 ids...6 ms.
+  searching 1024 ids...12 ms.
 
     checksum:    451026
-    time/lookup: 5 us
+    time/lookup: 11 us
 
-  making 1024 cofreq calculations...26 ms.
+  making 1024 cofreq calculations...24 ms.
 
     checksums:    9461/9461/78
-    time/freq:    25 us
+    time/freq:    23 us
 
-  opening bitsets (no id lookup)...2 ms 
+  opening bitsets (no id lookup)...3 ms (was 2 ms)
 
-  counting freqs...2 ms.
+  counting freqs...1 ms.
 
     checksum:     8698
-    time/freq:    1 us
+    time/freq:    0 us
 
-  comparing bits...5 ms.
+  comparing bits...3 ms.
 
     checksums:    8698/8287/77
-    time/freq:    4 us
+    time/freq:    2 us
 
-  making three way bit and comparisons...79 ms.
+  making three way bit and comparisons...245 ms.
 
     checksums:    77/2
-    time/freq:    77 us
+    time/freq:    239 us
 
 
 testing io df:
@@ -42,32 +42,32 @@ testing io df:
   property frequencies: original 2 vs index 491
   name=h frequencies: original 0 vs index 44
 
-  searching 1024 ids...100 ms.
+  searching 1024 ids...44 ms.
 
     checksum:    451026
-    time/lookup: 97 us
+    time/lookup: 42 us
 
-  making 1024 cofreq calculations...216 ms.
+  making 1024 cofreq calculations...293 ms.
 
     checksums:    9461/9461/78
-    time/freq:    210 us
+    time/freq:    286 us
 
-  opening bitsets (no id lookup)...4 ms 
+  opening bitsets (no id lookup)...98 ms (was 4 ms)
 
   counting freqs...0 ms.
 
     checksum:     8698
     time/freq:    0 us
 
-  comparing bits...2 ms.
+  comparing bits...1 ms.
 
     checksums:    8698/8287/77
-    time/freq:    1 us
+    time/freq:    0 us
 
-  making three way bit and comparisons...16 ms.
+  making three way bit and comparisons...202 ms.
 
     checksums:    77/2
-    time/freq:    15 us
+    time/freq:    197 us
 
 comparing main dfs:
 
@@ -77,3 +77,4 @@ comparing index dfs:
 
   0 differences found.
 
+0 refs open.

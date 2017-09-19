@@ -32,10 +32,10 @@ trait Documents extends Df[Document] {
   def apply(i:Long) : Document
   def df : Cols[String]
   override def size = lsize.toInt
-  override def view(from:Long, until:Long) =
+  override def openView(from:Long, until:Long) =
     Documents(new ColsView[String](df, from, until))
-  override def select(indexes:LSeq[Long]) =
-    Documents(df.select(indexes))
+  override def openSelect(indexes:LSeq[Long]) =
+    Documents(df.openSelect(indexes))
 }
 
 object Documents {

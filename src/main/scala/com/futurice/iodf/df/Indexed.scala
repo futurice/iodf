@@ -15,12 +15,12 @@ trait Indexed[ColId, T <: Cols[ColId]] extends Cols[ColId] with IndexApi[ColId] 
   def df : T
   def indexDf : Index[ColId]
 
-  override def view(from:Long, until:Long) =
-    Indexed[ColId, T](df.view(from, until).asInstanceOf[T], // FIXME: can scala type system help here?
-                      indexDf.view(from, until))
-  override def select(indexes:LSeq[Long]) =
-    Indexed[ColId, T](df.select(indexes).asInstanceOf[T], // FIXME: can scala type system help here?
-                      indexDf.select(indexes))
+  override def openView(from:Long, until:Long) =
+    Indexed[ColId, T](df.openView(from, until).asInstanceOf[T], // FIXME: can scala type system help here?
+                      indexDf.openView(from, until))
+  override def openSelect(indexes:LSeq[Long]) =
+    Indexed[ColId, T](df.openSelect(indexes).asInstanceOf[T], // FIXME: can scala type system help here?
+                      indexDf.openSelect(indexes))
 }
 
 object Indexed {
@@ -61,10 +61,10 @@ object Indexed {
 
       override def lsize: Long = df.lsize
 
-      override def view(from: Long, until: Long): Indexed[ColId, T] =
+      override def openView(from: Long, until: Long): Indexed[ColId, T] =
         Indexed[ColId, T](
-          df.view(from, until).asInstanceOf[T], // TODO: refactor
-          indexDf.view(from, until))
+          df.openView(from, until).asInstanceOf[T], // TODO: refactor
+          indexDf.openView(from, until))
 
       override def colIdValues[T](colId: ColId): LSeq[(ColId, T)] =
         indexDf.colIdValues(colId)

@@ -28,10 +28,10 @@ class IndexedObjects[T](val wrapped:Indexed[String, Objects[T]])
         wrapped.indexDf))
   }
 
-  override def view(from:Long, until:Long) =
-    new IndexedObjects[T](wrapped.view(from, until))
-  override def select(indexes:LSeq[Long]) =
-    new IndexedObjects[T](wrapped.select(indexes))
+  override def openView(from:Long, until:Long) =
+    new IndexedObjects[T](wrapped.openView(from, until))
+  override def openSelect(indexes:LSeq[Long]) =
+    new IndexedObjects[T](wrapped.openSelect(indexes))
 
   override def df: Objs[T] = wrapped.df
 

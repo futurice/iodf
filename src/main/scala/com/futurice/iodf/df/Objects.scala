@@ -78,10 +78,10 @@ trait Objects[T] extends Df[T] with ObjectsApi[T] {
   override def schema : ObjectSchema[T]
 
   override def size = lsize.toInt
-  override def view(from:Long, until:Long) =
-    Objects(schema, df.view(from, until))
-  override def select(indexes:LSeq[Long]) =
-    Objects(schema, df.select(indexes))
+  override def openView(from:Long, until:Long) =
+    Objects(schema, df.openView(from, until))
+  override def openSelect(indexes:LSeq[Long]) =
+    Objects(schema, df.openSelect(indexes))
 }
 
 object Objects {

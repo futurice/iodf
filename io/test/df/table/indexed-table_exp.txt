@@ -49,9 +49,9 @@ columns are:
   true,true,false
   false,false,true
 
-writing df..21 ms (was 12 ms)
+writing df..20 ms (was 20 ms)
 
-opening df..6 ms (was 3 ms)
+opening df..6 ms (was 7 ms)
 documents:
 
 
@@ -103,4 +103,3 @@ columns are:
   false,false,true
 
 
-0 refs open.

@@ -22,6 +22,8 @@ import scala.reflect.ClassTag
 class IoScope extends Closeable{
   val closeables = ArrayBuffer[Closeable]()
 
+  var closed = false
+
   /** transfer ownership of all closeable resources to a new IoScope
     * TODO: think of the naming
     */
@@ -33,9 +35,13 @@ class IoScope extends Closeable{
   }
   override def close(): Unit = {
     closeables.foreach( _.close)
+    closed = true
     closeables.clear()
   }
   def bind[T](v:T) = {
+    if (closed) {
+      throw new IllegalStateException("already closed")
+    }
     v match {
       case c : Closeable =>
         closeables += c

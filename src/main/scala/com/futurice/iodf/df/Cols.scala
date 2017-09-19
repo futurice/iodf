@@ -136,13 +136,13 @@ trait Cols[ColId] extends java.io.Closeable {
   def apply[T <: Any](id:ColId, i:Long) : T = {
     using (openCol[T](id)) { _(i) }
   }
-  def view(from:Long, until:Long) : Cols[ColId] = {
+  def openView(from:Long, until:Long) : Cols[ColId] = {
     new ColsView[ColId](this, from, until)
   }
-  def select(indexes:LSeq[Long]) : Cols[ColId] = {
+  def openSelect(indexes:LSeq[Long]) : Cols[ColId] = {
     Cols[ColId](
       schema,
-      _cols.lazyMap { _.select(indexes) },
+      _cols.lazyMap { _.openSelect(indexes) },
       indexes.lsize)
   }
 }
@@ -163,7 +163,7 @@ class ColsRef[ColId](val df:Cols[ColId]) extends Cols[ColId] {
 
   override def close(): Unit = {}
 
-  override def view(from:Long, until:Long) = df.view(from, until)
+  override def openView(from:Long, until:Long) = df.openView(from, until)
 
 }
 
@@ -181,8 +181,8 @@ class ColsView[ColId](val cols:Cols[ColId], val from:Long, val until:Long)
 
   override def lsize: Long = until - from
 
-  override def view(from:Long, until:Long) =
-    cols.view(this.from + from, this.from + until)
+  override def openView(from:Long, until:Long) =
+    cols.openView(this.from + from, this.from + until)
 
   override def close(): Unit = {}
 

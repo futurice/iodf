@@ -94,10 +94,10 @@ class Table(val schema:TableSchema, val df:Cols[String], closer:Closeable = Util
 
   override def size : Int = df.size
 
-  override def view(from: Long, until: Long): Table =
-    Table(schema, df.view(from, until))
-  override def select(indexes:LSeq[Long]) =
-    Table(schema, df.select(indexes))
+  override def openView(from: Long, until: Long): Table =
+    Table(schema, df.openView(from, until))
+  override def openSelect(indexes:LSeq[Long]) =
+    Table(schema, df.openSelect(indexes))
 
   override def close(): Unit = {
     Tracing.closed(this)
