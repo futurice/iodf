@@ -7,21 +7,54 @@ import com.futurice.iodf.io.{DataAccess, DataOutput, DataRef, IoRef}
 import com.futurice.iodf.util._
 
 import scala.collection.mutable.ArrayBuffer
+import scala.reflect.ClassTag
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 
+
+// FIXME: rename this to OutputWriter[T]
 trait OutputWriting[T] {
   def write(o:DataOutput, v:T)
 }
 
+/**
+  * This design is bad on few levels. It's inconvenient to implement,
+  * and even more: it's slow and _badly scaling_, because you may need to
+  * recheck the size on every step leading to O(N²) complexity
+  *
+  * NOTE: we could also use some more traditional serialization framework :-/
+  */
 trait RandomAccessReading[T] {
   def read(o:DataAccess, pos:Long) : T
   def size(o:DataAccess, pos:Long) : Long
 }
 
+// TODO: replace RandomAccessReader with this ->
+trait InputReader[T] {
+  def read(o:DataInputStream, v:T) : T
+}
+
+
+/**
+  * FIXME: The serialization should not use random access API, but
+  *        stream API. The desig should be more conventional stream writer,
+  *        stream reader architecture
+  */
 trait Serializer[T] extends OutputWriting[T] with RandomAccessReading[T] {
 
 }
+
+/* THIS is the correct design
+trait Serializer[T] extends OutputWriter[T] with InputReader[T] {
+
+}
+*/
+
+
+/**
+  * NOTE: could we use scala Type reflection, instead of classes.
+  *       This would allow better serializations
+  */
 trait TypedSerializer[T] extends Serializer[T] {
   def classes : Seq[Class[_]]
   def tryWrite(o:DataOutput, t:Any) = write(o, t.asInstanceOf[T])
@@ -221,11 +254,11 @@ class VariantIo(_tpes:Array[_ <: TypedSerializer[_]], fallback:Serializer[Any]) 
     tpe(o.getByte(pos)).read(o, pos+1)
   }
   override def size(o: DataAccess, pos: Long): Long = {
-    tpe(o.getByte(pos)).size(o,pos+1)
+    1+ tpe(o.getByte(pos)).size(o,pos+1)
   }
 }
 
-class Tuple2Io[F, S](first:Serializer[F], second:Serializer[S]) extends Serializer[(F, S)] {
+class Tuple2Io[F, S](first:Serializer[F], second:Serializer[S]) extends SingleTypedSerializer[(F, S)] {
   override def write(o: DataOutput, v: (F, S)) : Unit = {
     first.write(o, v._1)
     second.write(o, v._2)
@@ -240,6 +273,8 @@ class Tuple2Io[F, S](first:Serializer[F], second:Serializer[S]) extends Serializ
     val fsz = first.size(o, pos)
     fsz + second.size(o, pos + fsz)
   }
+
+  override def clazz = classOf[(F, S)]
 }
 object BooleanIo extends SingleTypedSerializer[Boolean] {
   override def read(o: DataAccess, pos: Long): Boolean = {
@@ -364,6 +399,38 @@ class OptionIo[T](io:Serializer[T]) extends TypedSerializer[Option[T]] {
   }
   override def classes = Seq(classOf[Option[T]], classOf[Some[T]], None.getClass)
 }
+
+/**
+  * TODO: fix the serializer design
+  */
+
+class ArrayIo[T:ClassTag](io:Serializer[T]) extends SingleTypedSerializer[Array[T]] {
+  override def read(o: DataAccess, pos: Long): Array[T] = {
+    var at = pos
+    val sz = o.getBeInt(at)
+    at += 4
+    (0 until sz).map { i =>
+      val rv = io.read(o, at)
+      at += io.size(o, at)
+      rv
+    }.toArray
+  }
+  override def size(o: DataAccess, pos: Long): Long = {
+    var at = pos
+    val sz = o.getBeInt(at)
+    at += 4
+    (0 until sz).foreach { i =>
+      at += io.size(o, at)
+    }
+    at
+  }
+  override def write(o: DataOutput, v: Array[T]): Unit = {
+    o.writeInt(v.size)
+    v.foreach { e => io.write(o, e) }
+  }
+  override def clazz = classOf[Array[T]]
+}
+
 
 class StringIoSeqType(implicit ifaceTag:TypeTag[LSeq[String]],
                       vTag:TypeTag[String])

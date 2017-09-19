@@ -34,7 +34,7 @@ object MathUtils {
   def pS(s:Boolean, p:Double) = {
     if (s) p else (1-p)
   }
-  def relVarState(relState:Int, v:Int) = {
+  def relStateVarState(relState:Int, v:Int) = {
     (relState & (1 << v)) > 0
   }
   def relStateF(relState:Int, n:Long, fA:Long, fB:Long, fAB:Long) = {
@@ -44,6 +44,15 @@ object MathUtils {
       case 2 => fB - fAB  // b is true
       case 3 => fAB       // a&b are true
     }
+  }
+
+  def varPsToNaiveRelStatePs(varPs:Array[Double]) = {
+    val relStateCount = 1 << varPs.size
+    (0 until relStateCount ).map { s =>
+      (0 until varPs.size).map { i =>
+        MathUtils.pS(MathUtils.relStateVarState(s, i), varPs(i))
+      }.product
+    }.toArray
   }
 }
 

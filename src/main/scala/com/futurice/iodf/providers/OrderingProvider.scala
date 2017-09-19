@@ -35,6 +35,13 @@ object OrderingProvider {
     val s = orderingOf[String]
     override def compare(x: Any, y: Any): Int = {
       (x, y) match {
+        case ((a0, a1), (b0, b1)) =>
+          compare(a0, b0) match {
+            case 0 => compare(a1, b1)
+            case i => i
+          }
+        case (as:Array[Long], bs:Array[Long]) =>
+          (as zip bs).iterator.map { case (a:Long, b:Long) => compare(a, b) }.find { _ != 0 }.getOrElse(0)
         case (_ : MinBound, _) => -1
         case (_ : MaxBound, _) => 1
         case (_, _ : MinBound) => 1

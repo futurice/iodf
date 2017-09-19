@@ -241,7 +241,10 @@ object IoTypes {
                 LongIo,
                 StringIo,
                 keyMapIo,
-                new OptionIo[Any](rootIo)), javaIo)
+                new OptionIo[Any](rootIo),
+                new Tuple2Io[Any, Any](rootIo, rootIo),
+                new ArrayIo[Any](rootIo)),
+          javaIo)
       rootIo.io = Some(variantIo)
 
       val tupleIo = new Tuple2Io[String, Any](StringIo, variantIo)
@@ -275,6 +278,20 @@ object IoTypes {
       val intSeq = new IntIoArrayType
       val boolSeq = BitsIoType.booleanSeqIoType(bitsIoType)
 
+      val longArrayIo = new ArrayIo[Long](LongIo)
+      val anyArrayIo = new ArrayIo[Any](rootIo)
+      val anyToAnyIo = new Tuple2Io[Any, Any](rootIo, rootIo)
+      val strToAnyIo = new Tuple2Io[String, Any](StringIo, rootIo)
+      val intToAnyIo = new Tuple2Io[Int, Any](IntIo, rootIo)
+
+      // for map like behavior
+      val anyToAnySeq = new ObjectIoSeqType[(Any, Any)](anyToAnyIo, anyToAnyIo)
+      val strToAnySeq = new ObjectIoSeqType[(String, Any)](strToAnyIo, strToAnyIo)
+      val intToAnySeq = new ObjectIoSeqType[(Int, Any)](intToAnyIo, intToAnyIo)
+
+      // statistics look ups
+      val longArraySeq = new ObjectIoSeqType[Array[Long]](longArrayIo, longArrayIo)
+      val anyArraySeq = new ObjectIoSeqType[Array[Any]](anyArrayIo, anyArrayIo)
       val anySeq = new ObjectIoSeqType[Any](javaIo, javaIo)
 
       buf ++=
@@ -287,6 +304,14 @@ object IoTypes {
           ValueIoType(StringIo),
 
           anySeq, // sequence of any value
+          anyArraySeq,
+          longArraySeq,
+
+          // map lik
+          anyToAnySeq,
+          strToAnySeq,
+          intToAnySeq,
+
           OptionIoSeqType(anySeq, longSeq), // sequence of any optional value
           new ObjectIoSeqType[(String, Any)](tupleIo, tupleIo),
           new ObjectIoSeqType[(String, Int)](stringIntIo, stringIntIo),

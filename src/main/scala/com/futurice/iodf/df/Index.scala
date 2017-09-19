@@ -89,7 +89,7 @@ object Index {
 
   def empty[ColId](lsize:Long)(implicit ord: Ordering[(ColId, Any)]) : Index[ColId] = {
     new Index[ColId](
-      Cols.empty[(ColId, Any)](lsize),
+      Ref.mock(Cols.empty[(ColId, Any)](lsize)),
       () => Unit)
   }
 
@@ -106,8 +106,9 @@ object Index {
     (distinct zip rv).map { case (value, trues) => (value, LBits.from(trues, col.lsize))}
   }
 
-  def apply[ColId:Ordering](indexDf:Cols[(ColId, Any)], closer:Closeable = Utils.dummyCloseable) = {
-    new Index[ColId](indexDf, closer)
+  def apply[ColId:Ordering](indexDf:Cols[(ColId, Any)],
+                            closer:Closeable = Utils.dummyCloseable) = scoped { implicit bind =>
+    new Index[ColId](Ref(indexDf), closer)
   }
 
   def from[ColId:Ordering](df:Cols[ColId], conf:IndexConf[ColId]) : Index[ColId] = {
@@ -185,9 +186,15 @@ object Index {
 /**
   * Created by arau on 12.7.2017.
   */
-class Index[ColId](val df:Cols[(ColId, Any)],
+class Index[ColId](_dfRef:Ref[Cols[(ColId, Any)]],
                    closer : Closeable = Utils.dummyCloseable)
   extends Cols[(ColId, Any)] with IndexApi[ColId] with ColsWrap[(ColId, Any), Cols[(ColId, Any)]] {
+
+  val dfRef = _dfRef.openCopy
+
+  val df = dfRef.get
+
+  def wrappedCols = df
 
   Tracing.opened(this)
 
@@ -197,8 +204,7 @@ class Index[ColId](val df:Cols[(ColId, Any)],
   type ColType[T] = LSeq[T]
 
   override def view(from:Long, until:Long) : Index[ColId] =
-    new Index[ColId](
-      df.view(from, until))
+    new Index[ColId](dfRef.openCopyMap( _.view(from, until)))
 
   val schema = ColSchema( // optimize type lookups
     df.schema.colIds,
@@ -249,21 +255,22 @@ class Index[ColId](val df:Cols[(ColId, Any)],
 
   override def close(): Unit = {
     Tracing.closed(this)
-    df.close
+    dfRef.close
     closer.close()
   }
 
   override def select(indexes:LSeq[Long]) =
-    new Index(df.select(indexes))
+    new Index(dfRef.openCopyMap(_.select(indexes)))
 
   def openSelectSome(indexes:LSeq[Option[Long]]) = {
     new Index(
-      Cols[(ColId, Any)](
-        schema,
-        _cols.lazyMap { c =>
-          c.asInstanceOf[LBits].selectSomeStates(indexes).bind(c)
-        },
-        indexes.lsize))
+      dfRef.openCopyMap[Cols[(ColId, Any)]]( df =>
+        Cols[(ColId, Any)](
+          schema,
+          _cols.lazyMap { c =>
+            c.asInstanceOf[LBits].selectSomeStates(indexes).bind(c)
+          },
+          indexes.lsize)))
   }
 
   def selectSome(indexes:LSeq[Option[Long]])(implicit bind:IoScope) = {
@@ -273,13 +280,15 @@ class Index[ColId](val df:Cols[(ColId, Any)],
   /* TODO: should this be renamed to mapIndexKeys */
   def openMapColIds[ColId2](f : ColId => ColId2)(implicit ord2:Ordering[(ColId2, Any)]) = {
     new Index(
-      Cols[(ColId2, Any)](
-        ColSchema[(ColId2, Any)](
-          colIds.lazyMap { case (key, value) => (f(key), value) },
-          colTypes,
-          colMeta)(ord2),
-        _cols,
-        lsize))
+      dfRef.openCopyMap[Cols[(ColId2, Any)]] { df =>
+        Cols[(ColId2, Any)](
+          ColSchema[(ColId2, Any)](
+            colIds.lazyMap { case (key, value) => (f(key), value) },
+            colTypes,
+            colMeta)(ord2),
+          _cols,
+          lsize)
+      })
   }
 
   def mapColIds[ColId2](f : ColId => ColId2)(implicit ord:Ordering[(ColId2, Any)], bind:IoScope) = {

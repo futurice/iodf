@@ -90,6 +90,18 @@ class MergedColSchema[ColId](schemas:Array[_ <: ColSchema[ColId]],
     })
   }
 
+  def partIndexesToMergeIndexes = {
+    // NOTE: works only up to 2G indexes
+    val indexTranslations =
+      schemas.map(s => new Array[Long](s.colCount.toInt))
+    mergeEntries.foreach { me =>
+      me.sources.foreach { s =>
+        indexTranslations(s)(me.allSourceIndexes(s).toInt) = me.index
+      }
+    }
+    indexTranslations
+  }
+
   def mergeEntries = new LSeq[MergeSortEntry[ColId]] {
     override def apply(l: Long) = {
       entryOfIndex(l).get
@@ -182,6 +194,7 @@ class MultiCols[ColId](_refs:Array[Ref[_ <: Cols[ColId]]], val colIdMemRatio: In
   override def close(): Unit = {
     scope.close
   }
+
 
   override val schema = new MergedColSchema[ColId](dfs.map(_.schema), colIdMemRatio)
 
