@@ -31,7 +31,7 @@ trait IoBits[IoId] extends IoSeq[IoId, Boolean] with LBits {
 object IoBits {
 
   def fAndDenseSparse(dense:DenseIoBits[_], sparse: SparseIoBits[_]) = {
-    if (dense.lsize != sparse.lsize) throw new RuntimeException("fAnd operation on bitsets of different sizes")
+    if (dense.lsize != sparse.lsize) throw new RuntimeException(f"fAnd operation on bitsets of different sizes, ${dense.lsize} != ${sparse.lsize}")
     var rv = 0L
     val ts = sparse.indexes
     val sz = ts.lsize*8L
