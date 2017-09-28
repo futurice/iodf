@@ -24,6 +24,18 @@ trait ColSchema[ColId] extends Closeable {
   def colMeta : LSeq[KeyMap]
   def colIdOrdering : Ordering[ColId]
   def colCount = colIds.lsize
+
+  def openSelectCols(indexes:LSeq[Long]) = {
+    implicit val bind = IoScope.open
+    ColSchema(colIds.select(indexes),
+              colTypes.select(indexes),
+              colMeta.select(indexes),
+              bind)(colIdOrdering)
+  }
+
+  def selectCols(indexes:LSeq[Long])(implicit bind:IoScope) = {
+    bind(openSelectCols(indexes))
+  }
 }
 
 object ColSchema {
@@ -139,11 +151,21 @@ trait Cols[ColId] extends java.io.Closeable {
   def openView(from:Long, until:Long) : Cols[ColId] = {
     new ColsView[ColId](this, from, until)
   }
+  /* selects rows */
   def openSelect(indexes:LSeq[Long]) : Cols[ColId] = {
     Cols[ColId](
       schema,
       _cols.lazyMap { _.openSelect(indexes) },
       indexes.lsize)
+  }
+  /* selects cols*/
+  def openSelectCols(indexes:LSeq[Long]) : Cols[ColId] = {
+    implicit val bind = IoScope.open
+    Cols[ColId](
+      schema.selectCols(indexes),
+      _cols.select(indexes),
+      lsize,
+      bind)
   }
 }
 

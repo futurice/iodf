@@ -12,6 +12,8 @@ trait LSeq[+T] extends Iterable[T] with PartialFunction[Long, T] with Closeable 
   def lsize : Long
   override def size = lsize.toInt
   def isDefinedAt(l:Long) = l >= 0 && l < size
+
+  // FIXME: should this be openView?
   def view(from:Long, until:Long) : LSeq[T] = {
     val self = this
     new LSeq[T] {
@@ -77,10 +79,16 @@ trait LSeq[+T] extends Iterable[T] with PartialFunction[Long, T] with Closeable 
       rv
     }
   }
+
   def openSelect(indexes:LSeq[Long]) = {
     val self = this
     indexes.map { i : Long => self(i) }
   }
+
+  def select(indexes:LSeq[Long])(implicit bind:IoScope) = {
+    bind(openSelect(indexes))
+  }
+
   def openSelectSome(indexes:LSeq[Option[Long]]) = {
     val self = this
     indexes.map { e : Option[Long] => e.map { index =>

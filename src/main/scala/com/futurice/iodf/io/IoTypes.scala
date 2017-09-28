@@ -263,8 +263,8 @@ object IoTypes {
 
       val stringSchema = new ColSchemaIoType[String]()
       val stringValueSchema = new ColSchemaIoType[(String, Any)]()
-      val lseqLSeq = new ColIoType()
 
+      val cols = new ColIoType()
       val stringDfs = new ColsIoType[String]()
 
       val stringValueDfs = new ColsIoType[(String, Any)]()
@@ -293,6 +293,9 @@ object IoTypes {
       val longArraySeq = new ObjectIoSeqType[Array[Long]](longArrayIo, longArrayIo)
       val anyArraySeq = new ObjectIoSeqType[Array[Any]](anyArrayIo, anyArrayIo)
       val anySeq = new ObjectIoSeqType[Any](javaIo, javaIo)
+
+      // Needed for bit rows
+      val bitsSeq = new IoObjectIoSeqType[LBits](bitsIoType, longSeq)
 
       buf ++=
         Seq(
@@ -339,7 +342,9 @@ object IoTypes {
           new ColsIoType[(Int, Any)](),
           new ColsIoType[(Long, Any)](),
 
-          lseqLSeq,
+          bitsSeq,
+
+          cols,
 
           indexDfs,
           tables,

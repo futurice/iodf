@@ -321,7 +321,7 @@ object LBits {
           }
         }
       }
-      override def trues = new ScannableLSeq[Long, Long] {
+      override val trues = new ScannableLSeq[Long, Long] {
         override def iterator = truesFromBit(0)
         override def apply(l: Long) = {
           // nth true index
@@ -449,7 +449,8 @@ object LBits {
           def copy = truesFromTrue(at)
           def head = trueIndexes(at)
 
-          def hasNext = at < trueIndexes.size
+          def hasNext =
+            at < trueIndexes.size
 
           def next = {
             val rv = head
@@ -466,7 +467,7 @@ object LBits {
         }
       }
 
-      override def trues = new ScannableLSeq[Long, Long] {
+      override val trues = new ScannableLSeq[Long, Long] {
         override def iterator = truesFromTrue(0)
         override def apply(l: Long) = trueIndexes(l.toInt)
         override def lsize = trueIndexes.size

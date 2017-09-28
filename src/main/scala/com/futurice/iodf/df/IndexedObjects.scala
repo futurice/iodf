@@ -52,6 +52,7 @@ class IndexedObjects[T](val wrapped:Indexed[String, Objects[T]])
   override def schema = wrapped.schema
 
   override def _cols: LSeq[_ <: ColType[_]] = wrapped._cols
+  override def openedIndexes = wrapped.openedIndexes
 
   override def colIdValues[T](colId: String): LSeq[(String, T)] =
     wrapped.colIdValues(colId)

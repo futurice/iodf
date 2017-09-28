@@ -60,6 +60,8 @@ trait IndexApi[ColId] {
     scope.bind(openIndex(i))
   }
 
+  def openedIndexes : LSeq[LBits]
+
   def f(i:Long) = {
     using(openIndex(i)) { _.f }
   }
@@ -217,10 +219,14 @@ class Index[ColId](_dfRef:Ref[Cols[(ColId, Any)]],
     df.colMeta)(df.colIdOrdering)
 
   override def _cols: LSeq[_ <: LSeq[Any]] = df._cols
+  def openedIndexes : LSeq[LBits] =
+    _cols.lazyMap { _.asInstanceOf[LBits] }
+
 
   override def colIds = df.colIds
   override def col[T <: Any](id:(ColId, Any))(implicit scope:IoScope) = df.col[T](id)
   override def col[T <: Any](i:Long)(implicit scope:IoScope) = df.col[T](i)
+
 
   def colIdValues[T <: Any](colId:ColId) : LSeq[(ColId, T)] = {
     val from =
@@ -263,6 +269,9 @@ class Index[ColId](_dfRef:Ref[Cols[(ColId, Any)]],
   override def openSelect(indexes:LSeq[Long]) = scoped { implicit bind =>
     new Index(dfRef.copyMap(_.openSelect(indexes)))
   }
+  override def openSelectCols(indexes:LSeq[Long]) = scoped { implicit bind =>
+    new Index(dfRef.copyMap(_.openSelectCols(indexes)))
+  }
 
   def openSelectSome(indexes:LSeq[Option[Long]]) = scoped { implicit bind =>
     new Index(
@@ -296,6 +305,23 @@ class Index[ColId](_dfRef:Ref[Cols[(ColId, Any)]],
   def mapColIds[ColId2](f : ColId => ColId2)(implicit ord:Ordering[(ColId2, Any)], bind:IoScope) = {
     bind(openMapColIds[ColId2](f)(ord))
   }
+
+  /**
+    * Note, this can be memory heavy operation
+    */
+  def toBitRows = {
+    val rows = Array.fill(lsize.toInt)(new ArrayBuffer[Long]())
+    openedIndexes.zipWithIndex.foreach { case (openedBits, featureIndex) =>
+      using(openedBits) { bits =>
+        bits.trues.foreach { i =>
+          rows(i.toInt) += featureIndex
+        }
+      }
+    }
+    val cc = colCount
+    LSeq.from(rows.map(r => LBits.from(r, cc)))
+  }
+
 }
 
 class IndexIoType[ColId:TypeTag:Ordering](val dfType:ColsIoType[(ColId, Any)])

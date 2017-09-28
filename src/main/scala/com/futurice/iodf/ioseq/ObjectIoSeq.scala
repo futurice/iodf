@@ -1,9 +1,10 @@
 package com.futurice.iodf.ioseq
 
-import java.io._
+import java.io.{DataOutput => _, _}
 
 import com.futurice.iodf._
-import com.futurice.iodf.io.{DataAccess, DataOutput, DataRef, IoRef}
+import com.futurice.iodf.io._
+import com.futurice.iodf.store.{OrderDir, WrittenOrderDir}
 import com.futurice.iodf.util._
 
 import scala.collection.mutable.ArrayBuffer
@@ -71,12 +72,12 @@ class ObjectIoSeqType[T](i:RandomAccessReading[T], o:OutputWriting[T])(
   override def interfaceType: universe.Type = ifaceTag.tpe
   override def ioInstanceType: universe.Type = typeOf[ObjectIoSeq[T]]
 
-  override def write(output: DataOutput, v: LSeq[T]): Unit = {
+  override def write(output: com.futurice.iodf.io.DataOutput, v: LSeq[T]): Unit = {
     val w = new ObjectIoSeqWriter[T](output, o)
     v.foreach { w.write(_) }
     w.writeIndex
   }
-  override def writeMerged(out: DataOutput, seqs: Seq[Ref[LSeq[T]]]): Unit = {
+  override def writeMerged(out: com.futurice.iodf.io.DataOutput, seqs: Seq[Ref[LSeq[T]]]): Unit = {
     seqs.exists(!_.isInstanceOf[ObjectIoSeq[T]]) match {
       case true => // there is at least one sequence, which cannot be white box merged
         super.writeMerged(out, seqs) // go generic
@@ -96,6 +97,48 @@ class ObjectIoSeqType[T](i:RandomAccessReading[T], o:OutputWriting[T])(
 
   override def toString =
     f"ObjectIoSeqType[${vTag.tpe}]"
+
+}
+
+class IoObjectIoSeqType[T](memberType:IoType[T, _ <: T], longSeqType:SeqIoType[Long, LSeq[Long], _ <: IoSeq[Long]])(
+  implicit ifaceTag: TypeTag[LSeq[T]], instanceTag: TypeTag[IoSeq[T]], vTag:TypeTag[T])
+  extends SeqIoType[T, LSeq[T], IoSeq[T]] {
+
+  override def interfaceType: universe.Type = ifaceTag.tpe
+  override def ioInstanceType: universe.Type = instanceTag.tpe
+
+  override def write(output: com.futurice.iodf.io.DataOutput, v: LSeq[T]): Unit = scoped { implicit bind =>
+    val o = bind(new WrittenOrderDir(output, longSeqType) )
+    v.foreach { m =>
+      memberType.save(o.lastRef, m)
+    }
+  }
+
+  override def open(buf: DataAccess) = {
+    new IoSeq[T] {
+      val dir = new OrderDir(buf, longSeqType)
+      override def apply(l: Long) = {
+        using(dir.openAccess(l.toInt)) {
+          memberType.open
+        }
+      }
+      override def lsize = dir.lsize
+      override def close = {
+        dir.close
+      }
+     override def openRef = {
+       IoRef.open(IoObjectIoSeqType.this, buf.dataRef)
+     }
+    }
+  }
+
+  override def valueTypeTag = vTag
+
+  override def viewMerged(seqs: Seq[Ref[LSeq[T]]]): LSeq[T] =
+    new MultiSeq[T, LSeq[T]](seqs.toArray)
+
+  override def toString =
+    f"IoObjectIoSeqType[${vTag.tpe}]"
 
 }
 

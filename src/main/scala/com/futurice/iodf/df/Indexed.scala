@@ -59,6 +59,8 @@ object Indexed {
 
       override def _cols: LSeq[_ <: df.ColType[_]] = df._cols
 
+      override def openedIndexes: LSeq[LBits] = indexDf.openedIndexes
+
       override def lsize: Long = df.lsize
 
       override def openView(from: Long, until: Long): Indexed[ColId, T] =

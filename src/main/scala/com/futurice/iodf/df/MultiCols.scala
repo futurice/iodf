@@ -11,7 +11,7 @@ import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 
 object MultiCols {
-  def DefaultColIdMemRatio = 32
+  def DefaultColIdMemRatio = 1 //32
   def open[ColId:Ordering](refs:Seq[Ref[_ <: Cols[ColId]]], colIdMemRatio:Int = DefaultColIdMemRatio)(
     implicit io:IoContext) : MultiCols[ColId] = {
     new MultiCols[ColId](refs.toArray, colIdMemRatio)
