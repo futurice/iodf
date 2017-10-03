@@ -65,8 +65,18 @@ object Row {
     new Row {
       def apply(order:Long) = values(order.toInt)
       def lsize = values.size
-      override def toString =
-        f"Row(${values.map(v => f"$v%16s").mkString(", ")})"
+      override def toString = {
+        val buf = new StringBuffer()
+        values.zipWithIndex.foreach { case (v, i) =>
+          if (buf.length() > 0) buf.append(", ")
+          val str = v.toString()
+          val targetSize = (i+1) * 18 - 2 - buf.length()
+          val pad = Math.max(0, targetSize - str.length)
+          buf.append("".padTo(pad, ' '))
+          buf.append(str)
+        }
+        f"Row(${buf.toString})"
+      }
     }
   }
 }

@@ -32,6 +32,7 @@ object OrderingProvider {
     val b = orderingOf[Boolean]
     val i = orderingOf[Int]
     val l = orderingOf[Long]
+    val d = orderingOf[Double]
     val s = orderingOf[String]
     override def compare(x: Any, y: Any): Int = {
       (x, y) match {
@@ -63,6 +64,7 @@ object OrderingProvider {
         case (xv: Boolean, yv:Boolean) => b.compare(xv, yv)
         case (xv: Int, yv:Int) => i.compare(xv, yv)
         case (xv: Long, yv:Long) => l.compare(xv, yv)
+        case (xv: Double, yv:Double) => d.compare(xv, yv)
         case (xv: String, yv:String) => s.compare(xv, yv)
         case (None, None) => 0
         case (None, Some(_)) => 1

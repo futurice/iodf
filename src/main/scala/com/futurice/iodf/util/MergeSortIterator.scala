@@ -177,7 +177,7 @@ class MergeSortIterator[T](peeked:Array[_ <: PeekIterator[T]], val sourceIndexes
           .sorted match {
       case entries if entries.size > 0 =>
         val (value, iterator) = entries.head
-        val sources = entries.filter(_._1 == value).map(_._2)
+        val sources = entries.filter(e => ord.compare(e._1, value) == 0).map(_._2)
         val allSourceIndexes = sourceIndexes.clone()
         sources.foreach { source =>
           peeked(source).next // move forward
@@ -214,7 +214,7 @@ class MergeSortIterator[T](peeked:Array[_ <: PeekIterator[T]], val sourceIndexes
 
   def scanValue(value:T) = {
     while (hasNext && ord.lt(head.value, value)) next
-    head.value == value
+    ord.compare(head.value, value) == 0
   }
   def scannedValue(value:T) = {
     scanValue(value)
