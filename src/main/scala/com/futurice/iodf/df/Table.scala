@@ -59,25 +59,27 @@ trait Row extends LSeq[Any] {
   def lsize : Long
 }
 
+class RowImpl(values:Seq[Any]) extends Row {
+  def apply(order:Long) = values(order.toInt)
+  def lsize = values.size
+  override def toString = {
+    val buf = new StringBuffer()
+    values.zipWithIndex.foreach { case (v, i) =>
+      if (buf.length() > 0) buf.append(", ")
+      val str = v.toString()
+      val targetSize = (i+1) * 18 - 2 - buf.length()
+      val pad = Math.max(0, targetSize - str.length)
+      buf.append("".padTo(pad, ' '))
+      buf.append(str)
+    }
+    f"Row(${buf.toString})"
+  }
+}
+
 object Row {
   def apply( values : Any*) = from(values)
-  def from( values : Seq[Any]) = {
-    new Row {
-      def apply(order:Long) = values(order.toInt)
-      def lsize = values.size
-      override def toString = {
-        val buf = new StringBuffer()
-        values.zipWithIndex.foreach { case (v, i) =>
-          if (buf.length() > 0) buf.append(", ")
-          val str = v.toString()
-          val targetSize = (i+1) * 18 - 2 - buf.length()
-          val pad = Math.max(0, targetSize - str.length)
-          buf.append("".padTo(pad, ' '))
-          buf.append(str)
-        }
-        f"Row(${buf.toString})"
-      }
-    }
+  def from( values : Seq[Any]) : Row = {
+    new RowImpl(values)
   }
 }
 
