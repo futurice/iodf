@@ -38,7 +38,7 @@ object TableSchema {
   def empty = apply(LSeq.empty, ColSchema.empty)
   def apply() : TableSchema = empty
   def apply(_colOrder:LSeq[Long],
-            schema :ColSchema[String],
+            schema : ColSchema[String],
             closer : Closeable = Utils.dummyCloseable) : TableSchema  = new TableSchema() {
     override lazy val orderIndex =
       LSeq.from(_colOrder.toArray.zipWithIndex.sortBy(_._1).map(_._2.toLong))
