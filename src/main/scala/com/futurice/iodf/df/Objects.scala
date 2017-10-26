@@ -73,7 +73,8 @@ trait Objects[T] extends Df[T] with ObjectsApi[T] {
 
   def df : Cols[String]
 
-  def as[E : ClassTag](implicit tag:TypeTag[E]) : Objects[E]
+  def openAs[E : ClassTag](implicit tag:TypeTag[E]) : Ref[Objects[E]]
+  def as[E : ClassTag](implicit tag:TypeTag[E],bind:IoScope) = bind(openAs[E])
 
   override def schema : ObjectSchema[T]
 
@@ -119,8 +120,8 @@ object Objects {
 
       override def schema = objectSchema
 
-      def as[E : ClassTag](implicit tag2:TypeTag[E]) : Objects[E] = {
-        Objects[E](new ColsRef(df))
+      def openAs[E : ClassTag](implicit tag2:TypeTag[E]) : Ref[Objects[E]] = {
+        Ref.open(Objects[E](new ColsRef(df)))
       }
 
       val (make, constructorParamNames, constructorParamTypes) = {
@@ -204,7 +205,7 @@ class ObjectsIoType[T : ClassTag:TypeTag](dfType:ColsIoType[String])(implicit io
   override def write(out: DataOutput, df: Objects[T]): Unit = {
     dfType.write(out, df)
   }
-  override def viewMerged(dfs: Seq[Ref[Objects[T]]]): Objects[T] = {
+  override def openMerged(dfs: Seq[Ref[Objects[T]]]): Objects[T] = {
     implicit val io = dfType.io
     Objects[T](MultiCols.open[String](dfs))
   }

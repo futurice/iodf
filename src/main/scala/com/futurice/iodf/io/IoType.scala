@@ -52,15 +52,15 @@ object TypeIoProvider {
 
 
 trait IoWriter[T] extends IoWriterProvider {
-  def write(out: DataOutput, iface: T): Unit
+  def write(out: DataOutput, iface: Ref[T]): Unit
 
-  def openSave(alloc:AllocateOnce, iface:T) = {
+  def openSave(alloc:AllocateOnce, iface:Ref[T]) = {
     using (alloc.create) { out =>
       write(out, iface)
       out.openDataRef
     }
   }
-  def save(alloc:AllocateOnce, iface:T)(implicit bind:IoScope) = {
+  def save(alloc:AllocateOnce, iface:Ref[T])(implicit bind:IoScope) = {
     bind(openSave(alloc, iface))
   }
 
@@ -76,18 +76,22 @@ trait IoWriter[T] extends IoWriterProvider {
     val self = this
     new IoWriter[Any] {
       override def writingType: universe.Type = self.writingType
-      override def write(out: DataOutput, iface: Any): Unit =
-        self.write(out, iface.asInstanceOf[T])
+      override def write(out: DataOutput, iface: Ref[Any]): Unit =
+        self.write(out, iface.as[T])
     }
   }
 }
 
 trait IoOpener[T] extends IoOpenerProvider {
-  def open(ref:DataAccess) : T
+  def open(ref:DataAccess) : Ref[T]
 
-  def open(dataRef: DataRef) : T = {
+
+  def open(dataRef: DataRef) : Ref[T] = {
     using (dataRef.openAccess)(open)
   }
+
+  def apply(ref:DataAccess)(implicit bind:IoScope) = bind(open(ref))
+  def apply(ref:DataRef)(implicit bind:IoScope) = bind(open(ref))
 
   def openingType : Type
 
@@ -110,7 +114,7 @@ trait IoType[Interface, IoInstance <: Interface] extends IoWriter[Interface] wit
   def writingType = interfaceType
   def openingType = ioInstanceType
 
-  def openCreated(ref:AllocateOnce, iface:Interface) : IoInstance = {
+  def openCreated(ref:AllocateOnce, iface:Ref[Interface]) : Ref[IoInstance] = {
     using (openSave(ref, iface)) { data =>
       using (data.openAccess) { open }
     }
@@ -124,9 +128,9 @@ case class ValueIoType[T:TypeTag](i:RandomAccessReading[T],
 
   override def ioInstanceType: universe.Type = typeOf[T]
 
-  override def open(ref: DataAccess): T = i.read(ref, 0)
+  override def open(ref: DataAccess): Ref[T] = Ref.open(i.read(ref, 0))
 
-  override def write(out: DataOutput, iface: T): Unit = o.write(out, iface)
+  override def write(out: DataOutput, iface: Ref[T]): Unit = o.write(out, iface.get)
 }
 
 object ValueIoType {
@@ -138,18 +142,19 @@ object ValueIoType {
 trait Merging[Interface] {
 
   /* should this be changed to fold, requiring always some base member for the operation? */
-  def viewMerged(seqs:Seq[Ref[Interface]]) : Interface
+  def openMerged(seqs:Seq[Ref[Interface]]) : Ref[Interface]
 
+  def merged(seqs:Seq[Ref[Interface]])(implicit bind:IoScope) = bind(openMerged(seqs))
 }
 
 trait SizedMerging[Interface] extends Merging[Interface] {
-  def defaultInstance(size:Long) : Option[Interface]
+  def defaultInstance(size:Long) : Option[Ref[Interface]]
 }
 
 trait MergeableIoType[Interface, IoInstance <: Interface] extends IoType[Interface, IoInstance] with Merging[Interface] {
 
   def writeMerged(out:DataOutput, ss:Seq[Ref[Interface]]) = {
-    write(out, viewMerged(ss))
+    using (openMerged(ss)) { write(out, _) }
   }
 }
 
@@ -164,10 +169,10 @@ class SuperIoType[SuperIface : TypeTag, DerivedIface <: SuperIface, IoInstance <
   override def interfaceType = typ.tpe
   override def ioInstanceType = derivedType.ioInstanceType
 
-  override def write(out: DataOutput, iface: SuperIface): Unit =
-    derivedType.write(out, conversion(iface))
+  override def write(out: DataOutput, iface: Ref[SuperIface]): Unit =
+    derivedType.write(out, iface.map(conversion))
 
-  override def open(ref: DataAccess): IoInstance = {
+  override def open(ref: DataAccess): Ref[IoInstance] = {
     derivedType.open(ref)
   }
 }

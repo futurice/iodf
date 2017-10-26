@@ -92,7 +92,7 @@ class ObjectIoSeqType[T](i:RandomAccessReading[T], o:OutputWriting[T])(
 
   override def valueTypeTag = vTag
 
-  override def viewMerged(seqs: Seq[Ref[LSeq[T]]]): LSeq[T] =
+  override def openMerged(seqs: Seq[Ref[LSeq[T]]]): LSeq[T] =
     new MultiSeq[T, LSeq[T]](seqs.toArray)
 
   override def toString =
@@ -134,7 +134,7 @@ class IoObjectIoSeqType[T](memberType:IoType[T, _ <: T], longSeqType:SeqIoType[L
 
   override def valueTypeTag = vTag
 
-  override def viewMerged(seqs: Seq[Ref[LSeq[T]]]): LSeq[T] =
+  override def openMerged(seqs: Seq[Ref[LSeq[T]]]): LSeq[T] =
     new MultiSeq[T, LSeq[T]](seqs.toArray)
 
   override def toString =

@@ -107,7 +107,7 @@ class OptionIoSeqType[T](valueSeqType:SeqIoType[T, LSeq[T], _ <: LSeq[T]],
       size)
   }
 
-  override def viewMerged(seqs: Seq[Ref[LSeq[Option[T]]]]): LSeq[Option[T]] = {
+  override def openMerged(seqs: Seq[Ref[LSeq[Option[T]]]]): LSeq[Option[T]] = {
     new MultiSeq[Option[T], LSeq[Option[T]]](seqs.toArray)
   }
 

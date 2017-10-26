@@ -26,10 +26,10 @@ trait DataRef extends Handle {
   // Helper methods, should these be provided by implicit monads?
 
   def access(implicit bind:IoScope) = bind(openAccess)
-  def openAs[T](implicit io:IoContext): T = {
+  def openAs[T](implicit io:IoContext): Ref[T] = {
     io.openAs[T](this)
   }
-  def as[T](implicit io:IoContext, scope:IoScope): T = {
+  def as[T](implicit io:IoContext, scope:IoScope): Ref[T] = {
     io.as[T](this)
   }
 }

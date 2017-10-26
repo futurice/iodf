@@ -80,9 +80,9 @@ trait LSeq[+T] extends Iterable[T] with PartialFunction[Long, T] with Closeable 
     }
   }
 
-  def openSelect(indexes:LSeq[Long]) = {
+  def openSelect(indexes:LSeq[Long]) : Ref[LSeq[T]] = {
     val self = this
-    indexes.map { i : Long => self(i) }
+    Ref.open(indexes.lazyMap { i => self(i) }  )
   }
 
   def select(indexes:LSeq[Long])(implicit bind:IoScope) = {
@@ -110,6 +110,7 @@ object LSeq {
     override def apply(l:Long) = throw new IndexOutOfBoundsException(f"this sequence is empty")
     override def lsize = 0
   }
+  def emptyRef[T] = Ref.mock(empty[T])
   def apply[T](v:T*) = from[T](v)
   def from[T](v:Seq[T]) = new LSeq[T] {
     override def apply(l: Long): T = v(l.toInt)

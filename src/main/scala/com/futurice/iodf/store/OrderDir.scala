@@ -4,7 +4,7 @@ import com.futurice.iodf.io._
 import com.futurice.iodf.ioseq.{IoSeq, SeqIoType}
 import com.futurice.iodf.store.OrderDir.open
 import com.futurice.iodf.{IoContext, IoScope, Utils, io, using}
-import com.futurice.iodf.util.LSeq
+import com.futurice.iodf.util.{LSeq, Ref}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
@@ -101,7 +101,7 @@ class WrittenOrderDir(_out:DataOutput,
   override def close(): Unit = {
     using (out) { dout =>
       val posSeqPos = out.pos
-      longSeqType.write(dout, LSeq.from(pos))
+      longSeqType.write(dout, Ref.mock(LSeq.from(pos)))
       dout.writeLong(posSeqPos)
     } // dout.close()
   }
@@ -120,7 +120,7 @@ class OrderDir(_data:DataAccess,
     val posSeqPos = data.getBeLong(data.size-8)
     val rv =
       (posSeqPos,
-       bind(longSeqType.open(bind(data.openView(posSeqPos, data.size)))))
+       longSeqType(data.view(posSeqPos, data.size)).get)
     rv
   }
 

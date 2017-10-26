@@ -1,7 +1,7 @@
 package com.futurice.iodf.df
 
 import com.futurice.iodf
-import com.futurice.iodf.util.LSeq
+import com.futurice.iodf.util.{LSeq, Ref}
 
 /**
   * Data frame definition:
@@ -44,18 +44,19 @@ import com.futurice.iodf.util.LSeq
   */
 trait Df[RowType] extends Cols[String] with LSeq[RowType] {
   override def size = lsize.toInt
-  override def openView(from:Long, until:Long) : Df[RowType] =
-    new DfView[RowType](this, from, until)
-  override def openSelect(indexes:LSeq[Long]) : Df[RowType] = {
+  override def openView(from:Long, until:Long) : Ref[Df[RowType]] =
+    Ref.open(new DfView[RowType](this, from, until))
+  override def openSelect(indexes:LSeq[Long]) : Ref[Df[RowType]] = {
     val self = this
-    new Df[RowType] {
-      override type ColType[T] = LSeq[T]
-      override def schema = self.schema
-      override def apply(l: Long) = self.apply(indexes(l))
-      override def _cols = self._cols.lazyMap { e => e.openSelect(indexes) }
-      override def lsize = indexes.lsize
-      override def close = self.close
-    }
+    Ref.open(
+      new Df[RowType] {
+        override type ColType[T] = LSeq[T]
+        override def schema = self.schema
+        override def apply(l: Long) = self.apply(indexes(l))
+        override def _cols = self._colsRef.map(_.lazyMap { e => e.openSelect(indexes).get })
+        override def lsize = indexes.lsize
+        override def close = self.close
+      })
   }
 }
 

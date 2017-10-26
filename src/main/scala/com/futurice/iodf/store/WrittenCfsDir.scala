@@ -3,7 +3,7 @@ package com.futurice.iodf.store
 import com.futurice.iodf._
 import com.futurice.iodf.io.{DataOutput, _}
 import com.futurice.iodf.ioseq.{IoSeq, SeqIoType, Serializer}
-import com.futurice.iodf.util.LSeq
+import com.futurice.iodf.util.{LSeq, Ref}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
@@ -102,15 +102,15 @@ class WrittenCfsDir[MyFileId](_out:DataOutput,
     (end - pos(i))
   }
 
-  override def close(): Unit = {
+  override def close(): Unit = scoped { implicit bind =>
     val idIndex = ids.zipWithIndex.toArray.sortBy(_._1)
     val idPos = out.pos
     using (out) { dout =>
-      idSeqType.write(dout, LSeq.from(idIndex.map(_._1).toSeq))
+      idSeqType.write(dout, Ref(LSeq.from(idIndex.map(_._1).toSeq)))
       val ordPos = out.pos
-      longSeqType.write(dout, LSeq.from(idIndex.map(_._2.toLong).toSeq))
+      longSeqType.write(dout, Ref(LSeq.from(idIndex.map(_._2.toLong).toSeq)))
       val posPos = out.pos
-      longSeqType.write(dout, LSeq.from(pos))
+      longSeqType.write(dout, Ref(LSeq.from(pos)))
 
       dout.writeLong(idPos)
       dout.writeLong(ordPos)
@@ -131,7 +131,7 @@ class CfsDir[FileId](_data:DataAccess,
                      implicit tag:ClassTag[FileId],
                      idOrdering:Ordering[FileId]) extends IndexReferableDir[FileId] {
 
-  val bind = IoScope.open
+  implicit val bind = IoScope.open
   val data = bind(_data.openCopy)
   override def close(): Unit = {
     bind.close
@@ -143,9 +143,9 @@ class CfsDir[FileId](_data:DataAccess,
     val posSeqPos = data.getBeLong(data.size-8)
     val rv =
        (idSeqPos,
-        bind(idSeqType.open  (bind(data.openView(idSeqPos,  ordSeqPos)))),
-        bind(longSeqType.open(bind(data.openView(ordSeqPos, posSeqPos)))),
-        bind(longSeqType.open(bind(data.openView(posSeqPos, data.size)))))
+        idSeqType(data.view(idSeqPos,  ordSeqPos)).get,
+        longSeqType(data.view(ordSeqPos, posSeqPos)).get,
+        longSeqType(data.view(posSeqPos, data.size)).get)
     rv
   }
 
@@ -196,6 +196,10 @@ object CfsDir {
     val fileSeqType  = io.types.seqTypeOf[CfsFileId]
     val longSeqType = io.types.longLSeqType
     new CfsDir[CfsFileId](data, fileSeqType, longSeqType)
+
+  }
+  def apply[CfsFileId:TypeTag:ClassTag:Ordering](data:DataAccess)(implicit io:IoContext, bind:IoScope) = {
+    bind(open[CfsFileId](data))
   }
 
 }

@@ -79,18 +79,18 @@ class IoContext(val types:IoTypes, _allocator:Ref[Allocator]) extends Closeable 
   lazy val bits =
     types.ioTypeOf[LBits].asInstanceOf[BitsIoType]
 
-  def openSave[T:TypeTag](ref:AllocateOnce, t:T) : DataRef =
+  def openSave[T:TypeTag](ref:AllocateOnce, t:Ref[T]) : DataRef =
     types.openSave[T](ref, t)
 
-  def save[T:TypeTag](ref:AllocateOnce, t:T)(implicit scope:IoScope) : DataRef =
+  def save[T:TypeTag](ref:AllocateOnce, t:Ref[T])(implicit scope:IoScope) : DataRef =
     types.save[T](ref, t)
 
-  def openAs[T](ref:DataRef) : T =
+  def openAs[T](ref:DataRef) : Ref[T] =
     using (ref.openAccess) { data =>
       types.openAs[T](ref)
     }
 
-  def as[T](ref:DataRef)(implicit bind:IoScope) : T =
+  def as[T](ref:DataRef)(implicit bind:IoScope) : Ref[T] =
     bind(openAs[T](ref))
 
   override def close(): Unit = {

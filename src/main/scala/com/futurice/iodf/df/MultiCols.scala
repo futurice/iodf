@@ -214,7 +214,7 @@ class MultiCols[ColId](_refs:Array[Ref[_ <: Cols[ColId]]], val colIdMemRatio: In
     }
     val entryType = schema.entryToType(entry)
     val seqType = io.types.seqTypeOf(entryType)
-    seqType.viewMerged(
+    seqType.openMerged(
       (0 until dfs.size).map { i =>
         colMap.getOrElse(i,
           Ref(seqType.defaultInstance(dfs(i).lsize).getOrElse {

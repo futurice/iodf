@@ -108,7 +108,7 @@ class DenseIoBitsType
     new DenseIoBits(IoRef.open(this, buf.dataRef), buf)
   }
 
-  override def viewMerged(seqs: Seq[Ref[LBits]]): LBits = MultiBits.open(seqs)
+  override def openMerged(seqs: Seq[Ref[LBits]]): LBits = MultiBits.open(seqs)
 }
 
 /*

@@ -13,25 +13,36 @@ import scala.reflect.runtime.universe._
 /**
   * This is mainly a
   */
-class IndexedObjects[T](val wrapped:Indexed[String, Objects[T]])
+class IndexedObjects[T](val _wrappedRef:Ref[Indexed[String, Objects[T]]])
   extends Indexed[String, Objects[T]]
   with ObjectsApi[T] {
 
-  private val o = wrapped.df
+  implicit val bind = IoScope.open
 
-  override def close = wrapped.close
+  val wrappedRef = _wrappedRef.copy
+  val wrapped = wrappedRef.get
 
-  def as[E : ClassTag:TypeTag] : IndexedObjects[E] = {
-    new IndexedObjects[E](
-      Indexed(
-        wrapped.df.as[E],
-        wrapped.indexDf))
+  val o = wrapped.df
+
+  override def close = bind.close
+
+  def openAs[E : ClassTag:TypeTag] : Ref[IndexedObjects[E]] = scoped { implicit bind =>
+    Ref.open(
+      new IndexedObjects[E](
+        Ref(
+          Indexed(
+            wrapped.dfRef.get.as[E],
+            wrapped.indexDfRef))))
   }
 
-  override def openView(from:Long, until:Long) =
-    new IndexedObjects[T](wrapped.openView(from, until))
-  override def openSelect(indexes:LSeq[Long]) =
-    new IndexedObjects[T](wrapped.openSelect(indexes))
+  def as[E : ClassTag:TypeTag](implicit bind:IoScope) = bind(openAs[E] )
+
+  override def openView(from:Long, until:Long) = scoped { implicit bind =>
+    new IndexedObjects[T](Ref(wrapped.openView(from, until)))
+  }
+  override def openSelect(indexes:LSeq[Long]) = scoped { implicit bind =>
+    new IndexedObjects[T](Ref(wrapped.openSelect(indexes)))
+  }
 
   override def df: Objs[T] = wrapped.df
 
@@ -69,15 +80,15 @@ class IndexedObjects[T](val wrapped:Indexed[String, Objects[T]])
 }
 
 object IndexedObjects {
-  def apply[T](indexed:Indexed[String, Objects[T]]) : IndexedObjects[T] = {
+  def apply[T](indexed:Ref[Indexed[String, Objects[T]]]) : IndexedObjects[T] = {
     new IndexedObjects(indexed)
   }
-  def from[T:TypeTag:ClassTag](data:Seq[T], conf:IndexConf[String]) : IndexedObjects[T] = {
-    IndexedObjects(Indexed.from(Objects.from(data), conf))
+  def from[T:TypeTag:ClassTag](data:Seq[T], conf:IndexConf[String]) : IndexedObjects[T] = scoped { implicit bind =>
+    IndexedObjects(Ref(Indexed.from(Objects.from[T](data), conf)))
   }
   def viewMerged[T:TypeTag](seqs: Seq[Ref[IndexedObjs[T]]], colIdMemRatio:Int = MultiCols.DefaultColIdMemRatio)(implicit io:IoContext)
   : IndexedObjs[T] =
-    IndexedObjects(Indexed.viewMerged(seqs))
+    IndexedObjects(Indexed.openMerged(seqs))
 }
 
 class IndexedObjectsIoType[T:TypeTag](
@@ -90,12 +101,14 @@ class IndexedObjectsIoType[T:TypeTag](
   override def interfaceType: universe.Type = typeOf[IndexedObjects[T]]
   override def ioInstanceType: universe.Type = typeOf[IndexedObjects[T]]
 
-  override def open(ref: DataAccess): IndexedObjs[T] =
-    IndexedObjects(indexedIoType.open(ref))
+  override def open(ref: DataAccess): Ref[IndexedObjects[T]] = scoped { implicit bind =>
+    Ref.open(IndexedObjects[T](Ref(indexedIoType.open(ref))))
+  }
 
-  override def write(out: DataOutput, iface: IndexedObjs[T]): Unit =
+  override def write(out: DataOutput, iface: Ref[IndexedObjects[T]]): Unit =
     indexedIoType.write(out, iface)
 
-  override def viewMerged(seqs: Seq[Ref[IndexedObjs[T]]]): IndexedObjs[T] =
-    IndexedObjects(indexedIoType.viewMerged(seqs))
+  override def openMerged(seqs: Seq[Ref[IndexedObjects[T]]]): Ref[IndexedObjects[T]] = scoped { implicit bind =>
+    Ref.open(IndexedObjects[T](Ref(indexedIoType.openMerged(seqs))))
+  }
 }

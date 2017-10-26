@@ -25,12 +25,12 @@ trait ColSchema[ColId] extends Closeable {
   def colIdOrdering : Ordering[ColId]
   def colCount = colIds.lsize
 
-  def openSelectCols(indexes:LSeq[Long]) = {
-    implicit val bind = IoScope.open
-    ColSchema(colIds.select(indexes),
-              colTypes.select(indexes),
-              colMeta.select(indexes),
-              bind)(colIdOrdering)
+  def openSelectCols(indexes:LSeq[Long]) = scoped { implicit bind =>
+    Ref.open(
+      ColSchema(colIds.select(indexes),
+                colTypes.select(indexes),
+                colMeta.select(indexes),
+                bind.adopt())(colIdOrdering))
   }
 
   def selectCols(indexes:LSeq[Long])(implicit bind:IoScope) = {
@@ -40,19 +40,21 @@ trait ColSchema[ColId] extends Closeable {
 
 object ColSchema {
   def empty[ColId](implicit ord: Ordering[ColId]) =
-    apply[ColId](LSeq.empty, LSeq.empty, LSeq.empty)
+    apply[ColId](LSeq.emptyRef, LSeq.emptyRef, LSeq.emptyRef)
 
-  def apply[ColId](_colIds:LSeq[ColId],
-                   _colTypes:LSeq[Type],
-                   _colMeta:LSeq[KeyMap],
+  def apply[ColId](_colIds:Ref[LSeq[ColId]],
+                   _colTypes:Ref[LSeq[Type]],
+                   _colMeta:Ref[LSeq[KeyMap]],
                    closer : Closeable = Utils.dummyCloseable)(
                    implicit ord: Ordering[ColId]) = {
     new ColSchema[ColId] {
-      override def colIds   = _colIds
-      override def colTypes = _colTypes
-      override def colMeta  = _colMeta
+      implicit val bind = IoScope.open
+      bind(closer)
+      override val colIds   = _colIds.copy.get
+      override val colTypes = _colTypes.copy.get
+      override val colMeta  = _colMeta.copy.get
       override def colIdOrdering: Ordering[ColId] = ord
-      override def close = closer.close()
+      override def close = bind.close()
     }
   }
 }
@@ -65,24 +67,28 @@ object Cols {
 
   def empty[ColId](lsize:Long)(implicit ord: Ordering[ColId]) =
     apply[ColId](
-      ColSchema.empty[ColId],
-      LSeq.empty,
+      Ref.mock(ColSchema.empty[ColId]),
+      Ref.mock(LSeq.empty),
       lsize)
 
   /**
     * From schema & columns
     */
-  def apply[ColId](_schema:ColSchema[ColId],
-                   __cols:LSeq[_ <: LSeq[_ <: Any]],
+  def apply[ColId](_schemaRef:Ref[ColSchema[ColId]],
+                   __colsRef:Ref[LSeq[_ <: LSeq[_ <: Any]]],
                    _lsize : Long,
                    closer : Closeable = Utils.dummyCloseable) : Cols[ColId] = {
     new Cols[ColId] {
+      implicit val bind = IoScope.open
+      override val schemaRef = _schemaRef.copy
+      override val _colsRef = __colsRef.copy
+      bind(closer)
       override type ColType[T] = LSeq[T]
-      override def schema = _schema
-      override def _cols = __cols.map[ColType[_]](_.asInstanceOf[ColType[_]])
+      override def schema = schemaRef.get
+      override val _cols = _colsRef.get.lazyMap(_.asInstanceOf[ColType[_]])
       override def lsize = _lsize
       override def close(): Unit = {
-        closer.close()
+        bind.close
       }
     }
   }
@@ -105,7 +111,8 @@ trait Cols[ColId] extends java.io.Closeable {
 
   type ColType[T] <: LSeq[T]
 
-  def schema : ColSchema[ColId]
+  def schemaRef : Ref[ColSchema[ColId]]
+  def schema : ColSchema[ColId] = schemaRef.get
 
   def colIds   : LSeq[ColId] = schema.colIds
   def colTypes : LSeq[Type] = schema.colTypes
@@ -113,7 +120,8 @@ trait Cols[ColId] extends java.io.Closeable {
   def colCount = schema.colCount
   def colIdOrdering : Ordering[ColId] = schema.colIdOrdering
 
-  def _cols    : LSeq[_ <: ColType[_ <: Any]]
+  def _colsRef : Ref[LSeq[_ <: ColType[_ <: Any]]]
+  def _cols    : LSeq[_ <: ColType[_ <: Any]] = _colsRef.get
 
   def lsize : Long
   def size : Int = lsize.toInt
@@ -148,58 +156,64 @@ trait Cols[ColId] extends java.io.Closeable {
   def apply[T <: Any](id:ColId, i:Long) : T = {
     using (openCol[T](id)) { _(i) }
   }
-  def openView(from:Long, until:Long) : Cols[ColId] = {
-    new ColsView[ColId](this, from, until)
+  def openView(from:Long, until:Long) : Ref[Cols[ColId]] = {
+    Ref.open(new ColsView[ColId](this, from, until))
   }
+  def view(from:Long, until:Long)(implicit bind:IoScope) = bind(openView(from, until))
   /* selects rows */
-  def openSelect(indexes:LSeq[Long]) : Cols[ColId] = {
-    Cols[ColId](
-      schema,
-      _cols.lazyMap { _.openSelect(indexes) },
-      indexes.lsize)
+  def openSelect(indexes:LSeq[Long]) : Ref[Cols[ColId]] = {
+    Ref.open(
+      Cols[ColId](
+        schemaRef,
+        _colsRef.map(_.lazyMap { _.openSelect(indexes).get }),
+        indexes.lsize))
   }
+  def select(indexes:LSeq[Long])(implicit bind:IoScope) = bind(openSelect(indexes))
   /* selects cols*/
-  def openSelectCols(indexes:LSeq[Long]) : Cols[ColId] = {
+  def openSelectCols(indexes:LSeq[Long]) : Ref[Cols[ColId]] = {
     implicit val bind = IoScope.open
-    Cols[ColId](
-      schema.selectCols(indexes),
-      _cols.select(indexes),
-      lsize,
-      bind)
+    Ref.open(
+      Cols[ColId](
+        schema.selectCols(indexes),
+        _cols.select(indexes),
+        lsize,
+        bind))
   }
+  def selectCols(indexes:LSeq[Long])(implicit bind:IoScope) = bind(openSelectCols(indexes))
 }
 
 trait ColsWrap[ColId, T <: Cols[ColId]] {
   def wrappedCols : T
 }
 
-class ColsRef[ColId](val df:Cols[ColId]) extends Cols[ColId] {
+class ColsRef[ColId](val cols:Cols[ColId]) extends Cols[ColId] {
 
-  override def schema = df.schema
+  override type ColType[T] = cols.ColType[T]
 
-  override type ColType[T] = df.ColType[T]
+  override def schemaRef = cols.schemaRef
 
-  override def _cols: LSeq[_ <: df.ColType[_]] = df._cols
+  override def _colsRef = cols._colsRef
 
-  override def lsize: Long = df.lsize
+  override def lsize: Long = cols.lsize
 
   override def close(): Unit = {}
 
-  override def openView(from:Long, until:Long) = df.openView(from, until)
+  override def openView(from:Long, until:Long) = cols.openView(from, until)
 
 }
 
 class ColsView[ColId](val cols:Cols[ColId], val from:Long, val until:Long)
   extends Cols[ColId] {
 
-  override def schema = cols.schema
 
   override type ColType[T] = LSeq[T]
 
-  override def _cols: LSeq[LSeq[_ <: Any]] = new LSeq[LSeq[_ <: Any]] {
+  override def schemaRef = cols.schemaRef
+
+  override val _colsRef = Ref.open(new LSeq[LSeq[_ <: Any]] {
     def apply(l:Long) = cols._cols(l).view(from, until)
     def lsize = until - from
-  }
+  })
 
   override def lsize: Long = until - from
 
@@ -238,29 +252,35 @@ class ColSchemaIoType[ColId:ClassTag:TypeTag:Ordering](implicit val io:IoContext
       val dir = OrderDir(data)
 
       val colIds = dir.ref(0).as[LSeq[ColId]]
-      val typeIds = dir.ref(1).as[LSeq[Int]].lazyMap { i =>
+      val typeIds = dir.ref(1).as[LSeq[Int]].map(_.lazyMap { i =>
         io.types.idIoType(i).interfaceType
-      }
+      })
       val metas = dir.ref(2).as[LSeq[KeyMap]]
 
       ColSchema[ColId](colIds, typeIds, metas, resources.adopt)
     }
   }
 
-  override def write(out: DataOutput, v: ColSchema[ColId]): Unit = scoped { implicit bind =>
+  override def write(out: DataOutput, v: Ref[ColSchema[ColId]]): Unit = scoped { implicit bind =>
     using (WrittenOrderDir.open(out)) { dir =>
-      io.save(dir.ref(0), v.colIds)
-      io.save(dir.ref(1), v.colTypes.lazyMap { t => io.types.typeId(t) } )
-      io.save(dir.ref(2), v.colMeta)
+      io.save(dir.ref(0), Ref.mock(v.get.colIds))
+      io.save(dir.ref(1), Ref.mock(v.get.colTypes.lazyMap { t => io.types.typeId(t) } ))
+      io.save(dir.ref(2), Ref.mock(v.get.colMeta))
     }
   }
 
-  override def viewMerged(seqs: Seq[Ref[ColSchema[ColId]]]) = {
+  override def openMerged(seqs: Seq[Ref[ColSchema[ColId]]]) = {
     val openRefs = seqs.map(_.openCopy)
-    new MergedColSchema[ColId](
-      openRefs.map(_.get).toArray,
-      MultiCols.DefaultColIdMemRatio,
-      () => openRefs.foreach(_.close()))
+    seqs.size match {
+      case 0 => Ref.open(ColSchema.empty)
+      case 1 => seqs.head.openCopy
+      case _ =>
+        Ref.open(
+          new MergedColSchema[ColId](
+            openRefs.map(_.get).toArray,
+            MultiCols.DefaultColIdMemRatio,
+            () => openRefs.foreach(_.close())))
+    }
   }
 }
 
@@ -293,86 +313,17 @@ class ColIoType(implicit val io:IoContext)
       while (i.hasNext) {
         val (tpe, openedSeq) = i.next
         using (openedSeq) { seq =>
-          io.types.save(dir.lastRef, seq, io.types.toLSeqType(tpe))
+          io.types.save(dir.lastRef, Ref.mock(seq), io.types.toLSeqType(tpe))
         }
       }
     }
   }
 
-  override def write(out: DataOutput, v: LSeq[(Type, LSeq[Any])]): Unit =
-    writeStream(out, v.iterator)
+  override def write(out: DataOutput, v: Ref[LSeq[(Type, LSeq[Any])]]): Unit =
+    writeStream(out, v.get.iterator)
 
 }
 
-
-/*
-class ColsIoType[ColId:ClassTag:TypeTag:Ordering](implicit val io:IoContext) extends MergeableIoType[Cols[ColId], IoCols[ColId]] {
-  val l = LoggerFactory.getLogger(getClass)
-
-  override def interfaceType: universe.Type = typeOf[Cols[ColId]]
-  override def ioInstanceType: universe.Type = typeOf[IoCols[ColId]]
-
-  override def open(data: DataAccess): IoCols[ColId] = {
-    scoped { implicit bind =>
-      val size = data.getBeLong(0)
-      val cfsPart = bind(data.openView(8, data.size))
-      val dirRef = Ref.open(CfsDir.open[ColId](cfsPart))
-      val dir = dirRef.get
-      val colIds = dir.list
-      val ioCols =
-        new LSeq[LSeq[_]] {
-          override def apply(l: Long): LSeq[_] =
-            io.types.openAs[LSeq[_]](dir.indexRef(l))
-          override def lsize: Long = colIds.lsize
-        }
-      IoCols[ColId](
-        IoRef(this, data.dataRef),
-        Cols[ColId](
-          colIds,
-          new LSeq[Type] {
-            def lsize = ioCols.lsize
-            def apply(i: Long) = // hackish!
-              using (ioCols(i)) { _.asInstanceOf[IoSeq[ColId]].seqIoType.valueType }
-          },
-          LSeq.fill(size, KeyMap.empty),
-          ioCols,
-          size,
-          () => dirRef.close()))
-    }
-  }
-  def writeAsCols(out: DataOutput, size:Long, cols: Iterator[((ColId, Type), LSeq[_])]): Unit = {
-    scoped { implicit bind =>
-      val before2 = System.currentTimeMillis()
-      out.writeLong(size) // write dataframe length explicitly
-      val dir = bind(WrittenCfsDir.open[ColId](out))
-
-      l.info("writing columns...")
-      val before = System.currentTimeMillis()
-
-      cols.foreach { case ((colId, colType), openedCol) =>
-        using (openedCol) { col => // this opens the column
-          using(dir.create(colId)) { out =>
-            io.types.write(out, col, io.types.toLSeqType(colType))
-          }
-        }
-      }
-
-      l.info("columns written in " + (System.currentTimeMillis() - before) + " ms")
-    }
-  }
-  override def write(out: DataOutput, df: Cols[ColId]): Unit = {
-    writeAsCols(out,
-                df.lsize,
-                (df.colIds.iterator
-                 zip df.colTypes.iterator
-                 zip df._cols.iterator))
-  }
-
-  override def viewMerged(seqs: Seq[Ref[Cols[ColId]]]): Cols[ColId] = {
-    MultiCols.open[ColId](seqs)
-  }
-}
-*/
 
 class ColsIoType[ColId:ClassTag:TypeTag:Ordering](implicit val io:IoContext)
   extends MergeableIoType[Cols[ColId], Cols[ColId]] {
@@ -383,14 +334,15 @@ class ColsIoType[ColId:ClassTag:TypeTag:Ordering](implicit val io:IoContext)
   override def interfaceType: universe.Type = typeOf[Cols[ColId]]
   override def ioInstanceType: universe.Type = typeOf[Cols[ColId]]
 
-  override def open(data: DataAccess): Cols[ColId] = {
+  override def open(data: DataAccess): Ref[Cols[ColId]] = {
     scoped { implicit resources =>
       val dir = OrderDir(data)
-      Cols[ColId](
-        dir.ref(2).as[ColSchema[ColId]],
-        dir.ref(0).as[LSeq[(Type, LSeq[Any])]].lazyMap(_._2), // columns are written first, because
-        dir.ref(1).as[Long],
-        resources.adopt)
+      Ref.open(
+        Cols[ColId](
+          dir.ref(2).as[ColSchema[ColId]],
+          dir.ref(0).as[LSeq[(Type, LSeq[Any])]].map(_.lazyMap(_._2)), // columns are written first, because
+          dir.ref(1).as[Long].get,
+          resources.adopt))
     }
   }
 
@@ -415,23 +367,25 @@ class ColsIoType[ColId:ClassTag:TypeTag:Ordering](implicit val io:IoContext)
       }
     })
     val lmeta = LSeq.from(meta)
-    dir.ref(1).save(lsize)
+    dir.ref(1).save(Ref.mock(lsize))
     dir.ref(2).save(
-      ColSchema[ColId](
-        lmeta.lazyMap(_._1),
-        lmeta.lazyMap(_._2),
-        lmeta.lazyMap(_._3)))
+      Ref.mock(
+        ColSchema[ColId](
+          Ref.mock(lmeta.lazyMap(_._1)),
+          Ref.mock(lmeta.lazyMap(_._2)),
+          Ref.mock(lmeta.lazyMap(_._3)))))
   }
 
-  override def write(out: DataOutput, df: Cols[ColId]): Unit = scoped { implicit bind =>
+  override def write(out: DataOutput, df: Ref[Cols[ColId]]): Unit = scoped { implicit bind =>
     val dir = WrittenOrderDir(out)
     dir.ref(0).save(
-      df.schema.colTypes zip df._cols.asInstanceOf[LSeq[LSeq[Any]]] : LSeq[(Type, LSeq[Any])])
-    dir.ref(1).save(df.lsize)
-    dir.ref(2).save(df.schema)
+      Ref.mock(
+        df.get.schema.colTypes zip df.get._cols.asInstanceOf[LSeq[LSeq[Any]]] : LSeq[(Type, LSeq[Any])]))
+    dir.ref(1).save(Ref.mock(df.get.lsize))
+    dir.ref(2).save(Ref.mock(df.get.schema))
   }
 
-  override def viewMerged(seqs: Seq[Ref[Cols[ColId]]]): Cols[ColId] = {
-    MultiCols.open[ColId](seqs)
+  override def openMerged(seqs: Seq[Ref[Cols[ColId]]]): Ref[Cols[ColId]] = {
+    Ref.open(MultiCols.open[ColId](seqs))
   }
 }

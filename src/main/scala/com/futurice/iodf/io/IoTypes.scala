@@ -33,44 +33,44 @@ trait IoTypes {
   def ioTypeOf(t : Type)      : IoType[_, _]
   def ioTypeOf(data:DataAccess)       : IoType[_, _]
 
-  def write(out:DataOutput, t:Any, tpe:Type) : Unit
+  def write(out:DataOutput, t:Ref[Any], tpe:Type) : Unit
 
-  def write[Interface](out:DataOutput, t:Interface)(
+  def write[Interface](out:DataOutput, t:Ref[Interface])(
     implicit tag:TypeTag[Interface]) : Unit
 
-  def create[Interface](ref:AllocateOnce, t:Interface)(
-    implicit tag:TypeTag[Interface]) : Interface
+  def create[Interface](ref:AllocateOnce, t:Ref[Interface])(
+    implicit tag:TypeTag[Interface]) : Ref[Interface]
 
-  def open(ref:DataAccess) : Any
-  def open(ref:DataRef) : Any = {
+  def open(ref:DataAccess) : Ref[Any]
+  def open(ref:DataRef) : Ref[Any] = {
     using (ref.openAccess)(open)
   }
 
   def openAs[Interface](ref:DataAccess) =
-    open(ref).asInstanceOf[Interface]
+    open(ref).as[Interface]
   def openAs[Interface](ref:DataRef) =
-    open(ref).asInstanceOf[Interface]
+    open(ref).as[Interface]
 
   /** note: this returns and opened a data reference */
-  def openSave[Interface](ref:AllocateOnce, t:Interface)(
+  def openSave[Interface](ref:AllocateOnce, t:Ref[Interface])(
     implicit tag:TypeTag[Interface]): DataRef = {
     using (ref.create) { out =>
       write(out, t)
       out.openDataRef
     }
   }
-  def save[Interface:TypeTag](ref:AllocateOnce, t:Interface)(
+  def save[Interface:TypeTag](ref:AllocateOnce, t:Ref[Interface])(
     implicit bind:IoScope): DataRef = {
     bind(openSave(ref, t))
   }
 
-  def openSave(ref:AllocateOnce, t:Any, typ:Type) = {
+  def openSave(ref:AllocateOnce, t:Ref[Any], typ:Type) = {
     using (ref.create) { out =>
       write(out, t, typ)
       out.openDataRef
     }
   }
-  def save(ref:AllocateOnce, t:Any, typ:Type)(
+  def save(ref:AllocateOnce, t:Ref[Any], typ:Type)(
     implicit bind:IoScope): DataRef = {
     bind(openSave(ref, t, typ))
   }
@@ -167,12 +167,12 @@ class IoTypesImpl(types:Seq[IoType[_, _]]) extends IoTypes {
   override def ioTypeOf[T : TypeTag]() : IoType[_ >: T, _ <: T] = {
     types(writerEntryOf(typeOf[T])._2).asInstanceOf[IoType[_ >: T, _ <: T]]
   }
-  override def write(out:DataOutput, v:Any, tpe:Type) = {
+  override def write(out:DataOutput, v:Ref[Any], tpe:Type) = {
     val (typ, id) = writerEntryOf(tpe)
     out.writeInt(id)
     typ.asAnyWriter.write(out, v)
   }
-  override def write[From : TypeTag](out:DataOutput, v:From) = {
+  override def write[From : TypeTag](out:DataOutput, v:Ref[From]) = {
     write(out, v, typeOf[From])
   }
   override def ioTypeOf(data:DataAccess) = {
@@ -185,7 +185,7 @@ class IoTypesImpl(types:Seq[IoType[_, _]]) extends IoTypes {
       types(id).open(view)
     }
   }
-  override def create[From](ref:AllocateOnce, v:From)(implicit tag:TypeTag[From]) = {
+  override def create[From](ref:AllocateOnce, v:Ref[From])(implicit tag:TypeTag[From]) = {
     val (typ, id) = writerEntryOf[From]
     using(
       using(ref.create) { out =>

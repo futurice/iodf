@@ -86,7 +86,13 @@ object Row {
 /**
   * Created by arau on 11.7.2017.
   */
-class Table(val schema:TableSchema, val df:Cols[String], closer:Closeable = Utils.dummyCloseable) extends Df[Row] {
+class Table(val schema:TableSchema, _dfRef:Ref[Cols[String]], closer:Closeable = Utils.dummyCloseable) extends Df[Row] {
+
+  implicit val bind = IoScope.open
+  bind(closer)
+
+  val dfRef = _dfRef.copy
+  val df = dfRef.get
 
   Tracing.opened(this)
 
@@ -107,13 +113,13 @@ class Table(val schema:TableSchema, val df:Cols[String], closer:Closeable = Util
   override def size : Int = df.size
 
   override def openView(from: Long, until: Long): Table =
-    Table(schema, df.openView(from, until))
+    Table(schema, Ref.open(df.openView(from, until)))
   override def openSelect(indexes:LSeq[Long]) =
-    Table(schema, df.openSelect(indexes))
+    Table(schema, Ref.open(df.openSelect(indexes)))
 
   override def close(): Unit = {
     Tracing.closed(this)
-    closer.close
+    bind.close
   }
 
   override def apply(i:Long) = {
@@ -129,7 +135,7 @@ class Table(val schema:TableSchema, val df:Cols[String], closer:Closeable = Util
 
 object Table {
   def empty = Table.from(TableSchema.empty, Seq.empty)
-  def from(schema:TableSchema, rows:Seq[Row]) = {
+  def from(schema:TableSchema, rows:Seq[Row]) = scoped { implicit bind =>
     val orderIndex = schema.orderIndex
     val colIds = schema.colIds
     val colTypes = schema.colTypes
@@ -143,15 +149,16 @@ object Table {
 
     val sz = rows.size.toLong
     apply(schema,
-          Cols(
-            schema,
-            new LSeq[LSeq[_]] {
-              def apply(i:Long) = LSeq.from(cols(i.toInt))
-              def lsize = colIds.size
-            },
-            sz))
+          Ref(
+            Cols(
+              schema,
+              new LSeq[LSeq[_]] {
+                def apply(i:Long) = LSeq.from(cols(i.toInt))
+                def lsize = colIds.size
+              },
+              sz)))
   }
-  def apply(schema:TableSchema, df:Cols[String], closer:Closeable = Utils.dummyCloseable) = {
+  def apply(schema:TableSchema, df:Ref[Cols[String]], closer:Closeable = Utils.dummyCloseable) = {
     new Table(schema, df, closer)
   }
 }
@@ -160,17 +167,17 @@ class TableSchemaIoType(implicit io:IoContext) extends IoType[TableSchema, Table
   override def interfaceType: universe.Type = typeOf[TableSchema]
   override def ioInstanceType: universe.Type = typeOf[TableSchema]
 
-  override def open(ref: DataAccess): TableSchema = scoped { implicit bind =>
+  override def open(ref: DataAccess): Ref[TableSchema] = scoped { implicit bind =>
     val dir = OrderDir(ref)
     val colOrder = dir.ref(0).as[LSeq[Long]]
     val colSchema = dir.ref(1).as[ColSchema[String]]
-    TableSchema(colOrder, colSchema, bind.adopt)
+    Ref.open(TableSchema(colOrder, colSchema, bind.adopt))
   }
 
-  override def write(out: DataOutput, iface: TableSchema): Unit = scoped { implicit bind =>
+  override def write(out: DataOutput, iface: Ref[TableSchema]): Unit = scoped { implicit bind =>
     val dir = WrittenOrderDir(out)
-    dir.ref(0).save(iface.colOrder)
-    dir.ref(1).save(iface : ColSchema[String])
+    dir.ref(0).save(iface.get.colOrder)
+    dir.ref(1).save(iface.get : ColSchema[String])
   }
 }
 
@@ -187,23 +194,23 @@ class TableIoType(implicit io:IoContext) extends MergeableIoType[Table, Table] {
     new Table(schema, cols, bind.adopt())
   }
 
-  override def write(out: DataOutput, iface: Table): Unit = scoped { implicit bind =>
+  override def write(out: DataOutput, iface: Ref[Table]): Unit = scoped { implicit bind =>
     val dir = WrittenOrderDir(out)
-    dir.ref(0).save(iface.schema)
-    dir.ref(1).save(iface.df)
+    dir.ref(0).save(iface.get.schema)
+    dir.ref(1).save(iface.get.dfRef.get)
   }
 
   lazy val dfType =
     io.types.ioTypeOf[Cols[String]].asInstanceOf[MergeableIoType[Cols[String], _ <: Cols[String]]]
 
-  override def viewMerged(seqs: Seq[Ref[Table]]): Table = {
+  override def openMerged(seqs: Seq[Ref[Table]]): Ref[Table] = {
     if (seqs.size == 0) {
-      Table.empty // is there better way?
+      Ref.open(Table.empty)
+    } else if (seqs.size == 1) {
+      seqs.head.openCopy
     } else {
       val bind = IoScope.open
-      val df = bind(dfType.viewMerged(seqs.map(_.map(_.df))))
-      seqs.foreach { e => bind(e.openCopy) }
-      Table(seqs.head.get.schema, df, bind)
+      Ref.open(Table(seqs.head.get.schema, dfType.merged(seqs.map(_.map(_.df)))))
     }
   }
 
