@@ -6,7 +6,7 @@ package com.futurice.iodf.df
 object IndexedDocuments {
 
   def from(docs:Seq[Document], conf:IndexConf[String]) : IndexedDocuments = {
-    Indexed.from(Documents.from(docs), conf)
+    IndexedDf.from(Documents.from(docs), conf)
   }
 
 }

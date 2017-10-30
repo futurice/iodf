@@ -20,7 +20,7 @@ trait TableSchema extends ColSchema[String] {
   def withCol[T:TypeTag](colId:String, meta:KeyValue[_]*) = {
     val colType = typeOf[T]
     val colEntries =
-      ((colIds zip (colOrder zip (colTypes zip colMeta))) ++
+      ((colIds zip (colOrder zip (colTypes zip colMetas))) ++
         Seq((colId, (colOrder.lsize, (colType, KeyMap(meta : _*))))))
         .toArray.sortBy(_._1)
 
@@ -45,7 +45,7 @@ object TableSchema {
     override val colOrder = _colOrder
     override val colIds   = schema.colIds
     override val colTypes = schema.colTypes
-    override val colMeta = schema.colMeta
+    override val colMetas = schema.colMetas
     override val colIdOrdering = schema.colIdOrdering
     override def close = closer.close
   }
@@ -96,7 +96,7 @@ class Table(val schema:TableSchema, val df:Cols[String], closer:Closeable = Util
 
   override val colTypes: LSeq[universe.Type] = schema.colTypes
 
-  override val colMeta = schema.colMeta
+  override val colMetas = schema.colMetas
 
   override def colIdOrdering: Ordering[String] = implicitly[Ordering[String]]
 

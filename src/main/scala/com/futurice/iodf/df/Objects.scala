@@ -62,7 +62,7 @@ case class ObjectSchema[T:TypeTag:ClassTag](fields : Seq[(Type, String)]) extend
   override def colTypes: LSeq[universe.Type] =
     LSeq.from(sorted.map(_._1))
 
-  override def colMeta = LSeq.fill(fields.size, KeyMap.empty)
+  override def colMetas = LSeq.fill(fields.size, KeyMap.empty)
 
   override val colIdOrdering = implicitly[Ordering[String]]
 
@@ -165,7 +165,7 @@ object Objects {
 
       override def colTypes = objectSchema.colTypes
 
-      override def colMeta = LSeq.fill(fieldNames.size, KeyMap.empty)
+      override def colMetas = LSeq.fill(fieldNames.size, KeyMap.empty)
 
       override def fieldNames = colIds.toArray
       override def fieldIndexes = (0 until colIds.size).toArray //.filter(_ != thisColIndex)

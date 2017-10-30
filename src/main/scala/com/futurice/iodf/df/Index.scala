@@ -216,7 +216,7 @@ class Index[ColId](_dfRef:Ref[Cols[(ColId, Any)]],
       override def apply(l: Long): universe.Type = booleanType
       override def lsize: Long = df.colCount
     },
-    df.colMeta)(df.colIdOrdering)
+    df.colMetas)(df.colIdOrdering)
 
   override def _cols: LSeq[_ <: LSeq[Any]] = df._cols
   def openedIndexes : LSeq[LBits] =
@@ -273,7 +273,7 @@ class Index[ColId](_dfRef:Ref[Cols[(ColId, Any)]],
     new Index(dfRef.copyMap(_.openSelectCols(indexes)))
   }
 
-  def openSelectSome(indexes:LSeq[Option[Long]]) = scoped { implicit bind =>
+  override def openSelectSome(indexes:LSeq[Option[Long]]) = scoped { implicit bind =>
     new Index(
       dfRef.copyMap[Cols[(ColId, Any)]]( df =>
         Cols[(ColId, Any)](
@@ -289,21 +289,18 @@ class Index[ColId](_dfRef:Ref[Cols[(ColId, Any)]],
   }
 
   /* TODO: should this be renamed to mapIndexKeys */
-  def openMapColIds[ColId2](f : ColId => ColId2)(implicit ord2:Ordering[(ColId2, Any)]) = scoped { implicit bind =>
+  def openMapIndexKeys[ColId2](f : ColId => ColId2)(implicit ord2:Ordering[(ColId2, Any)]) = scoped { implicit bind =>
     new Index(
       dfRef.copyMap[Cols[(ColId2, Any)]] { df =>
         Cols[(ColId2, Any)](
-          ColSchema[(ColId2, Any)](
-            colIds.lazyMap { case (key, value) => (f(key), value) },
-            colTypes,
-            colMeta)(ord2),
+          schema.openMapColIds { case (id, value) => f(id) -> value },
           _cols,
           lsize)
       })
   }
 
   def mapColIds[ColId2](f : ColId => ColId2)(implicit ord:Ordering[(ColId2, Any)], bind:IoScope) = {
-    bind(openMapColIds[ColId2](f)(ord))
+    bind(openMapIndexKeys[ColId2](f)(ord))
   }
 
   /**

@@ -50,7 +50,7 @@ object LCondBits {
   */
 trait LBits extends LSeq[Boolean] {
 
-  def bind(closeable:Closeable = Utils.dummyCloseable ) : LBits  = {
+  override def bind(closeable:Closeable = Utils.dummyCloseable ) : LBits  = {
     val self = this
     new LBits {
       val f = self.f

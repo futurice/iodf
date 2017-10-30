@@ -78,7 +78,7 @@ class DataAccess(val _dataRef:DataRef,
       throw new RuntimeException(offset + s" is outside the range [0, $size]")
     } else if (isClosed) {
       Tracing.report(this)
-      throw new RuntimeException("this reference was to memory resource " + m.address + " closed")
+      throw new RuntimeException("this reference was to closed memory resource " + m.address)
     } else if (ref.isClosed) {
       Tracing.report(this.ref)
       throw new RuntimeException("memory resource " + m.address + " is closed")

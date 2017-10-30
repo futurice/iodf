@@ -17,11 +17,29 @@ import scala.reflect.runtime.universe._
 
 case class ColKey[ColId, Type](colId:ColId) {}
 
-trait ColSchema[ColId] extends Closeable {
+trait ColType[ColId] {
+  def id : ColId
+  def typ: Type
+  def meta: KeyMap
+}
+
+object ColType {
+  def apply[ColId](colId:ColId, colType:Type, colMeta:KeyMap) = {
+    new ColType[ColId] {
+      def id = colId
+      def typ = colType
+      def meta = colMeta
+    }
+  }
+}
+
+
+trait ColSchema[ColId] extends LSeq[ColType[ColId]] {
+
   def colIds : LSeq[ColId]
   /** FIXME: should this be renamed to colMemberTypes */
   def colTypes : LSeq[Type]
-  def colMeta : LSeq[KeyMap]
+  def colMetas : LSeq[KeyMap]
   def colIdOrdering : Ordering[ColId]
   def colCount = colIds.lsize
 
@@ -29,12 +47,43 @@ trait ColSchema[ColId] extends Closeable {
     implicit val bind = IoScope.open
     ColSchema(colIds.select(indexes),
               colTypes.select(indexes),
-              colMeta.select(indexes),
+              colMetas.select(indexes),
               bind)(colIdOrdering)
   }
 
   def selectCols(indexes:LSeq[Long])(implicit bind:IoScope) = {
     bind(openSelectCols(indexes))
+  }
+
+  override def apply(i:Long) = new ColType[ColId] {
+    override def id = colIds(i)
+    override def typ = colTypes(i)
+    override def meta = colMetas(i)
+  }
+
+  override def lsize = colIds.lsize
+
+  override def iterator = new Iterator[ColType[ColId] ] {
+    val i = (colIds zip colTypes zip colMetas).iterator
+    def hasNext = i.hasNext
+    def next = {
+      val ((id, t), m) = i.next
+      ColType(id, t, m)
+    }
+  }
+
+  def openMapType(f: universe.Type => universe.Type): ColSchema[ColId] = {
+    ColSchema[ColId](
+      colIds,
+      colTypes.lazyMap(f),
+      colMetas)(colIdOrdering)
+  }
+
+  def openMapColIds[ColId2](f : ColId => ColId2)(implicit ord2:Ordering[ColId2]) = {
+    ColSchema[ColId2](
+      colIds.lazyMap(f),
+      colTypes,
+      colMetas)(ord2)
   }
 }
 
@@ -50,7 +99,7 @@ object ColSchema {
     new ColSchema[ColId] {
       override def colIds   = _colIds
       override def colTypes = _colTypes
-      override def colMeta  = _colMeta
+      override def colMetas  = _colMeta
       override def colIdOrdering: Ordering[ColId] = ord
       override def close = closer.close()
     }
@@ -109,7 +158,7 @@ trait Cols[ColId] extends java.io.Closeable {
 
   def colIds   : LSeq[ColId] = schema.colIds
   def colTypes : LSeq[Type] = schema.colTypes
-  def colMeta : LSeq[KeyMap] = schema.colMeta
+  def colMetas : LSeq[KeyMap] = schema.colMetas
   def colCount = schema.colCount
   def colIdOrdering : Ordering[ColId] = schema.colIdOrdering
 
@@ -166,6 +215,30 @@ trait Cols[ColId] extends java.io.Closeable {
       _cols.select(indexes),
       lsize,
       bind)
+  }
+
+  /* selects rows */
+  def openSelectSome(indexes:LSeq[Option[Long]]) : Cols[ColId] = {
+    val TypeRef(optPkg, optSymbol, anyArgs) = typeOf[Option[Any]]
+
+    Cols[ColId](
+      schema.openMapType(t => scala.reflect.runtime.universe.internal.typeRef(optPkg, optSymbol, List(t))),
+      _cols.lazyMap { b => b.openSelectSome(indexes).bind(b) },
+      indexes.lsize)
+  }
+
+  def selectSome(indexes:LSeq[Option[Long]])(bind:IoScope) = {
+    bind(openSelectSome(indexes))
+  }
+
+  def openMapColIds[ColId2](f : ColId => ColId2)(implicit ord2:Ordering[ColId2]) = {
+    Cols(
+      ColSchema[ColId2](
+        colIds.lazyMap(f),
+        colTypes,
+        colMetas)(ord2),
+      _cols,
+      lsize)
   }
 }
 
@@ -251,7 +324,7 @@ class ColSchemaIoType[ColId:ClassTag:TypeTag:Ordering](implicit val io:IoContext
     using (WrittenOrderDir.open(out)) { dir =>
       io.save(dir.ref(0), v.colIds)
       io.save(dir.ref(1), v.colTypes.lazyMap { t => io.types.typeId(t) } )
-      io.save(dir.ref(2), v.colMeta)
+      io.save(dir.ref(2), v.colMetas)
     }
   }
 

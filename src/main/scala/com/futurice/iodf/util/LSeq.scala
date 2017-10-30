@@ -96,8 +96,34 @@ trait LSeq[+T] extends Iterable[T] with PartialFunction[Long, T] with Closeable 
       }
     }
   }
+
+  def ++[B >: T](b:LSeq[B]) = {
+    val a = this
+    new LSeq[B] {
+      override def apply(l: Long) =
+        if (l < a.size) a(l) else b(l - a.size)
+      override def lsize = a.size + b.size
+    }
+  }
   override def toString =
     f"LSeq(" + (if (lsize < 8) this.mkString(", ") else this.take(8).mkString(", ") + "..") + ")"
+
+  def bind(closer:Closeable) = {
+    val self = this
+    new LSeq[T] {
+      override def apply(l: Long) = self.apply(l)
+
+      override def lsize = self.lsize
+
+      override def iterator = self.iterator
+
+      override def close = {
+        self.close
+        closer.close
+
+      }
+    }
+  }
 
 }
 

@@ -24,14 +24,14 @@ class Tracing() {
       case None =>
         _closed.get(trace) match {
           case Some(e) =>
-            l.error( trace + " was created here", e._1)
-            l.error( "then " + trace + " was deleted here", e._2)
+            l.error( trace.getClass + " was created here", e._1)
+            l.error( "then " + trace.getClass + " was deleted here", e._2)
             /*            l.error( "was created here", e._1)
             l.error( "then deleted here", e._2)*/
           case None =>
             l.error("either non-traced item was reported closed or we forgot deletion?")
         }
-        l.error("and then " + trace + " was deleted second time! ", new RuntimeException("here"))
+        l.error("and then " + trace.getClass + " was deleted second time! ", new RuntimeException("here"))
     }
     openItems -= 1
   }

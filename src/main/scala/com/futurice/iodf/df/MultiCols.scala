@@ -1,5 +1,7 @@
 package com.futurice.iodf.df
 
+import java.io.Closeable
+
 import com.futurice.iodf.io.{IoTypes, SizedMerging}
 import com.futurice.iodf.ioseq.{IoSeq, SeqIoType}
 import com.futurice.iodf._
@@ -35,7 +37,7 @@ class MergedColSchema[ColId](schemas:Array[_ <: ColSchema[ColId]],
 
   type ColType[T] = MultiSeq[T, LSeq[T]]
 
-  def close = closer()
+  override def close = closer()
 
   // form cache
   val jumpEntries = new ArrayBuffer[MergeSortEntry[ColId]]
@@ -129,16 +131,17 @@ class MergedColSchema[ColId](schemas:Array[_ <: ColSchema[ColId]],
   }
   val colTypes: LSeq[Type] = mergeEntries.lazyMap(entryToType)
   def entryToMeta(e:MergeSortEntry[ColId]) = {
-    schemas(e.sources.head).colMeta(e.sourceIndexes.head)
+    schemas(e.sources.head).colMetas(e.sourceIndexes.head)
   }
-  val colMeta: LSeq[KeyMap] = mergeEntries.lazyMap(entryToMeta)
+  val colMetas: LSeq[KeyMap] = mergeEntries.lazyMap(entryToMeta)
 
 }
 
 
 class JoinedCols[ColId](_refs:Array[Ref[_ <: Cols[ColId]]],
                         override val lsize:Long,
-                        val colIdMemRatio: Int = MultiCols.DefaultColIdMemRatio)(
+                        val colIdMemRatio: Int = MultiCols.DefaultColIdMemRatio,
+                        closer : Closeable = Utils.dummyCloseable)(
   implicit override val colIdOrdering:Ordering[ColId]) extends Cols[ColId] {
 
   Tracing.opened(this)
@@ -153,6 +156,7 @@ class JoinedCols[ColId](_refs:Array[Ref[_ <: Cols[ColId]]],
 
   val scope = new IoScope()
   _refs.map(_.copy(scope))
+  scope.bind(closer)
 
   override val schema =
     new MergedColSchema[ColId](dfs.map(_.schema), colIdMemRatio)
@@ -162,7 +166,7 @@ class JoinedCols[ColId](_refs:Array[Ref[_ <: Cols[ColId]]],
 
   override val colIds: LSeq[ColId] = schema.colIds
   override val colTypes: LSeq[Type] = schema.colTypes
-  override val colMeta: LSeq[KeyMap] = schema.colMeta
+  override val colMetas: LSeq[KeyMap] = schema.colMetas
   override type ColType[T] = LSeq[T]
 
   override def _cols = schema.mergeEntries.lazyMap { e =>
@@ -177,6 +181,26 @@ class JoinedCols[ColId](_refs:Array[Ref[_ <: Cols[ColId]]],
     scope.close
   }
 }
+
+/*
+class JoinedDf[RowType](_refs:Array[Ref[_ <: Df[RowType]]],
+                        override val lsize:Long,
+                        val colIdMemRatio: Int = MultiCols.DefaultColIdMemRatio)(
+                        implicit override val colIdOrdering:Ordering[RowType]) extends Df[RowType] {
+
+  val cols = new JoinedCols[String](_refs.map(_.as[Cols[String]]), lsize)(colIdMemRatio)
+
+  override def apply(l: Long) = {
+    _refs(l)
+  }
+
+  override type ColType = LSeq[T]
+
+  override def schema = cols.schema
+
+  override def _cols = cols._cols
+}
+*/
 
 /**
   * Created by arau on 6.6.2017.
@@ -203,7 +227,7 @@ class MultiCols[ColId](_refs:Array[Ref[_ <: Cols[ColId]]], val colIdMemRatio: In
 
   override val colIds: LSeq[ColId] = schema.colIds
   override val colTypes: LSeq[Type] = schema.colTypes
-  override val colMeta: LSeq[KeyMap] = schema.colMeta
+  override val colMetas: LSeq[KeyMap] = schema.colMetas
 
   private def openMultiCol[T](entry:MergeSortEntry[ColId]) = scoped { implicit bind =>
     val colMap = {

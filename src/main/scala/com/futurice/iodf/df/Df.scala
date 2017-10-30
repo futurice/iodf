@@ -3,6 +3,9 @@ package com.futurice.iodf.df
 import com.futurice.iodf
 import com.futurice.iodf.util.LSeq
 
+import scala.reflect.runtime.universe
+import scala.reflect.runtime.universe._
+
 /**
   * Data frame definition:
   *
@@ -44,17 +47,49 @@ import com.futurice.iodf.util.LSeq
   */
 trait Df[RowType] extends Cols[String] with LSeq[RowType] {
   override def size = lsize.toInt
-  override def openView(from:Long, until:Long) : Df[RowType] =
+
+  override def openView(from: Long, until: Long): Df[RowType] =
     new DfView[RowType](this, from, until)
-  override def openSelect(indexes:LSeq[Long]) : Df[RowType] = {
+
+  override def openSelect(indexes: LSeq[Long]): Df[RowType] = {
     val self = this
     new Df[RowType] {
       override type ColType[T] = LSeq[T]
+
       override def schema = self.schema
+
       override def apply(l: Long) = self.apply(indexes(l))
+
       override def _cols = self._cols.lazyMap { e => e.openSelect(indexes) }
+
       override def lsize = indexes.lsize
-      override def close = self.close
+
+      override def close = {}
+    }
+  }
+
+  override def openSelectSome(indexes: LSeq[Option[Long]]): Df[Option[RowType]] = {
+    val self = this
+    val TypeRef(optPkg, optSymbol, anyArgs) = typeOf[Option[Any]]
+    val _schema =
+      schema.openMapType(t => scala.reflect.runtime.universe.internal.typeRef(optPkg, optSymbol, List(t)))
+
+    new Df[Option[RowType]] {
+      override type ColType[T] = LSeq[T]
+
+      override def schema = _schema
+
+      override def apply(l: Long) =
+        indexes(l).map(self)
+
+      override val _cols =
+        self._cols.lazyMap { e =>
+          e.openSelectSome(indexes).bind(e)
+        }
+
+      override def lsize = indexes.lsize
+
+      override def close = {}
     }
   }
 }
