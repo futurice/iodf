@@ -184,6 +184,13 @@ object Utils {
   def fds = {
     new File("/proc/self/fd").listFiles().length
   }
+
+  def rmpath(path:File): Unit = {
+    if (path.isDirectory) {
+      path.listFiles.foreach { rmpath }
+    }
+    path.delete
+  }
 }
 
 case class SamplingStats(samples:Long, sum:Long, min:Long, max:Long) {
