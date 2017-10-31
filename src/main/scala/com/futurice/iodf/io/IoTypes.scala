@@ -271,9 +271,9 @@ object IoTypes {
 
       val indexDfs      = new IndexIoType(stringValueDfs)
       val tables        = new TableIoType
-      val indexedTables = new IndexedIoType(tables, indexDfs)
+      val indexedTables = new IndexedDfIoType[Row, Table](tables, indexDfs)
       val documents =     new DocumentsIoType(stringDfs)
-      val indexedDocuments = new IndexedIoType(documents, indexDfs)
+      val indexedDocuments = new IndexedDfIoType[Document, Documents](documents, indexDfs)
 
       val intSeq = new IntIoArrayType
       val boolSeq = BitsIoType.booleanSeqIoType(bitsIoType)
@@ -310,7 +310,7 @@ object IoTypes {
           anyArraySeq,
           longArraySeq,
 
-          // map lik
+          // map like
           anyToAnySeq,
           strToAnySeq,
           intToAnySeq,

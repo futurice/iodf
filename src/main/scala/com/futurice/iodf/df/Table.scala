@@ -196,12 +196,12 @@ class TableIoType(implicit io:IoContext) extends MergeableIoType[Table, Table] {
   lazy val dfType =
     io.types.ioTypeOf[Cols[String]].asInstanceOf[MergeableIoType[Cols[String], _ <: Cols[String]]]
 
-  override def viewMerged(seqs: Seq[Ref[Table]]): Table = {
+  override def openViewMerged(seqs: Seq[Ref[Table]]): Table = {
     if (seqs.size == 0) {
       Table.empty // is there better way?
     } else {
       val bind = IoScope.open
-      val df = bind(dfType.viewMerged(seqs.map(_.map(_.df))))
+      val df = bind(dfType.openViewMerged(seqs.map(_.map(_.df))))
       seqs.foreach { e => bind(e.openCopy) }
       Table(seqs.head.get.schema, df, bind)
     }

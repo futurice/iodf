@@ -21,7 +21,7 @@ trait SeqIoType[Member, Interface <: LSeq[Member], IoInstance <: IoSeq[Member] w
     }
   }
   def viewAnyMerged(seqs:Seq[Ref[Any]]) : Interface =
-    viewMerged(seqs.map(_.map(_.asInstanceOf[Interface])))
+    openViewMerged(seqs.map(_.map(_.asInstanceOf[Interface])))
   def writeAnyMerged(out:DataOutput, ss:Seq[Ref[Any]]) = {
     writeMerged(out, ss.map(_.map(_.asInstanceOf[Interface])))
   }

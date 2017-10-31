@@ -60,6 +60,7 @@ class BitsPerf extends TestSuite("perf/bits") {
   }
 
   def testBitPerf(t:TestTool, size:Int) = {
+
     scoped { implicit bind =>
       val dir = bind(new RamDir[String])
 

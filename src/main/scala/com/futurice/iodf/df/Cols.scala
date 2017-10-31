@@ -328,7 +328,7 @@ class ColSchemaIoType[ColId:ClassTag:TypeTag:Ordering](implicit val io:IoContext
     }
   }
 
-  override def viewMerged(seqs: Seq[Ref[ColSchema[ColId]]]) = {
+  override def openViewMerged(seqs: Seq[Ref[ColSchema[ColId]]]) = {
     val openRefs = seqs.map(_.openCopy)
     new MergedColSchema[ColId](
       openRefs.map(_.get).toArray,
@@ -504,7 +504,7 @@ class ColsIoType[ColId:ClassTag:TypeTag:Ordering](implicit val io:IoContext)
     dir.ref(2).save(df.schema)
   }
 
-  override def viewMerged(seqs: Seq[Ref[Cols[ColId]]]): Cols[ColId] = {
+  override def openViewMerged(seqs: Seq[Ref[Cols[ColId]]]): Cols[ColId] = {
     MultiCols.open[ColId](seqs)
   }
 }

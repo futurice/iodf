@@ -72,8 +72,8 @@ object BitsIoType {
             case bools => LBits.from(bools)
           })
       override def valueTypeTag: universe.TypeTag[Boolean] = valueTag
-      def viewMerged(seqs: Seq[Ref[LSeq[Boolean]]]) =
-        bitsType.viewMerged(seqs.map { _.map { _ match {
+      def openViewMerged(seqs: Seq[Ref[LSeq[Boolean]]]) =
+        bitsType.openViewMerged(seqs.map { _.map { _ match {
           case bits : LBits => bits
           case bools : LSeq[Boolean] => LBits.from(bools)
         }}})
@@ -191,7 +191,7 @@ class BitsIoType(val sparse:SparseIoBitsType,
     }
   }
 
-  override def viewMerged(seqs:Seq[Ref[LBits]]) = {
+  override def openViewMerged(seqs:Seq[Ref[LBits]]) = {
     new MultiBits(seqs.toArray)
   }
 

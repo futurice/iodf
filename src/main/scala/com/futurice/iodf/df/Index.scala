@@ -328,8 +328,8 @@ class IndexIoType[ColId:TypeTag:Ordering](val dfType:ColsIoType[(ColId, Any)])
 
   override def ioInstanceType: universe.Type = typeOf[Index[ColId]]
 
-  override def viewMerged(seqs: Seq[Ref[Index[ColId]]]): Index[ColId] =
-    Index[ColId](dfType.viewMerged(seqs.map(_.map(_.df))))
+  override def openViewMerged(seqs: Seq[Ref[Index[ColId]]]): Index[ColId] =
+    Index[ColId](dfType.openViewMerged(seqs.map(_.map(_.df))))
 
   override def open(ref: DataAccess): Index[ColId] =
     Index[ColId](dfType.open(ref))

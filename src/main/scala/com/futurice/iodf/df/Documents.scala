@@ -127,11 +127,11 @@ class DocumentsIoType(dfType:ColsIoType[String]) extends MergeableIoType[Documen
     dfType.write(out, iface.df)
   }
 
-  override def viewMerged(seqs: Seq[Ref[Documents]]): Documents = {
+  override def openViewMerged(seqs: Seq[Ref[Documents]]): Documents = {
     // FIXME: this is somewhat problematic situation, because
     //        we cannot access the schema. How can we handle situations
     //        with empty merge list?
-    Documents(dfType.viewMerged(seqs.map(_.map(_.df))))
+    Documents(dfType.openViewMerged(seqs.map(_.map(_.df))))
   }
 
 }

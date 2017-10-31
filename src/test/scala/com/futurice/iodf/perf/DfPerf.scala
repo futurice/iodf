@@ -183,7 +183,7 @@ class DfPerf extends TestSuite("perf/df") {
                     val df =
                       bind(
                         IndexedObjects(
-                          Indexed(objs, index)))
+                          IndexedDf[ExampleItem, Objects[ExampleItem]](objs, index)))
                     (Await.result(mem.finish, Duration.Inf), df)
                   })
               t.tln

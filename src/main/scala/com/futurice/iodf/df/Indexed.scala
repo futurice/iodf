@@ -30,8 +30,8 @@ object Indexed {
     val indexType = io.types.ioTypeOf[Index[ColId]].asInstanceOf[MergeableIoType[Index[ColId], _ <: ColId]]
 
     Indexed[ColId, T](
-      dfType.viewMerged(dfs.map(_.map(_.df))),
-      indexType.viewMerged(dfs.map(_.map(_.indexDf))))
+      dfType.openViewMerged(dfs.map(_.map(_.df))),
+      indexType.openViewMerged(dfs.map(_.map(_.indexDf))))
   }
 
   def from[ColId:Ordering, T <: Cols[ColId]](df:T, conf:IndexConf[ColId]) : Indexed[ColId, T] = {
@@ -107,8 +107,8 @@ object IndexedDf {
     val indexType = io.types.ioTypeOf[Index[String]].asInstanceOf[MergeableIoType[Index[String], _ <: Index[String]]]
 
     IndexedDf[Row, T](
-      dfType.viewMerged(dfs.map(_.map(_.df))),
-      indexType.viewMerged(dfs.map(_.map(_.indexDf))))
+      dfType.openViewMerged(dfs.map(_.map(_.df))),
+      indexType.openViewMerged(dfs.map(_.map(_.indexDf))))
   }
 
   def from[Row, T <: Df[Row]](df:T, conf:IndexConf[String]) : IndexedDf[Row, T] = {
@@ -214,10 +214,10 @@ class IndexedIoType[ColId, T <: Cols[ColId]](dfType:MergeableIoType[T, _ <: T],
         })
     }
 
-  override def viewMerged(seqs: Seq[Ref[Indexed[ColId, T]]]): Indexed[ColId, T] = {
+  override def openViewMerged(seqs: Seq[Ref[Indexed[ColId, T]]]): Indexed[ColId, T] = {
     Indexed[ColId, T](
-      dfType.viewMerged(seqs.map(_.map(_.df))),
-      indexType.viewMerged(seqs.map(_.map(_.indexDf)))
+      dfType.openViewMerged(seqs.map(_.map(_.df))),
+      indexType.openViewMerged(seqs.map(_.map(_.indexDf)))
     )
   }
 }
@@ -269,10 +269,10 @@ class IndexedDfIoType[Row, T <: Df[Row]](dfType:MergeableIoType[T, _ <: T],
         })
     }
 
-  override def viewMerged(seqs: Seq[Ref[IndexedDf[Row, T]]]): IndexedDf[Row, T] = {
+  override def openViewMerged(seqs: Seq[Ref[IndexedDf[Row, T]]]): IndexedDf[Row, T] = {
     IndexedDf[Row, T](
-      dfType.viewMerged(seqs.map(_.map(_.df))),
-      indexType.viewMerged(seqs.map(_.map(_.indexDf)))
+      dfType.openViewMerged(seqs.map(_.map(_.df))),
+      indexType.openViewMerged(seqs.map(_.map(_.indexDf)))
     )
   }
 }

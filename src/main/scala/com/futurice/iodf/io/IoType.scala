@@ -135,21 +135,27 @@ object ValueIoType {
   }
 }
 
-trait Merging[Interface] {
+trait Merging[Interface <: AutoCloseable] {
 
   /* should this be changed to fold, requiring always some base member for the operation? */
-  def viewMerged(seqs:Seq[Ref[Interface]]) : Interface
+  def openViewMerged(seqs:Seq[Ref[Interface]]) : Interface
+
+  def viewMerged(seqs:Seq[Ref[Interface]])(implicit bind:IoScope) : Interface = {
+    bind(openViewMerged(seqs))
+  }
 
 }
 
-trait SizedMerging[Interface] extends Merging[Interface] {
+trait SizedMerging[Interface <: AutoCloseable] extends Merging[Interface] {
   def defaultInstance(size:Long) : Option[Interface]
 }
 
-trait MergeableIoType[Interface, IoInstance <: Interface] extends IoType[Interface, IoInstance] with Merging[Interface] {
+trait MergeableIoType[Interface <: AutoCloseable, IoInstance <: Interface] extends IoType[Interface, IoInstance] with Merging[Interface] {
 
   def writeMerged(out:DataOutput, ss:Seq[Ref[Interface]]) = {
-    write(out, viewMerged(ss))
+    using (openViewMerged(ss)) { merged =>
+      write(out, merged)
+    }
   }
 }
 

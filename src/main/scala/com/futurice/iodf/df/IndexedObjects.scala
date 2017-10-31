@@ -110,6 +110,6 @@ class IndexedObjectsIoType[T:TypeTag](
   override def write(out: DataOutput, iface: IndexedObjects[T]): Unit =
     indexedIoType.write(out, iface)
 
-  override def viewMerged(seqs: Seq[Ref[IndexedObjects[T]]]): IndexedObjects[T] =
-    IndexedObjects(indexedIoType.viewMerged(seqs))
+  override def openViewMerged(seqs: Seq[Ref[IndexedObjects[T]]]): IndexedObjects[T] =
+    IndexedObjects(indexedIoType.openViewMerged(seqs))
 }

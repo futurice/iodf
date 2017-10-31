@@ -66,7 +66,7 @@ class TableTest extends TestSuite("df/table") {
         val file = MMapFile(new File(t.fileDir, "myDf"))
         implicit val io = IoContext()
 
-        val df = bind(Indexed.from(Table.from(schema, items), indexConf))
+        val df = bind(IndexedTable.from(schema, items, indexConf))
         t.tln
         t.tln("documents:")
         t.tln
@@ -97,7 +97,7 @@ class TableTest extends TestSuite("df/table") {
         val file = MMapFile(new File(t.fileDir, "myDf"))
         implicit val io = IoContext()
 
-        val df = bind(Indexed.from(Table.from(schema, items), indexConf))
+        val df = bind(IndexedTable.from(schema, items, indexConf))
         t.tln
         t.tln("df.select result")
         tDf(t, bind(df.openSelect(LSeq(2L, 0L))))
