@@ -319,6 +319,55 @@ class Tuple2Io[F, S](first:Serializer[F], second:Serializer[S]) extends SingleTy
 
   override def clazz = classOf[(F, S)]
 }
+
+/*
+object TypeIo extends SingleTypedSerializer[Type] {
+
+  val UseStringId = -1
+
+  val TypesByIntId = Array(
+    typeOf[Any],
+    typeOf[Boolean],
+    typeOf[Int],
+    typeOf[Long],
+    typeOf[String],
+    typeOf[Option[Any]],
+    typeOf[Option[Boolean]],
+    typeOf[Option[Int]],
+    typeOf[Option[Long]],
+    typeOf[Option[String]],
+    typeOf[(String, Any)],
+    typeOf[Type]
+  )
+
+  val toFastType = TypesByIntId.zipWithIndex.toMap
+
+  override def clazz: Class[universe.Type] = ???
+
+  override def read(o: DataAccess, pos: Long): universe.Type = {
+    val intId = o.getByte(0)
+    if (intId == UseStringId) {
+      val strId = StringIo.read(o, 1)
+      TypeName(strId)
+
+      //      scala.reflect.runtime.universe.
+      scala.reflect.runtime.universe.runtimeMirror(_).typeOf
+
+
+    } else {
+      TypesByIntId(intId)
+    }
+  }
+
+  override def size(o: DataAccess, pos: Long): Long = {
+    val id = o.getByte(0)
+
+  }
+
+  override def write(o: DataOutput, v: universe.Type): Unit = ???
+}
+*/
+
 object BooleanIo extends SingleTypedSerializer[Boolean] {
   override def read(o: DataAccess, pos: Long): Boolean = {
     o.getByte(pos) != 0
@@ -480,3 +529,4 @@ class StringIoSeqType(implicit ifaceTag:TypeTag[LSeq[String]],
   extends ObjectIoSeqType[String](StringIo, StringIo)(ifaceTag, vTag) {
 
 }
+

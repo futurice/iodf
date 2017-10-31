@@ -234,6 +234,7 @@ object IoTypes {
       val javaIo = new JavaObjectIo[Any]
       val rootIo = new IoVar[Any](None)
       val keyMapIo = new KeyMapIo(StringIo, rootIo)
+
       val variantIo =
         new VariantIo(
           Array(BooleanIo,
@@ -300,6 +301,16 @@ object IoTypes {
       buf ++=
         Seq(
           ValueIoType(variantIo), // any value, backed up by Java serialization
+
+          // FIXME: These are mainly needed for identifying types of objects
+          //        (we need some kind of type identification scheme for this)
+          //        We should create separate TypeIo, which uses hard-coded values for
+          //        for basic types, and long strings for complex types !!!
+
+          ValueIoType(new OptionIo[Boolean](BooleanIo)),
+          ValueIoType(new OptionIo[Int](IntIo)),
+          ValueIoType(new OptionIo[Long](LongIo)),
+          ValueIoType(new OptionIo[String](StringIo)),
 
           ValueIoType(BooleanIo),
           ValueIoType(IntIo),
