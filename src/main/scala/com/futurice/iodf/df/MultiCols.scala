@@ -77,19 +77,20 @@ class MergedColSchema[ColId](schemas:Array[_ <: ColSchema[ColId]],
   }
 
   def entryOfId(id: ColId) : Option[MergeSortEntry[ColId]] = {
-    if (jumpEntries.isEmpty) {
-      None
-    } else Some({
-      val jumpIndex =
-        Utils.binarySearch(LSeq.from(jumpEntries).map[ColId](_.value), id)(colIdOrdering)._2.toInt
-      val jumpEntry = jumpEntries(jumpIndex)
-
-      if (id == jumpEntry.value) {
-        jumpEntry
-      } else {
-        jumpIterator(jumpEntry).scannedValue(id).head
+    Utils.binarySearch(LSeq.from(jumpEntries).map[ColId](_.value), id)(colIdOrdering)
+      ._2.toInt match {
+       case -1 => None
+       case jumpIndex =>
+          val jumpEntry = jumpEntries(jumpIndex)
+          if (id == jumpEntry.value) {
+            Some(jumpEntry)
+          } else {
+            jumpIterator(jumpEntry).scannedValue(id).head match {
+              case e if (id == e.value) => Some(e)
+              case _ => None
+            }
+          }
       }
-    })
   }
 
   def partIndexesToMergeIndexes = {
