@@ -133,11 +133,18 @@ object Table {
     val orderIndex = schema.orderIndex
     val colIds = schema.colIds
     val colTypes = schema.colTypes
+
+/*    val m = runtimeMirror(getClass.getClassLoader)
+    val colClasses = colTypes.lazyMap(t => m.runtimeClass(t)).toArray*/
     val cols = Array.fill(colIds.size)(Array.fill[Any](rows.size)(Unit))
 
     rows.zipWithIndex.foreach { case (row, rowIndex) =>
+      if (row.lsize != schema.colCount) throw new IllegalArgumentException(f"row $rowIndex size is ${row.lsize}, while ${schema.lsize} expected. row is ${row}")
       row.zipWithIndex.foreach { case (value, colOrder) =>
-        cols(orderIndex(colOrder).toInt)(rowIndex) = value
+        val colIndex = orderIndex(colOrder).toInt
+/*        if (!colClasses(colIndex).isAssignableFrom(value.getClass))
+          throw new RuntimeException(f"row $rowIndex column ${colIds(colIndex)} at $colOrder value $value of class ${value.getClass} is not compatible with class ${colClasses(colIndex)} for type ${colTypes(colIndex)}")*/
+        cols(colIndex)(rowIndex) = value
       }
     }
 

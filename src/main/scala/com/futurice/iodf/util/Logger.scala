@@ -7,6 +7,8 @@ class Logger(l:org.slf4j.Logger) {
   def info(msg:String) = l.info(msg)
   def i(msg:String) = info(msg)
 
+  def warn(msg:String) = l.warn(msg)
+  def w(msg:String) = warn(msg)
   def error(msg:String) = l.error(msg)
   def e(msg:String) = error(msg)
   def error(msg:String, e:Throwable) = l.error(msg, e)

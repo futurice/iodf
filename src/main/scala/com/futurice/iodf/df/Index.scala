@@ -96,7 +96,15 @@ object Index {
   }
 
   def index(col:LSeq[_], analyzer:Any => Seq[Any], ordering:Ordering[Any]) : Array[(Any, LBits)] = {
-    val distinct = col.toArray.flatMap(analyzer(_)).distinct.sorted(ordering)
+    val distinct =
+      col.zipWithIndex.toArray.flatMap( e =>
+        try {
+          analyzer(e._1)
+        } catch {
+          case ex : Exception =>
+            throw new IllegalArgumentException("processing row " + e._2 + " value " + e._1 + " failed.", ex)
+        }
+      ).distinct.sorted(ordering)
     val rv = Array.fill(distinct.size)(new ArrayBuffer[Long]())
     val toIndex = distinct.zipWithIndex.toMap
     for (i <- (0L until col.lsize)) {
@@ -141,9 +149,14 @@ object Index {
             using(cols.next) { col =>
               val analyzer = conf.analyzer(colId)
 
-              index(col, analyzer, ordering).iterator match {
-                case indexes if indexes.hasNext => Some((colId, indexes))
-                case empty => getNexts
+              (try {
+                index(col, analyzer, ordering).iterator
+              } catch {
+                case e: Exception =>
+                  throw new IllegalArgumentException("indexing column " + colId + " failed.", e)
+              }) match {
+                  case indexes if indexes.hasNext => Some((colId, indexes))
+                  case empty => getNexts
               }
             }
           case false =>
