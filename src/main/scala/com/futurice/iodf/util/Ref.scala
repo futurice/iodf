@@ -129,6 +129,9 @@ object Ref {
   def open[T](value:T, closer:() => Unit ): Ref[T] = {
     open[T](value, new RefCount(value, closer, 0))
   }
+  def open[T](value:T, closeable:Closeable): Ref[T] = {
+    open[T](value, new RefCount(value, ()=> closeable.close(), 0))
+  }
 
   def open[T](value:T): Ref[T] = {
     value match {
