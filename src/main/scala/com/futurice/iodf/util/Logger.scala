@@ -14,7 +14,7 @@ class Logger(l:org.slf4j.Logger) {
   def error(msg:String, e:Throwable) = l.error(msg, e)
   def e(msg:String, e:Throwable) = error(msg, e)
 
-  def iMs[T](op:String, f : => T) = {
+  def iMs[T](op:String)(f : => T) = {
     val before = System.currentTimeMillis()
     i(op + " started")
     val rv =
@@ -30,7 +30,7 @@ class Logger(l:org.slf4j.Logger) {
     rv
   }
 
-  def iMsHeap[T](op:String, f : => T) = {
+  def iMsHeap[T](op:String)(f : => T) = {
     val beforeMs = System.currentTimeMillis()
     val beforeHeap = Utils.memory
     i(op + " started with " + (beforeHeap / (1024*1024)) + " MB")
@@ -50,6 +50,11 @@ class Logger(l:org.slf4j.Logger) {
 }
 
 object Logger {
+  def logged[T](name:String)(f:Logger => T): T = {
+    val l = Logger(name)
+    l.iMs(name) {f(l)}
+  }
+
   def apply(clazz:Class[_]) = {
     new Logger(LoggerFactory.getLogger(clazz))
   }
