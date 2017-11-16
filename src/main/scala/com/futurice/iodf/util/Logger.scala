@@ -14,7 +14,7 @@ class Logger(l:org.slf4j.Logger) {
   def error(msg:String, e:Throwable) = l.error(msg, e)
   def e(msg:String, e:Throwable) = error(msg, e)
 
-  def iMs[T](op:String)(f : => T) = {
+  def iMs[T](op:String)(f : => T) : T = {
     val before = System.currentTimeMillis()
     i(op + " started")
     val rv =

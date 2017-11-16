@@ -14,14 +14,16 @@ import scala.reflect.runtime.universe._
 
 trait TableSchema extends ColSchema[String] {
 
-  def orderIndex : LSeq[Long]
-  def colOrder : LSeq[Long]
+  /** order to column index */
+  def orderToCol : LSeq[Long]
+  /** column index to order */
+  def colToOrder : LSeq[Long]
 
   def withCol[T:TypeTag](colId:String, meta:KeyValue[_]*) = {
     val colType = typeOf[T]
     val colEntries =
-      ((colIds zip (colOrder zip (colTypes zip colMetas))) ++
-        Seq((colId, (colOrder.lsize, (colType, KeyMap(meta : _*))))))
+      ((colIds zip (colToOrder zip (colTypes zip colMetas))) ++
+        Seq((colId, (colToOrder.lsize, (colType, KeyMap(meta : _*))))))
         .toArray.sortBy(_._1)
 
     TableSchema(
@@ -40,9 +42,9 @@ object TableSchema {
   def apply(_colOrder:LSeq[Long],
             schema : ColSchema[String],
             closer : Closeable = Utils.dummyCloseable) : TableSchema  = new TableSchema() {
-    override lazy val orderIndex =
+    override lazy val orderToCol =
       LSeq.from(_colOrder.toArray.zipWithIndex.sortBy(_._1).map(_._2.toLong))
-    override val colOrder = _colOrder
+    override val colToOrder = _colOrder
     override val colIds   = schema.colIds
     override val colTypes = schema.colTypes
     override val colMetas = schema.colMetas
@@ -57,6 +59,40 @@ object TableSchema {
 trait Row extends LSeq[Any] {
   def apply(order:Long) : Any
   def lsize : Long
+  def withSchema(implicit _schema:TableSchema) = {
+    SchemaRow(this, _schema)
+  }
+  def toDocument(implicit _schema:TableSchema) : Document = {
+    withSchema.toDocument
+  }
+}
+
+trait SchemaRow extends Row {
+  def schema : TableSchema
+  def get(field:String) : Option[Any]
+  def apply(field:String) = get(field).get
+  def toDocument : Document = {
+    Document(
+      this.zipWithIndex.lazyMap { case (v, order) =>
+        schema.colIds(schema.orderToCol(order)) -> v
+      }.toArray :_*)
+  }
+}
+
+object SchemaRow {
+  def apply(row:Row, _schema:TableSchema) = {
+    new SchemaRow {
+      override def schema: TableSchema = _schema
+      override def lsize: Long = row.lsize
+      override def apply(order: Long): Any = row.apply(order)
+      override def get(field:String): Option[Any] = {
+        val self = this
+        schema.colIds.zipWithIndex.find(_._1 == field).map(_._2).map { index =>
+          self.apply(index)
+        }
+      }
+    }
+  }
 }
 
 class RowImpl(values:Seq[Any]) extends Row {
@@ -122,7 +158,7 @@ class Table(val schema:TableSchema, val df:Cols[String], closer:Closeable = Util
         using (openedCol) { _(i) }
       }.toArray
     val byOrder : Array[Any] =
-      schema.orderIndex.toArray.map(i => byColIndex(i.toInt))
+      schema.orderToCol.toArray.map(i => byColIndex(i.toInt))
     Row.from(byOrder)
   }
 }
@@ -130,7 +166,7 @@ class Table(val schema:TableSchema, val df:Cols[String], closer:Closeable = Util
 object Table {
   def empty = Table.from(TableSchema.empty, Seq.empty)
   def from(schema:TableSchema, rows:Seq[Row]) = {
-    val orderIndex = schema.orderIndex
+    val orderIndex = schema.orderToCol
     val colIds = schema.colIds
     val colTypes = schema.colTypes
 
@@ -176,7 +212,7 @@ class TableSchemaIoType(implicit io:IoContext) extends IoType[TableSchema, Table
 
   override def write(out: DataOutput, iface: TableSchema): Unit = scoped { implicit bind =>
     val dir = WrittenOrderDir(out)
-    dir.ref(0).save(iface.colOrder)
+    dir.ref(0).save(iface.colToOrder)
     dir.ref(1).save(iface : ColSchema[String])
   }
 }
