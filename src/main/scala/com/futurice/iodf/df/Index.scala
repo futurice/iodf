@@ -287,12 +287,13 @@ class Index[ColId](_dfRef:Ref[Cols[(ColId, Any)]],
   }
 
   override def openSelectSome(indexes:LSeq[Option[Long]]) = scoped { implicit bind =>
+    val selection = Selection(indexes)
     new Index(
       dfRef.copyMap[Cols[(ColId, Any)]]( df =>
         Cols[(ColId, Any)](
           schema,
           _cols.lazyMap { c =>
-            c.asInstanceOf[LBits].selectSomeStates(indexes).bind(c)
+            c.asInstanceOf[LBits].selectSomeStates(selection).bind(c)
           },
           indexes.lsize)))
   }

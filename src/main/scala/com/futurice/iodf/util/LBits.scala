@@ -6,6 +6,8 @@ import java.util
 import com.futurice.iodf.ioseq.{DenseIoBits, IoBits}
 import com.futurice.iodf._
 
+import scala.collection.mutable.ArrayBuffer
+
 trait LCondBits extends OptionLSeq[Boolean] {
 
   def f : Long
@@ -17,6 +19,7 @@ trait LCondBits extends OptionLSeq[Boolean] {
 }
 
 object LCondBits {
+  def empty = apply(LBits.empty(0), LBits.empty(0))
   def apply(_defined:LBits,
             _states:LBits) = {
     new LCondBits {
@@ -42,6 +45,15 @@ object LCondBits {
         }
       override def lsize = _defined.lsize
     }
+  }
+}
+
+case class Selection(size:Long, sortedIndexToSelection:Array[(Long, Long)]) {}
+
+object Selection {
+  def apply(indexes:LSeq[Option[Long]]) : Selection = {
+    Selection(indexes.size,
+              indexes.zipWithIndex.collect { case (Some(v), i) => (v, i) }.toArray.sortBy(_._1))
   }
 }
 
@@ -79,8 +91,26 @@ trait LBits extends LSeq[Boolean] {
   override def openSelect(indexes:LSeq[Long]) = {
     LBits.from(indexes.lazyMap(i => apply(i)))
   }
-  def selectSomeStates(indexes:LSeq[Option[Long]]) = {
-    LBits.from(indexes.lazyMap(e => e.isDefined && apply(e.get)))
+
+  def selectSomeStates(selection:Selection) : LBits = {
+    val tr = ArrayBuffer[Long]()
+    val sorted = PeekIterator(selection.sortedIndexToSelection.iterator)
+    val myTrues = PeekIterator(trues.iterator)
+    while (sorted.hasNext && myTrues.hasNext) {
+      while (myTrues.hasNext && myTrues.head < sorted.head._1) myTrues.next
+      if (myTrues.hasNext) {
+        while (sorted.hasNext && sorted.head._1 < myTrues.head) sorted.next
+        while (sorted.hasNext && sorted.head._1 == myTrues.head) {
+          tr += sorted.head._2
+          sorted.next
+        }
+      }
+    }
+    LBits(LSeq.from(tr.sorted), selection.size)
+  }
+
+  def selectSomeStates(indexes:LSeq[Option[Long]]) : LBits = {
+    selectSomeStates(Selection(indexes))
   }
   override def openSelectSome(indexes:LSeq[Option[Long]]) = {
     LCondBits(
@@ -186,6 +216,8 @@ class BitsView(bits:LBits, from:Long, until:Long) extends LBits {
 
 object LBits {
   def denseSparseSplit = 256L
+
+
 
   def isDense(f: Long, n: Long) = {
     f * denseSparseSplit > n
@@ -426,6 +458,22 @@ object LBits {
         }
       }
      override def apply(l: Long): Boolean = true
+    }
+  }
+
+  def denseFrom(trueIndexes:LSeq[Long], n:Long) : LBits = {
+    val bits = new util.BitSet(n.toInt)
+    trueIndexes.foreach { i =>
+      bits.set(i.toInt)
+    }
+    from(bits, n)
+  }
+
+  def apply(truesIndexes:LSeq[Long], n:Long) = {
+    if (isDense(truesIndexes.size, n)) {
+      denseFrom(truesIndexes, n)
+    } else {
+      from(truesIndexes, n)
     }
   }
 

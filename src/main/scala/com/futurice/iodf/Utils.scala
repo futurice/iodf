@@ -20,7 +20,7 @@ import scala.reflect.ClassTag
   * NOT thread safe: DO NOT SHARE scopes across threads!
   */
 class IoScope extends Closeable{
-  val closeables = ArrayBuffer[Closeable]()
+  val closeables = ArrayBuffer[AutoCloseable]()
 
   var closed = false
 
@@ -43,7 +43,7 @@ class IoScope extends Closeable{
       throw new IllegalStateException("already closed")
     }
     v match {
-      case c : Closeable =>
+      case c : AutoCloseable =>
         closeables += c
       case _ =>
     }

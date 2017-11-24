@@ -4,6 +4,13 @@ import java.io.Closeable
 
 import com.futurice.iodf.{IoScope, Utils}
 
+trait ResourceLSeq[+T] extends Closeable {
+  def open(i:Long) : T
+  def apply(i:Long)(implicit bind:IoScope) = bind(open(i))
+  def lsize : Long
+}
+
+trait RefLSeq[+T] extends ResourceLSeq[Ref[T]] {}
 
 /* long sequence interface */
 trait LSeq[+T] extends Iterable[T] with PartialFunction[Long, T] with Closeable {
@@ -173,6 +180,18 @@ object OptionLSeq {
       }
       override def lsize = mask.lsize
     }
+  def from[T](opt:Seq[Option[T]]) = {
+    new OptionLSeq[T] {
+      override lazy val defined = LBits.from(opt.map(_.isDefined).toArray)
+      lazy val definedIndexes = defined.trues
+      override lazy val definedStates = definedIndexes.lazyMap { i => opt(i.toInt).get }
+      override def definedStatesWithIndex = definedIndexes.lazyMap { i =>
+        (opt(i.toInt).get, i)
+      }
+      override def apply(l: Long) = opt(l.toInt)
+      override def lsize = opt.size
+    }
+  }
   def from[T](_defined:LBits, _definedValues:LSeq[T]) =
     new OptionLSeq[T] {
       override lazy val defined = _defined

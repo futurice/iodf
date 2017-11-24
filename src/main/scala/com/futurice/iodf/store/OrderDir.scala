@@ -136,6 +136,8 @@ class OrderDir(_data:DataAccess,
     }
   }
 
+  def refs(implicit bind:IoScope) : LSeq[DataRef] = list.map(ref(_))
+
   override def indexByteSize(ord:Long) = {
     val begin = posSeq(ord)
     val end = (if (ord + 1 == posSeq.lsize) dataSize else posSeq(ord + 1))
