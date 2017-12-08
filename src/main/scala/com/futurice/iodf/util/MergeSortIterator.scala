@@ -26,7 +26,9 @@ trait PeekIterator[T] extends Iterator[T] {
     hasNext && ord.equiv(head, t)
   }
   def scanBy[E](f:T => E, t:E)(implicit ord:Ordering[E]) : Boolean = {
-    while (hasNext && ord.lt(f(head),t)) next
+    while (hasNext && ord.lt(f(head),t)) {
+      next
+    }
     hasNext && ord.equiv(f(head), t)
   }
   def scanUntil(until:T => Boolean)(implicit ord:Ordering[T]) : Boolean = {

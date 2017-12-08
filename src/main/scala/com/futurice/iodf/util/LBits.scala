@@ -48,12 +48,19 @@ object LCondBits {
   }
 }
 
-case class Selection(size:Long, sortedIndexToSelection:Array[(Long, Long)]) {}
+case class Selection(size:Long, indexToSelection:Map[Long, Array[Long]]) {}
 
 object Selection {
   def apply(indexes:LSeq[Option[Long]]) : Selection = {
-    Selection(indexes.size,
-              indexes.zipWithIndex.collect { case (Some(v), i) => (v, i) }.toArray.sortBy(_._1))
+    val indexToSelection =
+      indexes
+        .zipWithIndex
+        .filter(_._1.isDefined)
+        .groupBy(_._1.get)
+        .mapValues(_.map(_._2).toArray)
+    Selection(
+      indexes.size,
+      indexToSelection)
   }
 }
 
@@ -94,17 +101,10 @@ trait LBits extends LSeq[Boolean] {
 
   def selectSomeStates(selection:Selection) : LBits = {
     val tr = ArrayBuffer[Long]()
-    val sorted = PeekIterator(selection.sortedIndexToSelection.iterator)
-    val myTrues = PeekIterator(trues.iterator)
-    while (sorted.hasNext && myTrues.hasNext) {
-      while (myTrues.hasNext && myTrues.head < sorted.head._1) myTrues.next
-      if (myTrues.hasNext) {
-        while (sorted.hasNext && sorted.head._1 < myTrues.head) sorted.next
-        while (sorted.hasNext && sorted.head._1 == myTrues.head) {
-          tr += sorted.head._2
-          sorted.next
-        }
-      }
+    trues.foreach { t =>
+      selection.indexToSelection.get(t).foreach(_.foreach { s =>
+        tr += s
+      })
     }
     LBits(LSeq.from(tr.sorted), selection.size)
   }
