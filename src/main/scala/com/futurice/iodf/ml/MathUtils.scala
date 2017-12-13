@@ -6,7 +6,10 @@ object MathUtils {
 
   /** https://en.wikipedia.org/wiki/Inverse-variance_weighting */
   def inverseVarianceWeighting(est1:Double, var1:Double, est2:Double, var2:Double) = {
-    (est1 / var1 + est2 / var2) / (1 / var1 + 1 / var2)
+    if (var1 == 0.0) est1
+    else if (var2 == 0.0) est2
+    else
+      (est1 / var1 + est2 / var2) / (1 / var1 + 1 / var2)
   }
 
   def eP2(f:Long, n:Long, priorP:Double, priorW:Double = 1.0, biasPriorW:Double = 4.0) = {

@@ -57,7 +57,7 @@ class DataAccess(val _dataRef:DataRef,
       throw new RuntimeException("closed")
     }
     if (memory < address || memory >= address + size) {
-      throw new RuntimeException(memory + s" is outside the range [$address, ${address+size}]")
+      throw new RuntimeException(s"byte $memory is outside the memory range [$address, ${address+size}]")
     }
     try {
       unsafe.getByte(memory)
@@ -75,7 +75,7 @@ class DataAccess(val _dataRef:DataRef,
 
   def checkRange(offset:Long, sz:Long) = {
     if (offset < 0 || offset + sz > size) {
-      throw new RuntimeException(offset + s" is outside the range [0, $size]")
+      throw new RuntimeException(s"access range [$offset-${offset+sz}] is outside the data range [0, $size]")
     } else if (isClosed) {
       Tracing.report(this)
       throw new RuntimeException("this reference was to closed memory resource " + m.address)

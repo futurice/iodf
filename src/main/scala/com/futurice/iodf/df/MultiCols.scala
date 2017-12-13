@@ -107,7 +107,11 @@ class MergedColSchema[ColId](schemas:Array[_ <: ColSchema[ColId]],
 
   def mergeEntries = new LSeq[MergeSortEntry[ColId]] {
     override def apply(l: Long) = {
-      entryOfIndex(l).get
+      entryOfIndex(l) match {
+        case Some(v) => v
+        case None =>
+          throw new RuntimeException(f"index $l not found")
+      }
     }
     override def lsize = colIdsLsize
     override def iterator =
