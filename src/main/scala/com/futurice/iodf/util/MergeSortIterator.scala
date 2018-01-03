@@ -140,7 +140,8 @@ class MultiIterable[T](i:Array[Iterable[T]]) extends Iterable[T] {
 }
 
 
-case class MergeSortEntry[T](sources:Array[Int], allSourceIndexes:Array[Long], index:Long, value:T) {
+case class MergeSortEntry[T](sources:Array[Int], allSourceIndexes:Array[Long], index:Long, values:Seq[T]) {
+  def value = values.head
   def sourceIndexes = sources.map(allSourceIndexes)
   override def toString = f"((${sources.mkString(",")}), (${sourceIndexes.mkString(",")}), $index, $value)"
 }
@@ -183,7 +184,9 @@ class MergeSortIterator[T](peeked:Array[_ <: PeekIterator[T]], val sourceIndexes
           .sorted match {
       case entries if entries.size > 0 =>
         val (value, iterator) = entries.head
-        val sources = entries.filter(e => ord.compare(e._1, value) == 0).map(_._2)
+        val filtered = entries.filter(e => ord.compare(e._1, value) == 0)
+        val sources = filtered.map(_._2)
+        val values = filtered.map(_._1)
         val allSourceIndexes = sourceIndexes.clone()
         sources.foreach { source =>
           peeked(source).next // move forward
@@ -191,7 +194,7 @@ class MergeSortIterator[T](peeked:Array[_ <: PeekIterator[T]], val sourceIndexes
         }
         val i = index
         index += 1
-        Some(MergeSortEntry[T](sources, allSourceIndexes, i, value))
+        Some(MergeSortEntry[T](sources, allSourceIndexes, i, values))
       case _ =>
         None
     }
