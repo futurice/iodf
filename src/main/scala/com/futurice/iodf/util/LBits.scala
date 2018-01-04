@@ -366,6 +366,12 @@ object LBits {
     }
   }
 
+  def fill(n:Long, b:Boolean) = {
+    b match {
+      case true => trues(n)
+      case false => falses(n)
+    }
+  }
 
   def empty(n:Long) = {
     val thisn = n
