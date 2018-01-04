@@ -366,6 +366,7 @@ object LBits {
     }
   }
 
+
   def empty(n:Long) = {
     val thisn = n
     new LBits {
@@ -402,6 +403,7 @@ object LBits {
     }
   }
 
+  def falses(n:Long) = empty(n)
   def trues(n:Long) = {
     val thisn = n
     new LBits {
