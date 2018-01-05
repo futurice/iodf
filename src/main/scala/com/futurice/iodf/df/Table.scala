@@ -19,6 +19,8 @@ trait TableSchema extends ColSchema[String] {
   /** column index to order */
   def colToOrder : LSeq[Long]
 
+  def orderOf(name:String) = colToOrder(indexOfColId(name))
+
   def withCol[T:TypeTag](colId:String, meta:KeyValue[_]*) = {
     val colType = typeOf[T]
     val colEntries =

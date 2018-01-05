@@ -43,6 +43,8 @@ trait ColSchema[ColId] extends LSeq[ColType[ColId]] {
   def colIdOrdering : Ordering[ColId]
   def colCount = colIds.lsize
 
+  def indexOfColId(colId:ColId) = Utils.binarySearch(colIds, colId)(colIdOrdering)._1
+
   def openSelectCols(indexes:LSeq[Long]) = {
     implicit val bind = IoScope.open
     ColSchema(colIds.select(indexes),
