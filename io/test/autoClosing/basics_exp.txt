@@ -1,0 +1,8 @@
+a will be here for a while
+  - a opened
+b on the other hand has a limited scope...
+  - b opened
+b became unreachable, let's collect the garbage
+  - b closed
+now a is unreachable, let's collect the garbage
+  - a closed

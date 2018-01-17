@@ -11,6 +11,7 @@ object Tests {
       Seq(
         // core functionality tests
         new UtilsTest,
+        new AutoClosingTest,
         new IoTypesTest,
         new SeqTest,
         new BitsTest,
