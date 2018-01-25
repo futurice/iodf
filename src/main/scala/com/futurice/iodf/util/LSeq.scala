@@ -161,6 +161,10 @@ trait OptionLSeq[T] extends LSeq[Option[T]] {
   def defined : LBits
   def definedStates : LSeq[T]
   def definedStatesWithIndex : LSeq[(T, Long)]
+
+  def lazyMapDefinedStates[B](f : T => B) = {
+    OptionLSeq.from(defined, definedStates.lazyMap(f))
+  }
 }
 
 object OptionLSeq {

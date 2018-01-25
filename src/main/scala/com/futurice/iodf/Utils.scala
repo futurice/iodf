@@ -6,7 +6,7 @@ import scala.reflect.runtime.universe._
 import com.futurice.iodf.io.{DataRef, IoType, IoTypes}
 import com.futurice.iodf.ioseq._
 import com.futurice.iodf.store._
-import com.futurice.iodf.util.{LBits, LSeq, Ref}
+import com.futurice.iodf.util.{AutoClosing, LBits, LSeq, Ref}
 import com.futurice.iodf.Utils._
 import com.futurice.iodf.df.{ColsIoType, IndexedIoType, IndexedObjectsIoType, ObjectsIoType}
 import xerial.larray.buffer.LBufferConfig
@@ -76,6 +76,8 @@ class IoContext(val types:IoTypes, _allocator:Ref[Allocator]) extends Closeable 
   val allocatorRef = _allocator.openCopy
   val allocator = allocatorRef.get
 
+  val autoClosing = AutoClosing()
+
   lazy val bits =
     types.ioTypeOf[LBits].asInstanceOf[BitsIoType]
 
@@ -94,6 +96,7 @@ class IoContext(val types:IoTypes, _allocator:Ref[Allocator]) extends Closeable 
     bind(openAs[T](ref))
 
   override def close(): Unit = {
+    autoClosing.close()
     allocatorRef.close()
   }
 
