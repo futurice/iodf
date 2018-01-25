@@ -3,7 +3,27 @@ package com.futurice.iodf.util
 import com.futurice.iodf.Utils
 import org.slf4j.LoggerFactory
 
-class Logger(l:org.slf4j.Logger) {
+trait Logger {
+  def info(msg:String) : Unit
+  def i(msg:String) : Unit
+
+  def warn(msg:String) : Unit
+  def w(msg:String) : Unit
+  def error(msg:String) : Unit
+  def e(msg:String) : Unit
+  def error(msg:String, e:Throwable) : Unit
+  def e(msg:String, e:Throwable) : Unit
+
+  def iMs[T](op:String)(f : => T) : T
+  def iMsHeap[T](op:String)(f : => T) : T
+}
+
+trait Logging {
+  def apply(clazz:Class[_]) : Logger
+  def apply(name:String) : Logger
+}
+
+class Slf4jLogger(l:org.slf4j.Logger) extends Logger {
   def info(msg:String) = l.info(msg)
   def i(msg:String) = info(msg)
 
@@ -48,17 +68,59 @@ class Logger(l:org.slf4j.Logger) {
   }
 
 }
+class Slf4jLogging extends Logging {
+  def apply(clazz:Class[_]) = {
+    new Slf4jLogger(LoggerFactory.getLogger(clazz))
+  }
+  def apply(name:String) = {
+    new Slf4jLogger(LoggerFactory.getLogger(name))
+  }
+}
+
+object MockLogger extends Logger {
+  def info(msg:String) = Unit
+  def i(msg:String) = Unit
+
+  def warn(msg:String) = Unit
+  def w(msg:String) = Unit
+  def error(msg:String) = Unit
+  def e(msg:String) = Unit
+  def error(msg:String, e:Throwable) = Unit
+  def e(msg:String, e:Throwable) = Unit
+
+  def iMs[T](op:String)(f : => T) : T = f
+  def iMsHeap[T](op:String)(f : => T) : T = f
+}
+
+
+object MockLogging extends Logging{
+  def apply(clazz:Class[_]) = MockLogger
+  def apply(name:String) = MockLogger
+}
 
 object Logger {
+
+  var logging : Logging = new Slf4jLogging()
+
+
+  def setLogging(logging:Logging) = {
+    this.logging = logging
+  }
+
+  def apply(clazz:Class[_]) = logging(clazz)
+  def apply(name:String) = logging(name)
+
   def logged[T](name:String)(f:Logger => T): T = {
     val l = Logger(name)
     l.iMs(name) {f(l)}
   }
 
-  def apply(clazz:Class[_]) = {
-    new Logger(LoggerFactory.getLogger(clazz))
+  def loggingDisabled[T](f : => T) = {
+    val old =  logging
+    setLogging(MockLogging)
+    val rv : T = f
+    setLogging(old)
+    rv
   }
-  def apply(name:String) = {
-    new Logger(LoggerFactory.getLogger(name))
-  }
+
 }
