@@ -1,6 +1,7 @@
 package com.futurice.iodf
 
 import java.io.{Closeable, File}
+import java.nio.file.{AtomicMoveNotSupportedException, Files, Path, StandardCopyOption}
 
 import scala.reflect.runtime.universe._
 import com.futurice.iodf.io.{DataRef, IoType, IoTypes}
@@ -9,6 +10,7 @@ import com.futurice.iodf.store._
 import com.futurice.iodf.util.{AutoClosing, LBits, LSeq, Ref}
 import com.futurice.iodf.Utils._
 import com.futurice.iodf.df.{ColsIoType, IndexedIoType, IndexedObjectsIoType, ObjectsIoType}
+import org.slf4j.{Logger, LoggerFactory}
 import xerial.larray.buffer.LBufferConfig
 
 import scala.annotation.tailrec
@@ -127,6 +129,8 @@ object IoContext {
   */
 object Utils {
 
+  private val logger = LoggerFactory.getLogger(getClass)
+
   val dummyCloseable = new Closeable {
     override def close() = {}
   }
@@ -164,13 +168,49 @@ object Utils {
     recursion(from, Math.min(until, sortedSeq.lsize) - 1)
   }*/
 
+  /**
+    * Move the file at path <code>from</code> to the path <code>to</code> or fail verbosely if the operation fails
+    *
+    * @param from the file to move
+    * @param to the location to move the file to
+    * @return the path to the created file, if the move succeeds as an atomic fs-operation
+    *
+    * @throws AtomicMoveNotSupportedException if the file cannot be moved in atomic fashion
+    * @throws SecurityException if there's a permissions problem that prevents from completing the operation
+    * @throws RuntimeException if the results file could not be created for an unknown reason
+    */
+  def atomicMove(from: Path, to: Path): Path = {
+    try {
+      val pathOfMovedFile = Files.move(from, to, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+
+      if (!Files.exists(pathOfMovedFile)) {
+        throw new RuntimeException(s"Failed to move '${from}' to '${to}'. Results file does not exist after move")
+      }
+
+      pathOfMovedFile
+    } catch {
+      case ame : AtomicMoveNotSupportedException => {
+        logger.error(s"Atomic move of file '${from}' to '${to}' failed, since atomic move is not supported", ame)
+        throw ame
+      }
+      case se : SecurityException => {
+        logger.error(s"Moving file '${from}' -> '${to}' failed due to security constraints", se)
+        throw se
+      }
+    }
+  }
+
+
   def atomicWrite(file:File)(writer:File => Unit): Unit = {
     val tmpFile = new File(file.getParentFile, file.getName + ".tmp")
+    val pathOfTempFile = tmpFile.toPath
+    val pathOfResultsFile = file.toPath
+    
     try {
       writer(tmpFile)
-      tmpFile.renameTo(file)
+      atomicMove(pathOfTempFile, pathOfResultsFile)
     } finally {
-      tmpFile.delete()
+      Files.delete(pathOfTempFile)
     }
   }
 

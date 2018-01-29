@@ -1,12 +1,15 @@
 package com.futurice.iodf.store
 
 import java.io._
+import java.nio.file.StandardCopyOption.{ATOMIC_MOVE, REPLACE_EXISTING}
+import java.nio.file._
 
 import com.futurice.iodf.{IoScope, io}
 import com.futurice.iodf.util.{LSeq, Ref}
 import com.futurice.iodf.Utils._
 import com.futurice.iodf._
 import com.futurice.iodf.io.{DataAccess, DataOutputMixin, DataRef}
+import org.slf4j.LoggerFactory
 import xerial.larray.buffer.{LBufferAPI, Memory}
 import xerial.larray.mmap.{MMapBuffer, MMapMode}
 
@@ -16,7 +19,9 @@ object MMapDir {
 }
 
 object MMapFile {
-  def apply(file:File)(implicit bind:IoScope) = {
+  private val logger = LoggerFactory.getLogger(getClass)
+
+  def apply(file:File)(implicit bind:IoScope): MutableFileRef[String] = {
     val d = MMapDir(file.getParentFile)
     val rv = d.ref(file.getName)
     d.close
@@ -36,6 +41,8 @@ object MMapFile {
   */
 class MMapDir(dir:File) extends MutableDir[String] {
 
+  val logger = LoggerFactory.getLogger(getClass)
+
   dir.mkdirs()
 
   def file(name:String) = new File(dir, name)
@@ -50,10 +57,11 @@ class MMapDir(dir:File) extends MutableDir[String] {
         new BufferedOutputStream(new FileOutputStream(tmp))
       var pos = 0L
 
-      override def close = {
+      override def close: Unit = {
         out.close
-        tmp.renameTo(file(name))
+        Utils.atomicMove(tmp.toPath, file(name).toPath)
       }
+
       override def openDataRef: DataRef = {
         out.flush
         MMapDir.this.openRef(name)
