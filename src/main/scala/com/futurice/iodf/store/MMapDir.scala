@@ -51,15 +51,17 @@ class MMapDir(dir:File) extends MutableDir[String] {
 
   override def create(name: String) =
     new io.DataOutput with DataOutputMixin {
+      private val parentPath: Path = dir.toPath
       val tmp =
-        File.createTempFile(dir.getName + "-" + name, ".tmp")
+        Files.createTempFile(parentPath, name, "tmp")
+
       val out =
-        new BufferedOutputStream(new FileOutputStream(tmp))
+        new BufferedOutputStream(Files.newOutputStream(tmp))
       var pos = 0L
 
       override def close: Unit = {
         out.close
-        Utils.atomicMove(tmp.toPath, file(name).toPath)
+        Utils.atomicMove(tmp, file(name).toPath)
       }
 
       override def openDataRef: DataRef = {
