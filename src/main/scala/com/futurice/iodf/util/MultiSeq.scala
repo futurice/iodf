@@ -20,11 +20,13 @@ class MultiSeq[T, S <: LSeq[T]](_refs:Array[Ref[_ <: S]]) extends LSeq[T] with C
 
   val (ranges, lsize) = {
     var offset = 0L
-    (seqs.map { seq =>
+    val rv = new Array[(Long, Long)](seqs.size)
+    seqs.zipWithIndex.foreach { case (seq, i) =>
       val begin = offset
       offset += seq.lsize
-      (begin, offset)
-    }, offset)
+      rv(i) = (begin, offset)
+    }
+    (rv, offset)
   }
   def toSeqIndex(index:Long) = {
     ranges.zipWithIndex.find( index < _._1._2 ).map { case ((begin, end), seqIndex) =>

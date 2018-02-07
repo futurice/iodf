@@ -37,7 +37,11 @@ object MultiBits {
 class MultiBits(_refs:Array[Ref[_ <: LBits]]) extends MultiSeq[Boolean, LBits](_refs) with LBits {
   val bits = refs.map(_.get)
   override lazy val f: Long = {
-    bits.map(_.f).sum
+    var rv = 0L
+    bits.foreach { b =>
+      rv  += b.f
+    }
+    rv
   }
 
   override def leLongs : Iterable[Long] = new Iterable[Long] {
