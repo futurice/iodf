@@ -241,6 +241,7 @@ class Index[ColId](_dfRef:Ref[Cols[(ColId, Any)]],
   override def col[T <: Any](i:Long)(implicit scope:IoScope) = df.col[T](i)
 
 
+  /* TODO, FIXME: do not return (colId, value) pairs, but only values!!!*/
   def colIdValues[T <: Any](colId:ColId) : LSeq[(ColId, T)] = {
     val from =
       df.indexFloorAndCeil(colId -> MinBound())._3
@@ -248,6 +249,7 @@ class Index[ColId](_dfRef:Ref[Cols[(ColId, Any)]],
       df.indexFloorAndCeil(colId -> MaxBound())._3
     df.colIds.view(from, until).map[(ColId, T)] { case (key, value) => (key, value.asInstanceOf[T]) }
   }
+  /* TODO, FIXME: do not return (colId, value) pairs, but only values!!!*/
   def colIdValuesWithIndex[T <: Any](colId:ColId) : LSeq[((ColId, T), Long)] = {
     val from =
       df.indexFloorAndCeil(colId -> MinBound())._3
