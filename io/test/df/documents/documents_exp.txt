@@ -2,11 +2,11 @@
 
 colIds are: 
 
-  bigNumber 
-  name 
-  number 
-  property 
-  text 
+  bigNumber:scala.Option[Long] 
+  name:scala.Option[String] 
+  number:scala.Option[Int] 
+  property:scala.Option[Boolean] 
+  text:scala.Option[String] 
 
 columns are: 
 
@@ -23,17 +23,17 @@ contents:
   Document(name -> c, number -> 3, text -> more text here)
 
 
-writing df..4 ms (was 3 ms)
+writing df..5 ms (was 4 ms)
 
-opening df..2 ms (was 1 ms)
+opening df..1 ms (was 2 ms)
 
 colIds are: 
 
-  bigNumber 
-  name 
-  number 
-  property 
-  text 
+  bigNumber:scala.Option[Long] 
+  name:scala.Option[String] 
+  number:scala.Option[Int] 
+  property:scala.Option[Boolean] 
+  text:scala.Option[String] 
 
 columns are: 
 

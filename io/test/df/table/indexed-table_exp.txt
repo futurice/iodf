@@ -4,14 +4,20 @@ documents:
 
 colIds are: 
 
-  id 
-  optionInt comment:cake
-  property 
-  text 
+  double:Double 
+  float:Float 
+  id:java.lang.String 
+  optionDouble:scala.Option[Double] 
+  optionInt:scala.Option[Int] comment:cake
+  property:Boolean 
+  text:java.lang.String 
 
 columns are: 
 
+  0.123,0.423,435.4
+  0.43,0.43,0.43
   a,b,c
+  Some(0.5345),None,Some(4.3)
   Some(4),None,Some(5)
   true,false,true
   text here,some text,some things here
@@ -21,24 +27,38 @@ index:
 
 colIds are: 
 
-  (id,a) 
-  (id,b) 
-  (id,c) 
-  (optionInt,Some(4)) 
-  (optionInt,Some(5)) 
-  (optionInt,None) 
-  (property,false) 
-  (property,true) 
-  (text,here) 
-  (text,some) 
-  (text,text) 
-  (text,things) 
+  (double,0.123):Boolean 
+  (double,0.423):Boolean 
+  (double,435.4):Boolean 
+  (float,0.43):Boolean 
+  (id,a):Boolean 
+  (id,b):Boolean 
+  (id,c):Boolean 
+  (optionDouble,Some(0.5345)):Boolean 
+  (optionDouble,Some(4.3)):Boolean 
+  (optionDouble,None):Boolean 
+  (optionInt,Some(4)):Boolean 
+  (optionInt,Some(5)):Boolean 
+  (optionInt,None):Boolean 
+  (property,false):Boolean 
+  (property,true):Boolean 
+  (text,here):Boolean 
+  (text,some):Boolean 
+  (text,text):Boolean 
+  (text,things):Boolean 
 
 columns are: 
 
   true,false,false
   false,true,false
   false,false,true
+  true,true,true
+  true,false,false
+  false,true,false
+  false,false,true
+  true,false,false
+  false,false,true
+  false,true,false
   true,false,false
   false,false,true
   false,true,false
@@ -49,22 +69,28 @@ columns are:
   true,true,false
   false,false,true
 
-writing df..20 ms (was 20 ms)
+writing df..18 ms 
 
-opening df..6 ms (was 7 ms)
+opening df..7 ms 
 documents:
 
 
 colIds are: 
 
-  id 
-  optionInt comment:cake
-  property 
-  text 
+  double:Double 
+  float:Any 
+  id:String 
+  optionDouble:scala.Option[Double] 
+  optionInt:scala.Option[Int] comment:cake
+  property:Boolean 
+  text:String 
 
 columns are: 
 
+  0.123,0.423,435.4
+  0.43,0.43,0.43
   a,b,c
+  Some(0.5345),None,Some(4.3)
   Some(4),None,Some(5)
   true,false,true
   text here,some text,some things here
@@ -74,24 +100,38 @@ index:
 
 colIds are: 
 
-  (id,a) 
-  (id,b) 
-  (id,c) 
-  (optionInt,Some(4)) 
-  (optionInt,Some(5)) 
-  (optionInt,None) 
-  (property,false) 
-  (property,true) 
-  (text,here) 
-  (text,some) 
-  (text,text) 
-  (text,things) 
+  (double,0.123):Boolean 
+  (double,0.423):Boolean 
+  (double,435.4):Boolean 
+  (float,0.43):Boolean 
+  (id,a):Boolean 
+  (id,b):Boolean 
+  (id,c):Boolean 
+  (optionDouble,Some(0.5345)):Boolean 
+  (optionDouble,Some(4.3)):Boolean 
+  (optionDouble,None):Boolean 
+  (optionInt,Some(4)):Boolean 
+  (optionInt,Some(5)):Boolean 
+  (optionInt,None):Boolean 
+  (property,false):Boolean 
+  (property,true):Boolean 
+  (text,here):Boolean 
+  (text,some):Boolean 
+  (text,text):Boolean 
+  (text,things):Boolean 
 
 columns are: 
 
   true,false,false
   false,true,false
   false,false,true
+  true,true,true
+  true,false,false
+  false,true,false
+  false,false,true
+  true,false,false
+  false,false,true
+  false,true,false
   true,false,false
   false,false,true
   false,true,false

@@ -22,11 +22,14 @@ class TableTest extends TestSuite("df/table") {
       .withCol[String]("text")
       .withCol[Boolean]("property")
       .withCol[Option[Int]]("optionInt", comment -> "cake")
+      .withCol[Double]("double")
+      .withCol[Option[Double]]("optionDouble")
+      .withCol[Float]("float")
 
   val items = Array(
-    Row("a", "text here",        true,  Some(4)),
-    Row("b", "some text",        false, None),
-    Row("c", "some things here", true,  Some(5))
+    Row("a", "text here",        true,  Some(4), 0.123, Some(0.5345), 0.43),
+    Row("b", "some text",        false, None,    0.423, None, 0.43),
+    Row("c", "some things here", true,  Some(5), 435.4, Some(4.3), 0.43)
   )
 
   val indexConf =

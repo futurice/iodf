@@ -4,11 +4,11 @@ documents:
 
 colIds are: 
 
-  bigNumber 
-  name 
-  number 
-  property 
-  text 
+  bigNumber:scala.Option[Long] 
+  name:scala.Option[String] 
+  number:scala.Option[Int] 
+  property:scala.Option[Boolean] 
+  text:scala.Option[String] 
 
 columns are: 
 
@@ -23,22 +23,22 @@ index:
 
 colIds are: 
 
-  (bigNumber,Some(3450324234233242)) 
-  (bigNumber,None) 
-  (name,Some(a)) 
-  (name,Some(b)) 
-  (name,Some(c)) 
-  (number,Some(3)) 
-  (number,None) 
-  (property,Some(false)) 
-  (property,Some(true)) 
-  (property,None) 
-  (text,false) 
-  (text,true) 
-  (text,here) 
-  (text,more) 
-  (text,some) 
-  (text,text) 
+  (bigNumber,Some(3450324234233242)):Boolean 
+  (bigNumber,None):Boolean 
+  (name,Some(a)):Boolean 
+  (name,Some(b)):Boolean 
+  (name,Some(c)):Boolean 
+  (number,Some(3)):Boolean 
+  (number,None):Boolean 
+  (property,Some(false)):Boolean 
+  (property,Some(true)):Boolean 
+  (property,None):Boolean 
+  (text,false):Boolean 
+  (text,true):Boolean 
+  (text,here):Boolean 
+  (text,more):Boolean 
+  (text,some):Boolean 
+  (text,text):Boolean 
 
 columns are: 
 
@@ -59,19 +59,19 @@ columns are:
   true,false,false
   true,false,true
 
-writing df..3 ms (was 47 ms)
+writing df..7 ms (was 3 ms)
 
-opening df..3 ms (was 119 ms)
+opening df..6 ms (was 3 ms)
 documents:
 
 
 colIds are: 
 
-  bigNumber 
-  name 
-  number 
-  property 
-  text 
+  bigNumber:scala.Option[Long] 
+  name:scala.Option[String] 
+  number:scala.Option[Int] 
+  property:scala.Option[Boolean] 
+  text:scala.Option[String] 
 
 columns are: 
 
@@ -86,22 +86,22 @@ index:
 
 colIds are: 
 
-  (bigNumber,Some(3450324234233242)) 
-  (bigNumber,None) 
-  (name,Some(a)) 
-  (name,Some(b)) 
-  (name,Some(c)) 
-  (number,Some(3)) 
-  (number,None) 
-  (property,Some(false)) 
-  (property,Some(true)) 
-  (property,None) 
-  (text,false) 
-  (text,true) 
-  (text,here) 
-  (text,more) 
-  (text,some) 
-  (text,text) 
+  (bigNumber,Some(3450324234233242)):Boolean 
+  (bigNumber,None):Boolean 
+  (name,Some(a)):Boolean 
+  (name,Some(b)):Boolean 
+  (name,Some(c)):Boolean 
+  (number,Some(3)):Boolean 
+  (number,None):Boolean 
+  (property,Some(false)):Boolean 
+  (property,Some(true)):Boolean 
+  (property,None):Boolean 
+  (text,false):Boolean 
+  (text,true):Boolean 
+  (text,here):Boolean 
+  (text,more):Boolean 
+  (text,some):Boolean 
+  (text,text):Boolean 
 
 columns are: 
 

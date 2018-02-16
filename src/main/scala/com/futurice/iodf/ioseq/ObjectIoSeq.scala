@@ -425,6 +425,20 @@ object StringIo extends SingleTypedSerializer[String] {
   override def clazz = classOf[String]
 }
 
+object DoubleIo extends SingleTypedSerializer[Double] {
+  override def read(o: DataAccess, pos: Long) : Double = {
+    java.lang.Double.longBitsToDouble(o.getBeLong(pos))
+  }
+
+  override def write(o: DataOutput, v: Double): Unit = {
+    o.writeLong(java.lang.Double.doubleToLongBits(v))
+  }
+  override def size(o: DataAccess, pos: Long): Long = {
+    8
+  }
+  override def clazz = classOf[Double]
+}
+
 class KeyMapIo(stringIo:Serializer[String],
                anyIo:Serializer[Any]) extends SingleTypedSerializer[KeyMap] {
 

@@ -2,46 +2,58 @@
 
 colIds are: 
 
-  id 
-  optionInt comment:cake
-  property 
-  text 
+  double:Double 
+  float:Float 
+  id:java.lang.String 
+  optionDouble:scala.Option[Double] 
+  optionInt:scala.Option[Int] comment:cake
+  property:Boolean 
+  text:java.lang.String 
 
 columns are: 
 
+  0.123,0.423,435.4
+  0.43,0.43,0.43
   a,b,c
+  Some(0.5345),None,Some(4.3)
   Some(4),None,Some(5)
   true,false,true
   text here,some text,some things here
 
 contents:
 
-  Row(               a,        text here,             true,          Some(4))
-  Row(               b,        some text,            false,             None)
-  Row(               c, some things here,             true,          Some(5))
+  Row(               a,        text here,             true,          Some(4),            0.123,     Some(0.5345),             0.43)
+  Row(               b,        some text,            false,             None,            0.423,             None,             0.43)
+  Row(               c, some things here,             true,          Some(5),            435.4,        Some(4.3),             0.43)
 
 
-writing df..89 ms (was 373 ms)
+writing df..98 ms (was 5 ms)
 
-opening df..39 ms (was 46 ms)
+opening df..27 ms 
 
 colIds are: 
 
-  id 
-  optionInt comment:cake
-  property 
-  text 
+  double:Double 
+  float:Any 
+  id:String 
+  optionDouble:scala.Option[Double] 
+  optionInt:scala.Option[Int] comment:cake
+  property:Boolean 
+  text:String 
 
 columns are: 
 
+  0.123,0.423,435.4
+  0.43,0.43,0.43
   a,b,c
+  Some(0.5345),None,Some(4.3)
   Some(4),None,Some(5)
   true,false,true
   text here,some text,some things here
 
 contents:
 
-  Row(               a,        text here,             true,          Some(4))
-  Row(               b,        some text,            false,             None)
-  Row(               c, some things here,             true,          Some(5))
+  Row(               a,        text here,             true,          Some(4),            0.123,     Some(0.5345),             0.43)
+  Row(               b,        some text,            false,             None,            0.423,             None,             0.43)
+  Row(               c, some things here,             true,          Some(5),            435.4,        Some(4.3),             0.43)
 

@@ -25,9 +25,9 @@ object TestUtil {
     t.tln
     t.tln("colIds are: ")
     t.tln
-    df.colIds.zipWithIndex.foreach {
-      case (id, index) =>
-        t.tln("  " + id + " " + df.colMetas(index).map(kv => kv.key.name + ":" + kv.value).mkString(", "))
+    df.schema.zipWithIndex.foreach {
+      case (typ, index) =>
+        t.tln("  " + typ.id + ":" + typ.typ + " " + df.colMetas(index).map(kv => kv.key.name + ":" + kv.value).mkString(", "))
     }
     t.tln
     t.tln("columns are: ")

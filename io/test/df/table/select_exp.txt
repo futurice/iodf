@@ -3,14 +3,20 @@ df.select result
 
 colIds are: 
 
-  id 
-  optionInt comment:cake
-  property 
-  text 
+  double:Double 
+  float:Float 
+  id:java.lang.String 
+  optionDouble:scala.Option[Double] 
+  optionInt:scala.Option[Int] comment:cake
+  property:Boolean 
+  text:java.lang.String 
 
 columns are: 
 
+  435.4,0.123
+  0.43,0.43
   c,a
+  Some(4.3),Some(0.5345)
   Some(5),Some(4)
   true,true
   some things here,text here
@@ -20,24 +26,38 @@ df.indexDf.select result
 
 colIds are: 
 
-  (id,a) 
-  (id,b) 
-  (id,c) 
-  (optionInt,Some(4)) 
-  (optionInt,Some(5)) 
-  (optionInt,None) 
-  (property,false) 
-  (property,true) 
-  (text,here) 
-  (text,some) 
-  (text,text) 
-  (text,things) 
+  (double,0.123):Boolean 
+  (double,0.423):Boolean 
+  (double,435.4):Boolean 
+  (float,0.43):Boolean 
+  (id,a):Boolean 
+  (id,b):Boolean 
+  (id,c):Boolean 
+  (optionDouble,Some(0.5345)):Boolean 
+  (optionDouble,Some(4.3)):Boolean 
+  (optionDouble,None):Boolean 
+  (optionInt,Some(4)):Boolean 
+  (optionInt,Some(5)):Boolean 
+  (optionInt,None):Boolean 
+  (property,false):Boolean 
+  (property,true):Boolean 
+  (text,here):Boolean 
+  (text,some):Boolean 
+  (text,text):Boolean 
+  (text,things):Boolean 
 
 columns are: 
 
   false,true
   false,false
   true,false
+  true,true
+  false,true
+  false,false
+  true,false
+  false,true
+  true,false
+  false,false
   false,true
   true,false
   false,false
@@ -53,24 +73,38 @@ df.indexDf.selectSome result
 
 colIds are: 
 
-  (id,a) 
-  (id,b) 
-  (id,c) 
-  (optionInt,Some(4)) 
-  (optionInt,Some(5)) 
-  (optionInt,None) 
-  (property,false) 
-  (property,true) 
-  (text,here) 
-  (text,some) 
-  (text,text) 
-  (text,things) 
+  (double,0.123):Boolean 
+  (double,0.423):Boolean 
+  (double,435.4):Boolean 
+  (float,0.43):Boolean 
+  (id,a):Boolean 
+  (id,b):Boolean 
+  (id,c):Boolean 
+  (optionDouble,Some(0.5345)):Boolean 
+  (optionDouble,Some(4.3)):Boolean 
+  (optionDouble,None):Boolean 
+  (optionInt,Some(4)):Boolean 
+  (optionInt,Some(5)):Boolean 
+  (optionInt,None):Boolean 
+  (property,false):Boolean 
+  (property,true):Boolean 
+  (text,here):Boolean 
+  (text,some):Boolean 
+  (text,text):Boolean 
+  (text,things):Boolean 
 
 columns are: 
 
   false,false,false,false
   true,false,false,true
   false,false,true,false
+  true,false,true,true
+  false,false,false,false
+  true,false,false,true
+  false,false,true,false
+  false,false,false,false
+  false,false,true,false
+  true,false,false,true
   false,false,false,false
   false,false,true,false
   true,false,false,true

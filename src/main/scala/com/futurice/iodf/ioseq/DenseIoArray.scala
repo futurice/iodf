@@ -106,3 +106,18 @@ class LongIoArrayType(implicit ifaceTag:TypeTag[LSeq[Long]], instanceTag: TypeTa
   def newInstance(ref: IoRef[IoArray[Long]], buf: DataAccess) =
     new LongIoArray(ref, buf)
 }
+
+class DoubleIoArray(ref:IoRef[IoArray[Double]], _buf:DataAccess)
+  extends IoArray[Double](ref, _buf) {
+  override def apply(l: Long) : Double = {
+    java.lang.Double.longBitsToDouble(buf.getBeLong(offset + l*8))
+  }
+}
+
+class DoubleIoArrayType(implicit ifaceTag:TypeTag[LSeq[Double]], instanceTag: TypeTag[IoArray[Double]], valueTag:TypeTag[Double])
+  extends IoArrayType[Double]()(ifaceTag, instanceTag, valueTag) {
+  override def unitByteSize: Long = 8
+  def writeUnit(out:DataOutput, v:Double) = out.writeLong(java.lang.Double.doubleToLongBits(v))
+  def newInstance(ref: IoRef[IoArray[Double]], buf: DataAccess) =
+    new DoubleIoArray(ref, buf)
+}

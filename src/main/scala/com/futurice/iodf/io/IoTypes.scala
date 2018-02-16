@@ -240,6 +240,7 @@ object IoTypes {
           Array(BooleanIo,
                 IntIo,
                 LongIo,
+                DoubleIo,
                 StringIo,
                 keyMapIo,
                 new OptionIo[Any](rootIo),
@@ -257,6 +258,7 @@ object IoTypes {
           new DenseIoBitsType())
 
       val longSeq = new LongIoArrayType
+      val doubleSeq = new DoubleIoArrayType
 
       implicit val stringValueOrdering = Index.indexColIdOrdering[String]
       implicit val intValueOrdering = Index.indexColIdOrdering[Int]
@@ -279,6 +281,7 @@ object IoTypes {
       val intSeq = new IntIoArrayType
       val boolSeq = BitsIoType.booleanSeqIoType(bitsIoType)
 
+      val doubleArrayIo = new ArrayIo[Double](DoubleIo)
       val longArrayIo = new ArrayIo[Long](LongIo)
       val anyArrayIo = new ArrayIo[Any](rootIo)
       val anyToAnyIo = new Tuple2Io[Any, Any](rootIo, rootIo)
@@ -310,11 +313,13 @@ object IoTypes {
           ValueIoType(new OptionIo[Boolean](BooleanIo)),
           ValueIoType(new OptionIo[Int](IntIo)),
           ValueIoType(new OptionIo[Long](LongIo)),
+          ValueIoType(new OptionIo[Double](DoubleIo)),
           ValueIoType(new OptionIo[String](StringIo)),
 
           ValueIoType(BooleanIo),
           ValueIoType(IntIo),
           ValueIoType(LongIo),
+          ValueIoType(DoubleIo),
           ValueIoType(StringIo),
 
           anySeq, // sequence of any value
@@ -330,15 +335,18 @@ object IoTypes {
           new ObjectIoSeqType[(String, Any)](tupleIo, tupleIo),
           new ObjectIoSeqType[(String, Int)](stringIntIo, stringIntIo),
           new ObjectIoSeqType[KeyMap](keyMapIo, keyMapIo),
-          strSeq,
+
+          boolSeq,
           intSeq,
           longSeq,
-          boolSeq,
+          doubleSeq,
+          strSeq,
           bitsIoType, // prefer lbits type over seq[boolean] type
 
           OptionIoSeqType(boolSeq, longSeq),
           OptionIoSeqType(intSeq, longSeq),
           OptionIoSeqType(longSeq, longSeq),
+          OptionIoSeqType(doubleSeq, longSeq),
           OptionIoSeqType(strSeq, longSeq),
 
           stringSchema,
