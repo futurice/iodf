@@ -7,6 +7,10 @@ import com.futurice.iodf.util.{Handle, Ref, Tracing}
 import org.slf4j.LoggerFactory
 import xerial.larray.buffer.{Memory, UnsafeUtil}
 
+object DataAccess {
+  lazy val unsafe = UnsafeUtil.getUnsafe
+}
+
 /**
   * Random Access to some data.
   *
@@ -43,7 +47,7 @@ class DataAccess(val _dataRef:DataRef,
   val address = m.address() + from
   val size    = until.getOrElse(m.dataSize()) - from
 
-  val unsafe = UnsafeUtil.getUnsafe
+  val unsafe = DataAccess.unsafe
 
   if (address < m.address() || address + size > m.address() + m.size())
     throw new RuntimeException(f"slice [$from, ${from+size}] ouf of bounds [0, ${m.size}]")

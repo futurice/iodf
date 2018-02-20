@@ -75,6 +75,11 @@ trait LSeq[+T] extends Iterable[T] with PartialFunction[Long, T] with Closeable 
     }
   }
 
+  // TODO, FIXME: remplement all Seq APIs
+
+  override def drop(i:Int) = drop(i.toLong)
+  def drop(i:Long) = view(i, size)
+
   def iterator : Iterator[T] = new Iterator[T] {
     var i = 0L
     override def hasNext: Boolean = {
