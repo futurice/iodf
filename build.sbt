@@ -13,7 +13,9 @@ lazy val iodf = (project in file(".")).
 
       "org.slf4j" % "slf4j-api" % "1.7.21",
       "ch.qos.logback" %  "logback-classic" % "1.1.7" % Test,
-      "com.futurice" % "testtoys_2.12" % "0.2" % Test
+      "com.futurice" % "testtoys_2.12" % "0.2" % Test,
+      "org.scalatest" %% "scalatest" % "3.0.4" % Test,
+      "org.scalacheck" %% "scalacheck" % "1.13.4" % Test
     )
 )
 

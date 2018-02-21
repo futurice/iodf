@@ -94,7 +94,12 @@ class MMapDir(dir:File) extends MutableDir[String] {
     }
   }
 
-  override def list = LSeq.from(dir.list.sorted)
+  override def list = {
+   Option(dir.list) match {
+     case None => throw new NoSuchFileException(s"MMapDir does not exist or is a file: ${dir}")
+     case Some(a: Array[String]) => LSeq.from(a.sorted)
+   }
+  }
   override def byteSize(id:String) = new File(dir, id).length()
 
   override def close(): Unit = {}
