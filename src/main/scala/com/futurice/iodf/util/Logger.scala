@@ -4,6 +4,12 @@ import com.futurice.iodf.Utils
 import org.slf4j.LoggerFactory
 
 trait Logger {
+  def trace(msg:String) : Unit
+  def t(msg:String) : Unit
+
+  def debug(msg:String) : Unit
+  def d(msg:String) : Unit
+
   def info(msg:String) : Unit
   def i(msg:String) : Unit
 
@@ -14,8 +20,15 @@ trait Logger {
   def error(msg:String, e:Throwable) : Unit
   def e(msg:String, e:Throwable) : Unit
 
-  def iMs[T](op:String)(f : => T) : T
   def iMsHeap[T](op:String)(f : => T) : T
+  def dMsHeap[T](op:String)(f : => T) : T
+  def tMsHeap[T](op:String)(f : => T) : T
+
+  def iMs[T](op:String)(f : => T) : T
+  def dMs[T](op:String)(f : => T) : T
+  def tMs[T](op:String)(f : => T) : T
+
+
 }
 
 trait Logging {
@@ -24,8 +37,14 @@ trait Logging {
 }
 
 class Slf4jLogger(l:org.slf4j.Logger) extends Logger {
-  def info(msg:String) = l.info(msg)
-  def i(msg:String) = info(msg)
+  def trace(msg:String) : Unit = l.trace(msg)
+  def t(msg:String) : Unit = trace(msg)
+
+  def debug(msg:String) : Unit = l.debug(msg)
+  def d(msg:String) : Unit = debug(msg)
+
+  def info(msg:String) : Unit = l.info(msg)
+  def i(msg:String) : Unit = info(msg)
 
   def warn(msg:String) = l.warn(msg)
   def w(msg:String) = warn(msg)
@@ -34,9 +53,9 @@ class Slf4jLogger(l:org.slf4j.Logger) extends Logger {
   def error(msg:String, e:Throwable) = l.error(msg, e)
   def e(msg:String, e:Throwable) = error(msg, e)
 
-  def iMs[T](op:String)(f : => T) : T = {
+  private def ms[T](l : String => Unit)(op:String)(f : => T) : T = {
     val before = System.currentTimeMillis()
-    i(op + " started")
+    l(op + " started")
     val rv =
       try {
         f
@@ -46,14 +65,22 @@ class Slf4jLogger(l:org.slf4j.Logger) extends Logger {
           e.printStackTrace()
           throw e
       }
-    i(op + " took " + (System.currentTimeMillis() - before) + " ms")
+    l(op + " took " + (System.currentTimeMillis() - before) + " ms")
     rv
   }
 
-  def iMsHeap[T](op:String)(f : => T) = {
+  def iMs[T](op: String)(f : => T): T = ms[T](i)(op)(f)
+  def dMs[T](op: String)(f : => T): T = ms[T](d)(op)(f)
+  def tMs[T](op: String)(f : => T): T = ms[T](t)(op)(f)
+  
+  def iMsHeap[T](op:String)(f : => T) = msHeap[T](i)(op)(f)
+  def dMsHeap[T](op:String)(f : => T) = msHeap[T](d)(op)(f)
+  def tMsHeap[T](op:String)(f : => T) = msHeap[T](t)(op)(f)
+
+  private def msHeap[T](l: String => Unit)(op:String)(f : => T) = {
     val beforeMs = System.currentTimeMillis()
     val beforeHeap = Utils.memory
-    i(op + " started with " + (beforeHeap / (1024*1024)) + " MB")
+    l(op + " started with " + (beforeHeap / (1024*1024)) + " MB")
     val rv =
       try {
         f
@@ -63,7 +90,7 @@ class Slf4jLogger(l:org.slf4j.Logger) extends Logger {
           throw e
       }
     val afterHeap = Utils.memory
-    i(op + " took " + (System.currentTimeMillis() - beforeMs) + " ms and " + (afterHeap / (1024*1024)) + " MB (+" +  ((beforeHeap-afterHeap) / (1024*1024)) + "MB)")
+    l(op + " took " + (System.currentTimeMillis() - beforeMs) + " ms and " + (afterHeap / (1024*1024)) + " MB (+" +  ((beforeHeap-afterHeap) / (1024*1024)) + "MB)")
     rv
   }
 
@@ -89,7 +116,18 @@ object MockLogger extends Logger {
   def e(msg:String, e:Throwable) = Unit
 
   def iMs[T](op:String)(f : => T) : T = f
+  def dMs[T](op:String)(f : => T) : T = f
+  def tMs[T](op:String)(f : => T) : T = f
   def iMsHeap[T](op:String)(f : => T) : T = f
+  def dMsHeap[T](op:String)(f : => T) : T = f
+  def tMsHeap[T](op:String)(f : => T) : T = f
+
+  def trace(msg:String) = Unit
+  def t(msg:String) = Unit
+
+  def debug(msg:String) = Unit
+  def d(msg:String) = Unit
+
 }
 
 
