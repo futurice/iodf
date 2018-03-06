@@ -101,16 +101,7 @@ class RowImpl(values:Seq[Any]) extends Row {
   def apply(order:Long) = values(order.toInt)
   def lsize = values.size
   override def toString = {
-    val buf = new StringBuffer()
-    values.zipWithIndex.foreach { case (v, i) =>
-      if (buf.length() > 0) buf.append(", ")
-      val str = v.toString()
-      val targetSize = (i+1) * 18 - 2 - buf.length()
-      val pad = Math.max(0, targetSize - str.length)
-      buf.append("".padTo(pad, ' '))
-      buf.append(str)
-    }
-    f"Row(${buf.toString})"
+    f"Row(${Row.toRowString(values)})"
   }
 }
 
@@ -118,6 +109,20 @@ object Row {
   def apply( values : Any*) = from(values)
   def from( values : Seq[Any]) : Row = {
     new RowImpl(values)
+  }
+  def toRowString(values:Seq[Any], colWidth:Int = 16, delimiter:String = ", ") = {
+    val buf = new StringBuffer()
+    val delimSize = delimiter.size
+    val w = colWidth + delimSize
+    values.zipWithIndex.foreach { case (v, i) =>
+      if (buf.length() > 0) buf.append(delimiter)
+      val str = v.toString()
+      val targetSize = (i+1) * w - delimSize - buf.length()
+      val pad = Math.max(0, targetSize - str.length)
+      buf.append("".padTo(pad, ' '))
+      buf.append(str)
+    }
+    buf.toString
   }
 }
 

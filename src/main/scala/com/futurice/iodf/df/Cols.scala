@@ -174,6 +174,15 @@ trait Cols[ColId] extends java.io.Closeable {
   def indexFloorAndCeil(id:ColId) =
     Utils.binarySearch(colIds, id)(colIdOrdering)
 
+  def colIdsAfter(prefix:ColId) : LSeq[ColId] ={
+    colIds.view(indexFloorAndCeil(prefix)._3, colCount)
+  }
+
+  def colIdsWithIndexAfter(prefix:ColId) : LSeq[(ColId, Long)] ={
+    val res = indexFloorAndCeil(prefix)
+    colIds.zipWithIndex.view(res._3, colCount)
+  }
+
   def col[T <: Any](id: ColId)(implicit scope:IoScope) : ColType[T] = {
     scope.bind(openCol[T](id))
   }

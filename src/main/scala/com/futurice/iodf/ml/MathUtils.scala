@@ -37,15 +37,33 @@ object MathUtils {
   def pS(s:Boolean, p:Double) = {
     if (s) p else (1-p)
   }
+  def mi(pA:Double, pB:Double, pAB:Double) = {
+    val naivePs = varPsToNaiveRelStatePs(Array(pA, pB))
+    naivePs.zipWithIndex.map { case (naiveP, s) =>
+      val p = relStateP(s, pA, pB, pAB)
+      if (naiveP == 0.0 || p == 0.0)
+        0
+      else
+        p * log2(p / naiveP)
+    }.sum
+  }
   def relStateVarState(relState:Int, v:Int) = {
     (relState & (1 << v)) > 0
   }
-  def relStateF(relState:Int, n:Long, fA:Long, fB:Long, fAB:Long) = {
+  def relStateF(relState:Int, n:Long, fA:Long, fB:Long, fAB:Long) :  Long = {
     relState match {
       case 0 => n - fA - fB + fAB
       case 1 => fA - fAB  // a is true
       case 2 => fB - fAB  // b is true
       case 3 => fAB       // a&b are true
+    }
+  }
+  def relStateP(relState:Int, pA:Double, pB:Double, pAB:Double) : Double = {
+    relState match {
+      case 0 => 1.0 - pA - pB + pAB
+      case 1 => pA - pAB  // a is true
+      case 2 => pB - pAB  // b is true
+      case 3 => pAB       // a&b are true
     }
   }
 
@@ -57,6 +75,18 @@ object MathUtils {
       }.product
     }.toArray
   }
+  def maxMi(pA:Double, pB:Double) = {
+    val minP = Math.min(pA, pB)
+    Math.max(
+      MathUtils.mi(pA, pB, minP),
+      MathUtils.mi(pA, pB, Math.max(minP, pA+pB-1.0)))
+  }
+
+  def maxRelMi(pA:Double, pB:Double) = {
+    val mm = maxMi(pA, pB)
+    Math.max(mm / MathUtils.h(pA), mm / MathUtils.h(pB))
+  }
+
 }
 
 
