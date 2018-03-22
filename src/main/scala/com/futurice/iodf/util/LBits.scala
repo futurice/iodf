@@ -3,7 +3,7 @@ package com.futurice.iodf.util
 import java.io.Closeable
 import java.util
 
-import com.futurice.iodf.ioseq.{DenseIoBits, IoBits}
+import com.futurice.iodf.ioseq.{AndBitStream, DenseIoBits, IoBits}
 import com.futurice.iodf._
 
 import scala.collection.mutable.ArrayBuffer
@@ -64,6 +64,45 @@ object Selection {
   }
 }
 
+trait BitStream {
+  def f : Long
+  def &(b:BitStream) : BitStream = AndBitStream(this, b)
+}
+
+trait SparseBitStream extends BitStream {
+  def nextTrue : Long
+  def hasNextTrue : Boolean
+  def trues : Iterator[Long] = new Iterator[Long] {
+    override def hasNext = SparseBitStream.this.hasNextTrue
+    override def next() = SparseBitStream.this.nextTrue
+  }
+  def f = {
+    var rv = 0
+    while (hasNextTrue) {
+      rv += 1
+      nextTrue
+    }
+    rv
+  }
+}
+
+trait DenseBitStream extends BitStream {
+  // how much we have read & what is the offset of next LeLong
+  def pos : Long
+  def nextLeLong : Long
+  def hasNextLeLong : Boolean
+//  def leLongs : SeekIterator[Long]
+  def f = {
+    var rv = 0
+    while (hasNextLeLong) {
+      rv += java.lang.Long.bitCount(nextLeLong)
+    }
+    rv
+  }
+}
+
+
+
 /**
   * Created by arau on 31.5.2017.
   */
@@ -85,6 +124,32 @@ trait LBits extends LSeq[Boolean] {
 
   def isDense = LBits.isDense(f, n)
   def isSparse = LBits.isSparse(f, n)
+
+  def sparseBitStream = {
+    val t = trues.iterator
+    new SparseBitStream {
+      override def hasNextTrue: Boolean = t.hasNext
+      override def nextTrue: Long = t.next()
+    }
+  }
+  def denseBitStream =
+    new DenseBitStream {
+      val les = leLongs.iterator
+      var pos : Long = 0
+      override def hasNextLeLong: Boolean =
+        les.hasNext
+      override def nextLeLong: Long = {
+        pos += 64
+        les.next()
+      }
+    }
+
+  def bitStream : BitStream =
+    if (isSparse) {
+      sparseBitStream
+    } else {
+      denseBitStream
+    }
 
   /**
     * WARNING: trues may not be random accessible. Expect O(N) worst case behavior!
@@ -145,6 +210,9 @@ trait LBits extends LSeq[Boolean] {
   def createAnd(b:LBits)(implicit io:IoContext) : LBits = {
     io.bits.createAnd(io.allocator, this, b)
   }
+  def createOr(b:LBits)(implicit io:IoContext) : LBits = {
+    io.bits.createOr(io.allocator, this, b)
+  }
   def createAndNot(b:LBits)(implicit io:IoContext) : LBits = {
     io.bits.createAndNot(io.allocator, this, b)
   }
@@ -156,6 +224,9 @@ trait LBits extends LSeq[Boolean] {
   }
   def &(b:LBits)(implicit io:IoContext, scope:IoScope) : LBits = {
     scope.bind(createAnd(b))
+  }
+  def |(b:LBits)(implicit io:IoContext, scope:IoScope) : LBits = {
+    scope.bind(createOr(b))
   }
   def &~(b:LBits)(implicit io:IoContext, scope:IoScope) : LBits = {
     scope.bind(createAndNot(b))

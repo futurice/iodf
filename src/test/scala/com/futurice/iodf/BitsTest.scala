@@ -159,6 +159,9 @@ class BitsTest extends TestSuite("bits") {
         ("&~.f", { case (a, b) => (a &~ b).f} ),
         ("& ~", { case (a, b) => (a & b.~).toArray.toSeq} ),
         ("& ~.f", { case (a, b) => (a & b.~).f} ),
+        ("s&.f", { case (a, b) => AndBitStream(a.bitStream, b.bitStream).f}),
+        ("|.f", { case (a, b) => (a | b).f }),
+        ("|", { case (a, b) => (a | b).toArray.toSeq }),
         (".f+.f", { case (a, b) => (a.f + b.f) }),
         ("++.f", { case (a, b) => (a merge b).f }),
         ("++", { case (a, b) => (a merge b).toArray.toSeq })
