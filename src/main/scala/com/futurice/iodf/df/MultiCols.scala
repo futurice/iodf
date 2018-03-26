@@ -85,8 +85,8 @@ class MergedColSchema[ColId](schemas:Array[_ <: ColSchema[ColId]],
           if (id == jumpEntry.value) {
             Some(jumpEntry)
           } else {
-            jumpIterator(jumpEntry).scannedValue(id).head match {
-              case e if (id == e.value) => Some(e)
+            jumpIterator(jumpEntry).scannedValue(id).headOption match {
+              case Some(e) if (id == e.value) => Some(e)
               case _ => None
             }
           }
