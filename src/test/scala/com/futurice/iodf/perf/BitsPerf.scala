@@ -215,7 +215,7 @@ class BitsPerf extends TestSuite("perf/bits") {
       tPerOpUs(t, "    ", "&~", a &~ b)
       tPerOpUs(t, "    ", "merge", a merge b)
       tPerOpUs(t, "    ", "&.f", (a & b).f)
-      tPerOpUs(t, "    ", "s&.f", (a.bitStream & b.bitStream).f)
+      tPerOpUs(t, "    ", "s&.f", (a.bitStream & b.bitStream).toF)
       tPerOpUs(t, "    ", "|", (a | b))
       tPerOpUs(t, "    ", "|.f", (a | b).f)
     }

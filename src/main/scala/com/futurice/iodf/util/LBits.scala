@@ -16,6 +16,16 @@ trait LCondBits extends OptionLSeq[Boolean] {
   def defined : LBits
   def states : LBits
 
+  override def toString = {
+    (defined zip states).map {
+      _ match {
+        case (false, _) => '.'
+        case (true, true) => '1'
+        case (true, false) => '0'
+      }
+    }.mkString("")
+  }
+
 }
 
 object LCondBits {
@@ -65,8 +75,14 @@ object Selection {
 }
 
 trait BitStream {
-  def f : Long
+  /* reads F from the stream*/
+  def copy : BitStream
+  def toF : Long
+  /** maximum index of the bit */
+  def n : Long // this is always known
   def &(b:BitStream) : BitStream = AndBitStream(this, b)
+
+  def f = copy.toF
 }
 
 trait SparseBitStream extends BitStream {
@@ -76,7 +92,7 @@ trait SparseBitStream extends BitStream {
     override def hasNext = SparseBitStream.this.hasNextTrue
     override def next() = SparseBitStream.this.nextTrue
   }
-  def f = {
+  def toF = {
     var rv = 0
     while (hasNextTrue) {
       rv += 1
@@ -86,13 +102,34 @@ trait SparseBitStream extends BitStream {
   }
 }
 
+object SparseBitStream {
+  def from(_trues:Scanner[Long, Long], _n:Long) : SparseBitStream = {
+    new SparseBitStream {
+      override def hasNextTrue: Boolean = _trues.hasNext
+
+      override def nextTrue: Long = _trues.next()
+
+      override def trues = _trues
+
+      override def copy = {
+        SparseBitStream.from(_trues.copy, _n)
+      }
+
+      override def n = _n
+    }
+  }
+}
+
 trait DenseBitStream extends BitStream {
   // how much we have read & what is the offset of next LeLong
   def pos : Long
   def nextLeLong : Long
   def hasNextLeLong : Boolean
-//  def leLongs : SeekIterator[Long]
-  def f = {
+  def leLongs : Iterator[Long] = new Iterator[Long] {
+    override def hasNext = DenseBitStream.this.hasNextLeLong
+    override def next() =  DenseBitStream.this.nextLeLong
+  }
+  def toF = {
     var rv = 0
     while (hasNextLeLong) {
       rv += java.lang.Long.bitCount(nextLeLong)
@@ -108,7 +145,7 @@ trait DenseBitStream extends BitStream {
   */
 trait LBits extends LSeq[Boolean] {
 
-  override def bind(closeable:Closeable = Utils.dummyCloseable ) : LBits  = {
+  override def bind(closeable:Closeable = Utils.dummyCloseable ) : LBits = {
     val self = this
     new LBits {
       val f = self.f
@@ -125,24 +162,39 @@ trait LBits extends LSeq[Boolean] {
   def isDense = LBits.isDense(f, n)
   def isSparse = LBits.isSparse(f, n)
 
-  def sparseBitStream = {
-    val t = trues.iterator
-    new SparseBitStream {
-      override def hasNextTrue: Boolean = t.hasNext
-      override def nextTrue: Long = t.next()
-    }
+  def sparseBitStream = sparseBitStreamFrom(trues.iterator)
+  def sparseBitStreamFrom(trues:Scanner[Long, Long]) = {
+    SparseBitStream.from(trues, n)
   }
-  def denseBitStream =
+  def denseBitStream : DenseBitStream = {
+    val self = this
     new DenseBitStream {
-      val les = leLongs.iterator
-      var pos : Long = 0
+      val les = self.leLongs.iterator
+      var pos: Long = 0
+
+      override def leLongs: Iterator[Long] = les
+
       override def hasNextLeLong: Boolean =
         les.hasNext
+
       override def nextLeLong: Long = {
         pos += 64
         les.next()
       }
+
+      override def copy = {
+        pos match {
+          case 0 => self.denseBitStream
+        }
+      }
+      override def f = {
+        pos match {
+          case 0 => self.f
+        }
+      }
+      override def n = self.n
     }
+  }
 
   def bitStream : BitStream =
     if (isSparse) {
@@ -286,9 +338,8 @@ class BitsView(bits:LBits, from:Long, until:Long) extends LBits {
 }
 
 object LBits {
+
   def denseSparseSplit = 256L
-
-
 
   def isDense(f: Long, n: Long) = {
     f * denseSparseSplit > n
@@ -342,6 +393,15 @@ object LBits {
     }
     rv
   }
+  /*  TODO: ?
+
+  def from(bits:SparseBitStream)(implicit io:IoContext) = {
+  }
+  def from(bits:DenseBitStream)(implicit io:IoContext) = {
+  }
+  def from(bits:BitStream)(implicit io:IoContext) = {
+  }
+  */
   def from(bools:Seq[Boolean]) : LBits = {
     from(LSeq.from(bools))
   }

@@ -104,6 +104,10 @@ class DenseIoBitsType
     writeSeq(output, v)
   }
 
+  def write(output: DataOutput, v:DenseBitStream): Unit = {
+    write(output, v.n, v.leLongs)
+  }
+
   override def open(buf: DataAccess): DenseIoBits = {
     new DenseIoBits(IoRef.open(this, buf.dataRef), buf)
   }

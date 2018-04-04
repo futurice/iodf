@@ -27,6 +27,10 @@ trait IoBits extends IoSeq[Boolean] with LBits {
 
 object IoBits {
 
+  def from(bits:BitStream)(implicit io:IoContext) = {
+    io.bits.create(bits)
+  }
+
   def fAndDenseSparse(dense:DenseIoBits, sparse: SparseIoBits) = {
     if (dense.lsize != sparse.lsize) throw new RuntimeException("fAnd operation on bitsets of different sizes")
     var rv = 0L
@@ -141,43 +145,47 @@ object AndBitStream {
           override def hasNextLeLong: Boolean = a.hasNextLeLong && b.hasNextLeLong
           override def nextLeLong: Long = a.nextLeLong & b.nextLeLong
           override def pos = a.pos
+          override def copy = a.copy & b.copy
+          override def n = a.n // assume to be the same
         }
       case (a : SparseBitStream, b : DenseBitStream) =>
         new SparseBitStream {
           var bLeLong : Long = 0
-          var n : Option[Long] = None
+          var prepared : Option[Long] = None
 
           def prepareNext = {
-            while (a.hasNextTrue && n.isEmpty) {
+            while (a.hasNextTrue && prepared.isEmpty) {
               val aTrue = a.nextTrue
               while (b.pos < aTrue && b.hasNextLeLong) {
                 bLeLong = b.nextLeLong
               }
               if (aTrue < b.pos && (bLeLong & (1L << (aTrue%64))) != 0) {
-                n = Some(aTrue)
+                prepared = Some(aTrue)
               }
             }
           }
           override def hasNextTrue: Boolean = {
             prepareNext
-            n.isDefined
+            prepared.isDefined
           }
           override def nextTrue(): Long = {
-            val rv = n.get
-            n = None
+            val rv = prepared.get
+            prepared = None
             rv
           }
+          override def copy = a.copy & b.copy
+          override def n = a.n // assume to be the same
         }
       case (a : DenseBitStream, b : SparseBitStream) =>
         apply(b,  a)
       case (a : SparseBitStream, b: SparseBitStream) => {
         new SparseBitStream {
-          var n : Option[Long] = None
+          var prepared : Option[Long] = None
           var i = PeekIterator[Long](a.trues)
           var j = PeekIterator[Long](b.trues)
 
           def prepareNext = {
-            while (n.isEmpty && i.hasNext && j.hasNext) {
+            while (prepared.isEmpty && i.hasNext && j.hasNext) {
               val t1 = i.head
               val t2 = j.head
               if (t1 < t2) {
@@ -185,7 +193,7 @@ object AndBitStream {
               } else if (t1 > t2) {
                 j.next
               } else {
-                n = Some(t1)
+                prepared = Some(t1)
                 i.next
                 j.next
               }
@@ -193,13 +201,15 @@ object AndBitStream {
           }
           override def hasNextTrue: Boolean = {
             prepareNext
-            n.isDefined
+            prepared.isDefined
           }
           override def nextTrue(): Long = {
-            val rv = n.get
-            n = None
+            val rv = prepared.get
+            prepared = None
             rv
           }
+          override def copy = a.copy & b.copy
+          override def n = a.n
         }
       }
       case (a, b) =>
@@ -252,6 +262,19 @@ class BitsIoType(val sparse:SparseIoBitsType,
       dense.write(out, data)
     }
   }
+
+  def write(out:DataOutput, data:BitStream) = {
+    data match {
+      case b:SparseBitStream =>
+        out.writeByte(SparseId)
+        sparse.write(out, b)
+      case b: DenseBitStream =>
+        out.writeByte(DenseId)
+        dense.write(out, b)
+    }
+  }
+
+
   def writeSeq(out:DataOutput, data:LBits) = {
     write(out, data)
   }
@@ -269,6 +292,15 @@ class BitsIoType(val sparse:SparseIoBitsType,
 
   override def openViewMerged(seqs:Seq[Ref[LBits]]) = {
     new MultiBits(seqs.toArray)
+  }
+
+  def create(bits:BitStream)(implicit io: IoContext) : IoBits = {
+    using (using( io.allocator.create ) { out =>
+      write(out, bits)
+      out.openDataRef
+    }) { ref =>
+      open(ref)
+    }
   }
 
   def create(bits:LBits)(implicit io: IoContext) : IoBits = {

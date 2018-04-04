@@ -24,6 +24,9 @@ class SparseIoBitsType
   override def write(output: DataOutput, v: LBits) : Unit = {
     write(output, v.f, v.n, v.trues.iterator)
   }
+  def write(output: DataOutput, v: SparseBitStream) : Unit = {
+    write(output, v.f, v.n, v.trues)
+  }
   def openViewMerged(seqs:Seq[Ref[LBits]]) : LBits = {
     MultiBits.open(seqs)
   }
