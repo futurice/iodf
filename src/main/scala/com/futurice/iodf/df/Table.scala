@@ -39,7 +39,11 @@ trait TableSchema extends ColSchema[String] {
 }
 
 object TableSchema {
+
+  val ColDefaultValue = Key[Any]("colDefaultValue")
+
   def empty = apply(LSeq.empty, ColSchema.empty)
+
   def apply() : TableSchema = empty
   def apply(_colOrder:LSeq[Long],
             schema : ColSchema[String],
@@ -110,6 +114,19 @@ object Row {
   def from( values : Seq[Any]) : Row = {
     new RowImpl(values)
   }
+  def fromDocument(schema:TableSchema, doc:Document) = {
+    Row.from(
+      schema.orderToCol.toSeq.map { case col =>
+        val colType = schema(col)
+        doc.applyOrElse(
+          colType.id,
+          (id : String) =>
+            colType.meta.get(TableSchema.ColDefaultValue).getOrElse {
+              throw new IllegalArgumentException(
+                "on document value or default value for column " + colType.id + " for document " + doc)
+            })
+      })
+  }
   def toRowString(values:Seq[Any], colWidth:Int = 16, delimiter:String = ", ") = {
     val buf = new StringBuffer()
     val delimSize = delimiter.size
@@ -172,7 +189,8 @@ class Table(val schema:TableSchema, val df:Cols[String], closer:Closeable = Util
 
 object Table {
   def empty = Table.from(TableSchema.empty, Seq.empty)
-  def from(schema:TableSchema, rows:Seq[Row]) = {
+  def from(schema:TableSchema, rows:Seq[Row]) : Table = from(schema, LSeq.from(rows))
+  def from(schema:TableSchema, rows:LSeq[Row]) : Table = {
     val orderIndex = schema.orderToCol
     val colIds = schema.colIds
     val colTypes = schema.colTypes
@@ -187,7 +205,7 @@ object Table {
         val colIndex = orderIndex(colOrder).toInt
 /*        if (!colClasses(colIndex).isAssignableFrom(value.getClass))
           throw new RuntimeException(f"row $rowIndex column ${colIds(colIndex)} at $colOrder value $value of class ${value.getClass} is not compatible with class ${colClasses(colIndex)} for type ${colTypes(colIndex)}")*/
-        cols(colIndex)(rowIndex) = value
+        cols(colIndex)(rowIndex.toInt) = value
       }
     }
 

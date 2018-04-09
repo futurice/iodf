@@ -74,9 +74,27 @@ trait WritableDir[Id] extends Dir[Id] {
 
   def create(id:Id) : DataOutput
 
+  def openCreateCopy(id:Id, ref:DataAccess) = {
+    using(create(id)) { out =>
+      val bytes = new Array[Byte](1024)
+      var at = 0L
+      while (at < ref.size) {
+        val n = Math.min(bytes.size, ref.size).toInt
+        ref.copyTo(at, bytes, 0, n)
+        out.write(bytes)
+        at += n
+      }
+      out.openDataRef
+    }
+  }
+  def createCopy(id:Id, ref:DataAccess) = {
+    openCreateCopy(id, ref).close()
+  }
+
 }
 
 trait MutableDir[Id] extends WritableDir[Id] {
+  def rename(from:Id, to:Id) : Boolean
   def delete(id:Id) : Boolean
   override def openRef(id:Id)(implicit ord:Ordering[Id]) =
     new MutableFileRef[Id](this, id)

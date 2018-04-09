@@ -12,11 +12,14 @@ import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 
 trait Document extends Iterable[(String, Any)] with PartialFunction[String, Any] {
+  def +(field : (String, Any)) = {
+    Document((this.iterator ++ Iterator(field)).toSeq :_*)
+  }
+  def fields : Seq[(String, Any)]
 }
 
 object Document {
-  def apply(fields:(String, Any)*) = {
-    val self = TreeMap[String,Any](fields : _*)
+  def from(self:Map[String, Any]) = {
     new Document {
       override def iterator: Iterator[(String, Any)] = self.iterator
       override def isDefinedAt(x: String): Boolean = self.isDefinedAt(x)
@@ -24,7 +27,12 @@ object Document {
       override def toString = {
         f"Document(${self.map { case (id, value) => f"$id -> $value" }.mkString(", ")})"
       }
+
+      override def fields = self.toSeq
     }
+  }
+  def apply(fields:(String, Any)*) = {
+    from(TreeMap[String,Any](fields : _*))
   }
 }
 

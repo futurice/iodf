@@ -237,15 +237,20 @@ object IoTypes {
 
       val variantIo =
         new VariantIo(
-          Array(BooleanIo,
-                IntIo,
-                LongIo,
-                DoubleIo,
-                StringIo,
-                keyMapIo,
-                new OptionIo[Any](rootIo),
-                new Tuple2Io[Any, Any](rootIo, rootIo),
-                new ArrayIo[Any](rootIo)),
+          Array(
+            BooleanIo,
+            IntIo,
+            LongIo,
+            DoubleIo,
+            StringIo,
+            keyMapIo,
+            new OptionIo[Any](rootIo),
+            new Tuple2Io[Any, Any](rootIo, rootIo),
+            new ArrayIo[Any](rootIo),
+            BoxedBooleanIo,
+            BoxedIntIo,
+            BoxedLongIo,
+            BoxedDoubleIo),
           javaIo)
       rootIo.io = Some(variantIo)
 
@@ -371,7 +376,12 @@ object IoTypes {
           documents,
           indexedDocuments,
 
-          indexDfs)
+          indexDfs,
+
+          ValueIoType(BoxedBooleanIo),
+          ValueIoType(BoxedIntIo),
+          ValueIoType(BoxedLongIo),
+          ValueIoType(BoxedDoubleIo))
 
       (self, stringDfs, indexDfs)
     }

@@ -45,6 +45,14 @@ class RamDir[FileId:Ordering](implicit t:ClassTag[FileId]) extends MutableDir[Fi
   override def delete(id:FileId) = RamDir.this.synchronized {
     dir.remove(id).map { e => e.close; true }.getOrElse(false)
   }
+  override def rename(from:FileId, to:FileId) = RamDir.this.synchronized {
+    dir.remove(from).map { e =>
+      dir.put(to, e).foreach { v =>
+        v.close()
+      }
+      true
+    }.getOrElse(false)
+  }
   override def openAccess(id: FileId): DataAccess = synchronized {
     dir(id).openAccess
   }

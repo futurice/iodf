@@ -15,6 +15,7 @@ import xerial.larray.mmap.{MMapBuffer, MMapMode}
 
 object MMapDir {
   def apply(dir:File)(implicit scope:IoScope) = scope.bind(new MMapDir(dir))
+  def apply(dir:String)(implicit scope:IoScope) = scope.bind(new MMapDir(new File(dir)))
   def open(dir:File) = new MMapDir(dir)
 }
 
@@ -84,6 +85,8 @@ class MMapDir(dir:File) extends MutableDir[String] {
     }
   override def delete(name:String) =
     file(name).delete()
+  override def rename(from:String, to:String) =
+    file(from).renameTo(file(to))
   override def openAccess(name: String): DataAccess = {
     val f = file(name)
     val m = new MMapBuffer(f, 0, f.length(), MMapMode.READ_ONLY)

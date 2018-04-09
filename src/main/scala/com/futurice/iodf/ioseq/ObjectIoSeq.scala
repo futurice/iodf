@@ -8,7 +8,7 @@ import com.futurice.iodf.store.{OrderDir, WrittenOrderDir}
 import com.futurice.iodf.util._
 
 import scala.collection.mutable.ArrayBuffer
-import scala.reflect.ClassTag
+import scala.reflect._
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 
@@ -368,6 +368,28 @@ object TypeIo extends SingleTypedSerializer[Type] {
 }
 */
 
+
+
+class ConvertedIo[ExternalType: ClassTag, InnerType](innerIo:Serializer[InnerType],
+                                                     externalToInner : ExternalType => InnerType,
+                                                     innerToExternal: InnerType => ExternalType)
+  extends SingleTypedSerializer[ExternalType] {
+  override val clazz: Class[ExternalType] = classTag[ExternalType].runtimeClass.asInstanceOf[Class[ExternalType]]
+
+  override def read(o: DataAccess, pos: Long): ExternalType = {
+    innerToExternal(innerIo.read(o, pos))
+  }
+
+  override def size(o: DataAccess, pos: Long): Long = {
+    innerIo.size(o, pos)
+  }
+
+  override def write(o: DataOutput, v: ExternalType): Unit = {
+    innerIo.write(o, externalToInner(v))
+  }
+}
+
+
 object BooleanIo extends SingleTypedSerializer[Boolean] {
   override def read(o: DataAccess, pos: Long): Boolean = {
     o.getByte(pos) != 0
@@ -380,6 +402,9 @@ object BooleanIo extends SingleTypedSerializer[Boolean] {
   }
   override def clazz = classOf[Boolean]
 }
+
+object BoxedBooleanIo extends ConvertedIo[java.lang.Boolean, Boolean](BooleanIo, v => v, v => v) {}
+
 object IntIo extends SingleTypedSerializer[Int] {
   override def read(o: DataAccess, pos: Long): Int = {
     o.getBeInt(pos)
@@ -392,6 +417,9 @@ object IntIo extends SingleTypedSerializer[Int] {
   }
   override def clazz = classOf[Int]
 }
+
+object BoxedIntIo extends ConvertedIo[java.lang.Integer, Int](IntIo, v => v, v => v) {}
+
 object LongIo extends SingleTypedSerializer[Long] {
   override def read(o: DataAccess, pos: Long): Long = {
     o.getBeLong(pos)
@@ -404,6 +432,8 @@ object LongIo extends SingleTypedSerializer[Long] {
   }
   override def clazz = classOf[Long]
 }
+
+object BoxedLongIo extends ConvertedIo[java.lang.Long, Long](LongIo, v => v, v => v) {}
 
 object DoubleIo extends SingleTypedSerializer[Double] {
   override def read(o: DataAccess, pos: Long) : Double = {
@@ -419,6 +449,7 @@ object DoubleIo extends SingleTypedSerializer[Double] {
   override def clazz = classOf[Double]
 }
 
+object BoxedDoubleIo extends ConvertedIo[java.lang.Double, Double](DoubleIo, v => v, v => v) {}
 
 object StringIo extends SingleTypedSerializer[String] {
   override def read(o: DataAccess, pos: Long): String = {
