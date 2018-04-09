@@ -27,6 +27,10 @@ trait IoBits extends IoSeq[Boolean] with LBits {
 
 object IoBits {
 
+  def from(bits:BitStream)(implicit io:IoContext) = {
+    io.bits.create(bits)
+  }
+
   def fAndDenseSparse(dense:DenseIoBits, sparse: SparseIoBits) = {
     if (dense.lsize != sparse.lsize) throw new RuntimeException("fAnd operation on bitsets of different sizes")
     var rv = 0L
@@ -132,6 +136,88 @@ class WrappedIoBits(val someRef:Option[IoRef[IoBits]],
 
 }
 
+object AndBitStream {
+  def apply(a:BitStream, b:BitStream) : BitStream = {
+    (a, b) match {
+      case (a : DenseBitStream, b : DenseBitStream) =>
+        if (a.pos != b.pos) throw new RuntimeException("dense bit streams out of sync")
+        new DenseBitStream {
+          override def hasNextLeLong: Boolean = a.hasNextLeLong && b.hasNextLeLong
+          override def nextLeLong: Long = a.nextLeLong & b.nextLeLong
+          override def pos = a.pos
+          override def copy = a.copy & b.copy
+          override def n = a.n // assume to be the same
+        }
+      case (a : SparseBitStream, b : DenseBitStream) =>
+        new SparseBitStream {
+          var bLeLong : Long = 0
+          var prepared : Option[Long] = None
+
+          def prepareNext = {
+            while (a.hasNextTrue && prepared.isEmpty) {
+              val aTrue = a.nextTrue
+              while (b.pos < aTrue && b.hasNextLeLong) {
+                bLeLong = b.nextLeLong
+              }
+              if (aTrue < b.pos && (bLeLong & (1L << (aTrue%64))) != 0) {
+                prepared = Some(aTrue)
+              }
+            }
+          }
+          override def hasNextTrue: Boolean = {
+            prepareNext
+            prepared.isDefined
+          }
+          override def nextTrue(): Long = {
+            val rv = prepared.get
+            prepared = None
+            rv
+          }
+          override def copy = a.copy & b.copy
+          override def n = a.n // assume to be the same
+        }
+      case (a : DenseBitStream, b : SparseBitStream) =>
+        apply(b,  a)
+      case (a : SparseBitStream, b: SparseBitStream) => {
+        new SparseBitStream {
+          var prepared : Option[Long] = None
+          var i = PeekIterator[Long](a.trues)
+          var j = PeekIterator[Long](b.trues)
+
+          def prepareNext = {
+            while (prepared.isEmpty && i.hasNext && j.hasNext) {
+              val t1 = i.head
+              val t2 = j.head
+              if (t1 < t2) {
+                i.next
+              } else if (t1 > t2) {
+                j.next
+              } else {
+                prepared = Some(t1)
+                i.next
+                j.next
+              }
+            }
+          }
+          override def hasNextTrue: Boolean = {
+            prepareNext
+            prepared.isDefined
+          }
+          override def nextTrue(): Long = {
+            val rv = prepared.get
+            prepared = None
+            rv
+          }
+          override def copy = a.copy & b.copy
+          override def n = a.n
+        }
+      }
+      case (a, b) =>
+        throw new RuntimeException(f"cannot do and operation with $a and $b")
+    }
+  }
+}
+
 
 class BitsIoType(val sparse:SparseIoBitsType,
                  val dense:DenseIoBitsType,
@@ -176,6 +262,19 @@ class BitsIoType(val sparse:SparseIoBitsType,
       dense.write(out, data)
     }
   }
+
+  def write(out:DataOutput, data:BitStream) = {
+    data match {
+      case b:SparseBitStream =>
+        out.writeByte(SparseId)
+        sparse.write(out, b)
+      case b: DenseBitStream =>
+        out.writeByte(DenseId)
+        dense.write(out, b)
+    }
+  }
+
+
   def writeSeq(out:DataOutput, data:LBits) = {
     write(out, data)
   }
@@ -195,6 +294,15 @@ class BitsIoType(val sparse:SparseIoBitsType,
     new MultiBits(seqs.toArray)
   }
 
+  def create(bits:BitStream)(implicit io: IoContext) : IoBits = {
+    using (using( io.allocator.create ) { out =>
+      write(out, bits)
+      out.openDataRef
+    }) { ref =>
+      open(ref)
+    }
+  }
+
   def create(bits:LBits)(implicit io: IoContext) : IoBits = {
     using (using( io.allocator.create ) { out =>
         write(out, bits)
@@ -203,7 +311,6 @@ class BitsIoType(val sparse:SparseIoBitsType,
       open(ref)
     }
   }
-
   def writeAnd(output: DataOutput, b1:LBits, b2:LBits) : SeqIoType[Boolean, LBits, _ <: IoBits] = {
     if (b1.n != b2.n) throw new IllegalArgumentException()
     (b1.isDense, b2.isDense) match {
@@ -242,9 +349,74 @@ class BitsIoType(val sparse:SparseIoBitsType,
         sparse
     }
   }
+  def writeOr(output: DataOutput, b1:LBits, b2:LBits) : SeqIoType[Boolean, LBits, _ <: IoBits] = {
+    if (b1.n != b2.n) throw new IllegalArgumentException()
+    (b1.isDense, b2.isDense) match {
+      case (true, true) =>
+        dense.write(output, b1.lsize,
+          new Iterator[Long] {
+            val i = b1.leLongs.iterator
+            val j = b2.leLongs.iterator
+
+            def hasNext = i.hasNext
+            def next = i.next | j.next
+          })
+        dense
+      case (true, false) =>
+        dense.write(output, b1.lsize,
+          new Iterator[Long] {
+            var at = 0
+            val i = b1.leLongs.iterator
+            val j = b2.trues.iterator
+
+            def hasNext = i.hasNext
+            def next = {
+              var leLong = i.next
+              while (j.hasNext && j.head < at + 64) {
+                leLong |= 1L<<(j.next-at)
+              }
+              at += 64
+              leLong
+            }
+          })
+        dense
+      case (false, true) =>
+        writeOr(output, b2, b1)
+      case (false, false) =>
+        val trues = ArrayBuffer[Long]()
+        var i = b1.trues.iterator
+        var j = b2.trues.iterator
+        while (i.hasNext && j.hasNext) {
+          val t1 = i.head
+          val t2 = j.head
+          if (t1 < t2) {
+            trues += t1
+            i.next
+          } else if (t1 > t2) {
+            trues += t2
+            j.next
+          } else {
+            trues += t1
+            i.next
+            j.next
+          }
+        }
+        while (i.hasNext) trues += i.next()
+        while (j.hasNext) trues += j.next()
+        sparse.write(output, LBits.from(trues, b1.n))
+        sparse
+    }
+  }
   def createAnd(allocator: AllocateOnce, b1:LBits, b2:LBits) : IoBits = {
     val (typ, openRef) = using( allocator.create ) { output =>
       val t = writeAnd(output, b1, b2)
+      (t, output.openDataRef)
+    }
+    using(openRef) { typ.open(_) }
+  }
+  def createOr(allocator: AllocateOnce, b1:LBits, b2:LBits) : IoBits = {
+    val (typ, openRef) = using( allocator.create ) { output =>
+      val t = writeOr(output, b1, b2)
       (t, output.openDataRef)
     }
     using(openRef) { typ.open(_) }

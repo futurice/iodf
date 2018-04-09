@@ -49,6 +49,18 @@ round 0 for B with p 1.000:
     ground: 0
     test:   0
 
+  s&.f ground and test properties are equal:
+    ground: 1497
+    test:   1497
+
+  |.f ground and test properties are equal:
+    ground: 1497
+    test:   1497
+
+  | ground and test properties are equal:
+    ground: WrappedArray(true, true, true, true, true, true, true, true, true, true, true, t
+    test:   WrappedArray(true, true, true, true, true, true, true, true, true, true, true, t
+
   .f+.f ground and test properties are equal:
     ground: 2994
     test:   2994
@@ -110,6 +122,18 @@ round 1 for B with p 0.250:
   & ~.f ground and test properties are equal:
     ground: 1120
     test:   1120
+
+  s&.f ground and test properties are equal:
+    ground: 376
+    test:   376
+
+  |.f ground and test properties are equal:
+    ground: 1496
+    test:   1496
+
+  | ground and test properties are equal:
+    ground: WrappedArray(true, true, true, true, true, true, true, true, true, true, true, t
+    test:   WrappedArray(true, true, true, true, true, true, true, true, true, true, true, t
 
   .f+.f ground and test properties are equal:
     ground: 1872
@@ -173,6 +197,18 @@ round 2 for B with p 0.063:
     ground: 1384
     test:   1384
 
+  s&.f ground and test properties are equal:
+    ground: 113
+    test:   113
+
+  |.f ground and test properties are equal:
+    ground: 1497
+    test:   1497
+
+  | ground and test properties are equal:
+    ground: WrappedArray(true, true, true, true, true, true, true, true, true, true, true, t
+    test:   WrappedArray(true, true, true, true, true, true, true, true, true, true, true, t
+
   .f+.f ground and test properties are equal:
     ground: 1610
     test:   1610
@@ -234,6 +270,18 @@ round 3 for B with p 0.016:
   & ~.f ground and test properties are equal:
     ground: 1470
     test:   1470
+
+  s&.f ground and test properties are equal:
+    ground: 27
+    test:   27
+
+  |.f ground and test properties are equal:
+    ground: 1497
+    test:   1497
+
+  | ground and test properties are equal:
+    ground: WrappedArray(true, true, true, true, true, true, true, true, true, true, true, t
+    test:   WrappedArray(true, true, true, true, true, true, true, true, true, true, true, t
 
   .f+.f ground and test properties are equal:
     ground: 1524
@@ -299,6 +347,18 @@ round 0 for B with p 1.000:
     ground: 0
     test:   0
 
+  s&.f ground and test properties are equal:
+    ground: 379
+    test:   379
+
+  |.f ground and test properties are equal:
+    ground: 1496
+    test:   1496
+
+  | ground and test properties are equal:
+    ground: WrappedArray(true, true, true, true, true, true, true, true, true, true, true, t
+    test:   WrappedArray(true, true, true, true, true, true, true, true, true, true, true, t
+
   .f+.f ground and test properties are equal:
     ground: 1875
     test:   1875
@@ -360,6 +420,18 @@ round 1 for B with p 0.250:
   & ~.f ground and test properties are equal:
     ground: 271
     test:   271
+
+  s&.f ground and test properties are equal:
+    ground: 107
+    test:   107
+
+  |.f ground and test properties are equal:
+    ground: 645
+    test:   645
+
+  | ground and test properties are equal:
+    ground: WrappedArray(false, true, false, true, false, false, false, false, true, false, 
+    test:   WrappedArray(false, true, false, true, false, false, false, false, true, false, 
 
   .f+.f ground and test properties are equal:
     ground: 752
@@ -423,6 +495,18 @@ round 2 for B with p 0.063:
     ground: 350
     test:   350
 
+  s&.f ground and test properties are equal:
+    ground: 27
+    test:   27
+
+  |.f ground and test properties are equal:
+    ground: 455
+    test:   455
+
+  | ground and test properties are equal:
+    ground: WrappedArray(false, false, false, false, false, false, true, false, true, false,
+    test:   WrappedArray(false, false, false, false, false, false, true, false, true, false,
+
   .f+.f ground and test properties are equal:
     ground: 482
     test:   482
@@ -484,6 +568,18 @@ round 3 for B with p 0.016:
   & ~.f ground and test properties are equal:
     ground: 370
     test:   370
+
+  s&.f ground and test properties are equal:
+    ground: 6
+    test:   6
+
+  |.f ground and test properties are equal:
+    ground: 394
+    test:   394
+
+  | ground and test properties are equal:
+    ground: WrappedArray(false, false, true, false, false, false, false, false, false, false
+    test:   WrappedArray(false, false, true, false, false, false, false, false, false, false
 
   .f+.f ground and test properties are equal:
     ground: 400
@@ -549,6 +645,18 @@ round 0 for B with p 1.000:
     ground: 0
     test:   0
 
+  s&.f ground and test properties are equal:
+    ground: 90
+    test:   90
+
+  |.f ground and test properties are equal:
+    ground: 1497
+    test:   1497
+
+  | ground and test properties are equal:
+    ground: WrappedArray(true, true, true, true, true, true, true, true, true, true, true, t
+    test:   WrappedArray(true, true, true, true, true, true, true, true, true, true, true, t
+
   .f+.f ground and test properties are equal:
     ground: 1587
     test:   1587
@@ -610,6 +718,18 @@ round 1 for B with p 0.250:
   & ~.f ground and test properties are equal:
     ground: 87
     test:   87
+
+  s&.f ground and test properties are equal:
+    ground: 25
+    test:   25
+
+  |.f ground and test properties are equal:
+    ground: 461
+    test:   461
+
+  | ground and test properties are equal:
+    ground: WrappedArray(false, false, false, false, true, true, true, false, true, false, f
+    test:   WrappedArray(false, false, false, false, true, true, true, false, true, false, f
 
   .f+.f ground and test properties are equal:
     ground: 486
@@ -673,6 +793,18 @@ round 2 for B with p 0.063:
     ground: 86
     test:   86
 
+  s&.f ground and test properties are equal:
+    ground: 3
+    test:   3
+
+  |.f ground and test properties are equal:
+    ground: 184
+    test:   184
+
+  | ground and test properties are equal:
+    ground: WrappedArray(true, true, false, false, false, false, false, false, false, false,
+    test:   WrappedArray(true, true, false, false, false, false, false, false, false, false,
+
   .f+.f ground and test properties are equal:
     ground: 187
     test:   187
@@ -734,6 +866,18 @@ round 3 for B with p 0.016:
   & ~.f ground and test properties are equal:
     ground: 99
     test:   99
+
+  s&.f ground and test properties are equal:
+    ground: 1
+    test:   1
+
+  |.f ground and test properties are equal:
+    ground: 115
+    test:   115
+
+  | ground and test properties are equal:
+    ground: WrappedArray(false, false, false, false, false, false, false, false, false, fals
+    test:   WrappedArray(false, false, false, false, false, false, false, false, false, fals
 
   .f+.f ground and test properties are equal:
     ground: 116
@@ -799,6 +943,18 @@ round 0 for B with p 1.000:
     ground: 0
     test:   0
 
+  s&.f ground and test properties are equal:
+    ground: 33
+    test:   33
+
+  |.f ground and test properties are equal:
+    ground: 1497
+    test:   1497
+
+  | ground and test properties are equal:
+    ground: WrappedArray(true, true, true, true, true, true, true, true, true, true, true, t
+    test:   WrappedArray(true, true, true, true, true, true, true, true, true, true, true, t
+
   .f+.f ground and test properties are equal:
     ground: 1530
     test:   1530
@@ -860,6 +1016,18 @@ round 1 for B with p 0.250:
   & ~.f ground and test properties are equal:
     ground: 18
     test:   18
+
+  s&.f ground and test properties are equal:
+    ground: 7
+    test:   7
+
+  |.f ground and test properties are equal:
+    ground: 416
+    test:   416
+
+  | ground and test properties are equal:
+    ground: WrappedArray(true, true, false, false, false, false, false, false, false, false,
+    test:   WrappedArray(true, true, false, false, false, false, false, false, false, false,
 
   .f+.f ground and test properties are equal:
     ground: 423
@@ -923,6 +1091,18 @@ round 2 for B with p 0.063:
     ground: 29
     test:   29
 
+  s&.f ground and test properties are equal:
+    ground: 0
+    test:   0
+
+  |.f ground and test properties are equal:
+    ground: 119
+    test:   119
+
+  | ground and test properties are equal:
+    ground: WrappedArray(false, false, false, false, false, false, false, false, false, fals
+    test:   WrappedArray(false, false, false, false, false, false, false, false, false, fals
+
   .f+.f ground and test properties are equal:
     ground: 119
     test:   119
@@ -984,6 +1164,18 @@ round 3 for B with p 0.016:
   & ~.f ground and test properties are equal:
     ground: 18
     test:   18
+
+  s&.f ground and test properties are equal:
+    ground: 1
+    test:   1
+
+  |.f ground and test properties are equal:
+    ground: 36
+    test:   36
+
+  | ground and test properties are equal:
+    ground: WrappedArray(false, false, false, false, false, false, false, false, false, fals
+    test:   WrappedArray(false, false, false, false, false, false, false, false, false, fals
 
   .f+.f ground and test properties are equal:
     ground: 37

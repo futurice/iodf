@@ -170,6 +170,24 @@ trait OptionLSeq[T] extends LSeq[Option[T]] {
   def lazyMapDefinedStates[B](f : T => B) = {
     OptionLSeq.from(defined, definedStates.lazyMap(f))
   }
+
+  override def bind(closer:Closeable) = {
+    val self = this
+    new OptionLSeq[T] {
+      override def apply(l: Long) = self.apply(l)
+      override def lsize = self.lsize
+      override def iterator = self.iterator
+      override def close = {
+        self.close
+        closer.close
+
+      }
+      override def defined = self.defined
+      override def definedStates = self.definedStates
+      override def definedStatesWithIndex =self.definedStatesWithIndex
+    }
+  }
+
 }
 
 object OptionLSeq {

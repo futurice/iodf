@@ -223,7 +223,10 @@ class MergeSortIterator[T](peeked:Array[_ <: PeekIterator[T]], val sourceIndexes
 
   def scanValue(value:T) = {
     while (hasNext && ord.lt(head.value, value)) next
-    ord.compare(head.value, value) == 0
+    headOption match {
+      case None    => false
+      case Some(v) => ord.compare(v.value, value) == 0
+    }
   }
   def scannedValue(value:T) = {
     scanValue(value)

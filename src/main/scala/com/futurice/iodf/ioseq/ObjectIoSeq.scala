@@ -7,6 +7,7 @@ import com.futurice.iodf.io._
 import com.futurice.iodf.store.{OrderDir, WrittenOrderDir}
 import com.futurice.iodf.util._
 
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect._
 import scala.reflect.runtime.universe
@@ -219,6 +220,44 @@ class ObjectIoSeq[T](_openRef:IoRef[ObjectIoSeq[T]],
     }
   }
 
+}
+
+class NamedSingletonSerialization(names:Serializer[String], fallback:Serializer[Any]) extends Serializer[Any] {
+
+  val fromName = new mutable.HashMap[String, Any]()
+  val toName = new mutable.HashMap[Any, String]()
+
+  def register[T](name:String, singleton:T) : T = {
+    fromName.put(name, singleton)
+    toName.put(singleton, name)
+    singleton
+  }
+
+  override def write(o: DataOutput, v: Any): Unit = {
+    toName.get(v) match {
+      case Some(name) =>
+        o.writeByte(0)
+        names.write(o, name)
+      case None =>
+        o.writeByte(1)
+        fallback.write(o, v)
+
+    }
+  }
+
+  override def read(o: DataAccess, pos: Long): Any = {
+    o.getByte(pos) match {
+      case 0 => names.read(o, pos+1)
+      case 1 => fallback.read(o, pos+1)
+    }
+  }
+
+  override def size(o: DataAccess, pos: Long): Long = {
+    (o.getByte(pos) match {
+      case 0 => names.size(o, pos+1)
+      case 1 => fallback.size(o, pos+1)
+    }) + 1
+  }
 }
 
 class JavaObjectIo[T] extends Serializer[T] {
