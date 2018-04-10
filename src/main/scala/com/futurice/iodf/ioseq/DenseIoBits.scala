@@ -108,7 +108,7 @@ class DenseIoBitsType
     write(output, v.n, v.leLongs)
   }
 
-  override def open(buf: DataAccess): DenseIoBits = {
+  override def apply(buf: DataAccess): DenseIoBits = {
     new DenseIoBits(IoRef.open(this, buf.dataRef), buf)
   }
 
@@ -148,14 +148,14 @@ class DenseIoBits(_openRef:IoRef[DenseIoBits], _origBuf:DataAccess)
   val bitSize = origBuf.getBeLong(0)
   override val longCount = DenseIoBits.bitsToLongCount(bitSize)
 
-  val buf = origBuf.openView(8, 8 + longCount*8)
+  val buf = origBuf.view(8, 8 + longCount*8)
 
   override def close = {
     Tracing.closed(this)
     _openRef.close; origBuf.close; buf.close
   } //close both handles
 
-  def openRef = _openRef.openCopy
+  def ref = _openRef.openCopy
 
   def byteSize = buf.size
 

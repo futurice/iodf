@@ -14,21 +14,20 @@ import xerial.larray.buffer.{LBufferAPI, Memory}
 import xerial.larray.mmap.{MMapBuffer, MMapMode}
 
 object MMapDir {
-  def apply(dir:File)(implicit scope:IoScope) = scope.bind(new MMapDir(dir))
-  def apply(dir:String)(implicit scope:IoScope) = scope.bind(new MMapDir(new File(dir)))
-  def open(dir:File) = new MMapDir(dir)
+  def apply(dir:File)(implicit io:IoContext) = new MMapDir(dir)
+  def apply(dir:String)(implicit io:IoContext) = new MMapDir(new File(dir))
 }
 
 object MMapFile {
   private val logger = LoggerFactory.getLogger(getClass)
 
-  def apply(file:File)(implicit bind:IoScope): MutableFileRef[String] = {
+  def apply(file:File)(implicit io:IoContext): MutableFileRef[String] = {
     val d = MMapDir(file.getParentFile)
     val rv = d.ref(file.getName)
     d.close
     rv
   }
-  def apply(dir:File, file:String)(implicit bind:IoScope) = {
+  def apply(dir:File, file:String)(implicit io:IoContext) = {
     val d = MMapDir(dir)
     val rv = d.ref(file)
     d.close
@@ -40,7 +39,7 @@ object MMapFile {
   * TODO: These should be unique, and mmaps should be unique to avoid
   *       double mmaps (!)
   */
-class MMapDir(dir:File) extends MutableDir[String] {
+class MMapDir(dir:File)(implicit io:IoContext) extends MutableDir[String] {
 
   val logger = LoggerFactory.getLogger(getClass)
 
@@ -51,7 +50,7 @@ class MMapDir(dir:File) extends MutableDir[String] {
   def lsize = dir.list().size
 
   override def create(name: String) =
-    new io.DataOutput with DataOutputMixin {
+    new com.futurice.iodf.io.DataOutput with DataOutputMixin {
       private val parentPath: Path = dir.toPath
       val tmp =
         Files.createTempFile(parentPath, name, "tmp")
@@ -65,9 +64,9 @@ class MMapDir(dir:File) extends MutableDir[String] {
         Utils.atomicMove(tmp, file(name).toPath)
       }
 
-      override def openDataRef: DataRef = {
+      override def dataRef: DataRef = {
         out.flush
-        MMapDir.this.openRef(name)
+        MMapDir.this.ref(name)
       }
       override def write(b: Int): Unit = {
         out.write(b)
@@ -83,18 +82,20 @@ class MMapDir(dir:File) extends MutableDir[String] {
       }
       override def flush = out.flush
     }
+
   override def delete(name:String) =
     file(name).delete()
+
   override def rename(from:String, to:String) =
     file(from).renameTo(file(to))
-  override def openAccess(name: String): DataAccess = {
+
+  override def access(name: String): DataAccess = {
     val f = file(name)
-    val m = new MMapBuffer(f, 0, f.length(), MMapMode.READ_ONLY)
-    using (Ref.open[Memory](m.m, () => m.close())) { mem =>
-      using (openRef(name)) { dataRef =>
-        new DataAccess(dataRef, mem)
-      }
-    }
+
+    new DataAccess(
+      ref(name),
+      io.autoClosing.add(
+        new MMapBuffer(f, 0, f.length(), MMapMode.READ_ONLY)) (_.close()))
   }
 
   override def list = {

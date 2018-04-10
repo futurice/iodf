@@ -168,7 +168,7 @@ class Table(val schema:TableSchema, val df:Cols[String], closer:Closeable = Util
 
   override def openView(from: Long, until: Long): Table =
     Table(schema, df.openView(from, until))
-  override def openSelect(indexes:LSeq[Long]) =
+  override def select(indexes:LSeq[Long]) =
     Table(schema, df.openSelect(indexes))
 
   override def close(): Unit = {
@@ -228,7 +228,7 @@ class TableSchemaIoType(implicit io:IoContext) extends IoType[TableSchema, Table
   override def interfaceType: universe.Type = typeOf[TableSchema]
   override def ioInstanceType: universe.Type = typeOf[TableSchema]
 
-  override def open(ref: DataAccess): TableSchema = scoped { implicit bind =>
+  override def apply(ref: DataAccess): TableSchema = scoped { implicit bind =>
     val dir = OrderDir(ref)
     val colOrder = dir.ref(0).as[LSeq[Long]]
     val colSchema = dir.ref(1).as[ColSchema[String]]
@@ -248,7 +248,7 @@ class TableIoType(implicit io:IoContext) extends MergeableIoType[Table, Table] {
 
   override def ioInstanceType: universe.Type = typeOf[Table]
 
-  override def open(ref: DataAccess): Table = scoped { implicit bind =>
+  override def apply(ref: DataAccess): Table = scoped { implicit bind =>
     val dir = OrderDir(ref)
     val schema = dir.ref(0).as[TableSchema]
     val cols = dir.ref(1).as[Cols[String]]

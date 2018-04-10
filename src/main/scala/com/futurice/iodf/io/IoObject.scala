@@ -8,9 +8,9 @@ import com.futurice.iodf._
  * This object is io-referable
  */
 trait IoObject extends Closeable {
-  def openRef : IoRef[_ <: IoObject]
+  def ref : IoRef[_ <: IoObject]
 
-  def ioType : IoOpener[_ <: IoObject] = using (openRef) { _.typ }
+  def ioType : IoOpener[_ <: IoObject] = ref.typ
 }
 
 /**
@@ -19,6 +19,5 @@ trait IoObject extends Closeable {
   */
 case class IoRefObject[T <: IoObject](ref:IoRef[_ <: T])
   extends IoObject {
-  def openRef = ref.openCopy
   override def close(): Unit = {}
 }

@@ -17,7 +17,7 @@ trait DataOutput extends OutputStream with java.io.DataOutput {
    * the data reference is guaranteed to begin from the begin of created memory area,
    * and end exactly at the point, or somewhere after this data was being written.
    */
-  def openDataRef : DataRef
+  def dataRef : DataRef
 
   def writeVInt(l:Int) : Unit
 
@@ -38,10 +38,8 @@ trait DataOutput extends OutputStream with java.io.DataOutput {
         * the data reference is guaranteed to begin from the begin of created memory area,
         * and end exactly at the point, or somewhere after this data was being written.
         */
-      override def openDataRef: DataRef =
-        using (self.openDataRef) { r =>
-          r.openView(myBegin, self.pos)
-        }
+      override def dataRef: DataRef =
+        self.dataRef.view(myBegin, self.pos)
 
       override def write(b: Int): Unit = {
         self.write(b)

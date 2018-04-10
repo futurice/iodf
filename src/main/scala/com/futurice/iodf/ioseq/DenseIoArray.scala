@@ -24,7 +24,7 @@ abstract class IoArray[T](ref:IoRef[IoArray[T]],
     ref.close
     buf.close()
   }
-  override def openRef = ref.openCopy
+  override def ref = ref.openCopy
   override def iterator : PeekIterator[T] =
     new PeekIterator[T] {
       var at = 0L
@@ -72,7 +72,7 @@ abstract class IoArrayType[T]()(
   override def openViewMerged(items:Seq[Ref[LSeq[T]]]) = {
     new MultiSeq[T, LSeq[T]](items.toArray)
   }
-  def open(data:DataAccess) = {
+  def apply(data:DataAccess) = {
     newInstance(IoRef.open(this, data.dataRef), data)
   }
 }

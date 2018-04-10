@@ -8,22 +8,15 @@ import com.futurice.iodf._
 
 import scala.reflect.runtime.universe._
 
-trait AllocateOnce extends Closeable {
+trait AllocateOnce {
   def create : DataOutput
 
-  // Should this be moved to external monad?
-  def save[T:TypeTag](v:T)(implicit io:IoContext, scope:IoScope) : DataRef = {
+  def save[T:TypeTag](v:T)(implicit io:IoContext) : DataRef = {
     io.save[T](this, v)
   }
-  def openSave[T:TypeTag](v:T)(implicit io:IoContext) : DataRef = {
-    io.openSave[T](this, v)
-  }
 
-  def openSaved[T:TypeTag](v:T)(implicit io:IoContext) : T = {
-    using (openSave[T](v)) { _.openAs[T] }
-  }
-  def saved[T:TypeTag](v:T)(implicit io:IoContext,bind:IoScope) : T = {
-    bind(openSaved[T](v))
+  def saved[T:TypeTag](v:T)(implicit io:IoContext) : T = {
+    save[T](v).as[T]
   }
 }
 

@@ -90,8 +90,8 @@ trait IndexedDf[Row, T <: Df[Row]] extends Df[Row] with Indexed[String, T] {
     IndexedDf(df.openView(from, until), indexDf.openView(from, until))
   }
 
-  override def openSelect(indexes:LSeq[Long]): Df[Row] = {
-    IndexedDf(df.openSelect(indexes), indexDf.openSelect(indexes))
+  override def select(indexes:LSeq[Long]): Df[Row] = {
+    IndexedDf(df.select(indexes), indexDf.openSelect(indexes))
   }
 
   override def openSelectSome(indexes: LSeq[Option[Long]]) : Df[Option[Row]] = {
@@ -182,10 +182,10 @@ class IndexedIoType[ColId, T <: Cols[ColId]](dfType:MergeableIoType[T, _ <: T],
   override def interfaceType: universe.Type = typeOf[Indexed[ColId, T]]
   override def ioInstanceType: universe.Type = typeOf[Indexed[ColId, T]]
 
-  override def open(data: DataAccess): Indexed[ColId, T] = scoped { implicit bind =>
+  override def apply(data: DataAccess): Indexed[ColId, T] = scoped { implicit bind =>
     val dir = CfsDir.open[CfsFileId](data)
-    val df = dfType.open(dir.access(DfFileId))
-    val indexDf = indexType.open(dir.access(IndexDfId))
+    val df = dfType.apply(dir.access(DfFileId))
+    val indexDf = indexType.apply(dir.access(IndexDfId))
     Indexed(df, indexDf, () => dir.close)
   }
 
@@ -237,10 +237,10 @@ class IndexedDfIoType[Row, T <: Df[Row]](dfType:MergeableIoType[T, _ <: T],
   override def interfaceType: universe.Type = typeOf[IndexedDf[Row, T]]
   override def ioInstanceType: universe.Type = typeOf[IndexedDf[Row, T]]
 
-  override def open(data: DataAccess): IndexedDf[Row, T] = scoped { implicit bind =>
+  override def apply(data: DataAccess): IndexedDf[Row, T] = scoped { implicit bind =>
     val dir = CfsDir.open[CfsFileId](data)
-    val df = dfType.open(dir.access(DfFileId))
-    val indexDf = indexType.open(dir.access(IndexDfId))
+    val df = dfType.apply(dir.access(DfFileId))
+    val indexDf = indexType.apply(dir.access(IndexDfId))
     IndexedDf(df, indexDf, () => dir.close)
   }
 

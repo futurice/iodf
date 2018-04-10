@@ -41,33 +41,29 @@ trait IoTypes {
   def create[Interface](ref:AllocateOnce, t:Interface)(
     implicit tag:TypeTag[Interface]) : Interface
 
-  def open(ref:DataAccess) : Any
-  def open(ref:DataRef) : Any = {
-    using (ref.openAccess)(open)
+  def apply(ref:DataAccess) : Any
+  def apply(ref:DataRef) : Any = {
+    apply(ref.access)
   }
 
-  def openAs[Interface](ref:DataAccess) =
-    open(ref).asInstanceOf[Interface]
+  def as[Interface](ref:DataAccess) =
+    apply(ref).asInstanceOf[Interface]
   def openAs[Interface](ref:DataRef) =
-    open(ref).asInstanceOf[Interface]
+    apply(ref).asInstanceOf[Interface]
 
   /** note: this returns and opened a data reference */
-  def openSave[Interface](ref:AllocateOnce, t:Interface)(
+  def save[Interface](ref:AllocateOnce, t:Interface)(
     implicit tag:TypeTag[Interface]): DataRef = {
     using (ref.create) { out =>
       write(out, t)
-      out.openDataRef
+      out.dataRef
     }
-  }
-  def save[Interface:TypeTag](ref:AllocateOnce, t:Interface)(
-    implicit bind:IoScope): DataRef = {
-    bind(openSave(ref, t))
   }
 
   def openSave(ref:AllocateOnce, t:Any, typ:Type) = {
     using (ref.create) { out =>
       write(out, t, typ)
-      out.openDataRef
+      out.dataRef
     }
   }
   def save(ref:AllocateOnce, t:Any, typ:Type)(
@@ -181,17 +177,17 @@ class IoTypesImpl(types:Seq[IoType[_, _]]) extends IoTypes {
   override def open(data : DataAccess) = {
 //    val (typ, id) = openerEntryOf[From]
     val id = data.getBeInt(0)
-    using (data.openView(4, data.size)) { view =>
-      types(id).open(view)
+    using (data.view(4, data.size)) { view =>
+      types(id).apply(view)
     }
   }
   override def create[From](ref:AllocateOnce, v:From)(implicit tag:TypeTag[From]) = {
     val (typ, id) = writerEntryOf[From]
-    using(
+    typ.open(
       using(ref.create) { out =>
         typ.write(out, v)
-        out.openDataRef
-      }) { typ.open }
+        out.dataRef
+      })
   }
   override def getIoTypeId(t:IoType[_, _]) = {
     Some(types.indexOf(t)).filter(_ >= 0)
@@ -210,8 +206,7 @@ object IoTypes {
       val strSeq = new StringIoSeqType
       val buf = new ArrayBuffer[IoType[_, _]]()
       val self = apply(buf)
-      implicit val io =
-        bind(new IoContext(self, bind(Ref.open(new RamAllocator()))))
+      implicit val io = bind(new IoSystem(self))
 
       val entryIo = new Serializer[(Int, String, Long)] {
         override def read(b: DataAccess, pos: Long): (Int, String, Long) = {

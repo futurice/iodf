@@ -46,7 +46,6 @@ trait TypeIoProvider extends IoWriterProvider with IoOpenerProvider {
 
 object TypeIoProvider {
   def apply(first:TypeIoProvider, second:TypeIoProvider) = {
-
   }
 }
 
@@ -54,14 +53,11 @@ object TypeIoProvider {
 trait IoWriter[T] extends IoWriterProvider {
   def write(out: DataOutput, iface: T): Unit
 
-  def openSave(alloc:AllocateOnce, iface:T) = {
+  def save(alloc:AllocateOnce, iface:T) = {
     using (alloc.create) { out =>
       write(out, iface)
-      out.openDataRef
+      out.dataRef
     }
-  }
-  def save(alloc:AllocateOnce, iface:T)(implicit bind:IoScope) = {
-    bind(openSave(alloc, iface))
   }
 
   def writingType : Type
@@ -83,15 +79,16 @@ trait IoWriter[T] extends IoWriterProvider {
 }
 
 trait IoOpener[T] extends IoOpenerProvider {
-  def open(ref:DataAccess) : T
+
+  def apply(ref:DataAccess) : T
 
   def open(dataRef: DataRef) : T = {
-    using (dataRef.openAccess)(open)
+    apply(dataRef.access)
   }
 
   def openingType : Type
 
-  def openRef(ref:DataRef) = new IoRef[T](this, ref)
+  def ref(ref:DataRef) = new IoRef[T](this, ref)
 
   def provideOpener(to:Type) : Option[IoOpener[_]] = {
     openingType <:< to match {
@@ -111,9 +108,7 @@ trait IoType[Interface, IoInstance <: Interface] extends IoWriter[Interface] wit
   def openingType = ioInstanceType
 
   def openCreated(ref:AllocateOnce, iface:Interface) : IoInstance = {
-    using (openSave(ref, iface)) { data =>
-      using (data.openAccess) { open }
-    }
+    open(save(ref, iface))
   }
 
 }
@@ -124,7 +119,7 @@ case class ValueIoType[T:TypeTag](i:RandomAccessReading[T],
 
   override def ioInstanceType: universe.Type = typeOf[T]
 
-  override def open(ref: DataAccess): T = i.read(ref, 0)
+  override def apply(ref: DataAccess): T = i.read(ref, 0)
 
   override def write(out: DataOutput, iface: T): Unit = o.write(out, iface)
 }
@@ -173,8 +168,8 @@ class SuperIoType[SuperIface : TypeTag, DerivedIface <: SuperIface, IoInstance <
   override def write(out: DataOutput, iface: SuperIface): Unit =
     derivedType.write(out, conversion(iface))
 
-  override def open(ref: DataAccess): IoInstance = {
-    derivedType.open(ref)
+  override def apply(ref: DataAccess): IoInstance = {
+    derivedType.apply(ref)
   }
 }
 

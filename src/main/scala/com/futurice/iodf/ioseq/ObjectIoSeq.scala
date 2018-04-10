@@ -87,7 +87,7 @@ class ObjectIoSeqType[T](i:RandomAccessReading[T], o:OutputWriting[T])(
     }
   }
 
-  override def open(buf: DataAccess) = {
+  override def apply(buf: DataAccess) = {
     new ObjectIoSeq[T](new IoRef(this, buf.dataRef), buf, i)
   }
 
@@ -115,20 +115,20 @@ class IoObjectIoSeqType[T](memberType:IoType[T, _ <: T], longSeqType:SeqIoType[L
     }
   }
 
-  override def open(buf: DataAccess) = {
+  override def apply(buf: DataAccess) = {
     new IoSeq[T] {
       val dir = new OrderDir(buf, longSeqType)
       override def apply(l: Long) = {
-        using(dir.openAccess(l.toInt)) {
-          memberType.open
+        using(dir.access(l.toInt)) {
+          memberType.apply
         }
       }
       override def lsize = dir.lsize
       override def close = {
         dir.close
       }
-     override def openRef = {
-       IoRef.open(IoObjectIoSeqType.this, buf.dataRef)
+     override def ref = {
+       IoRef(IoObjectIoSeqType.this, buf.dataRef)
      }
     }
   }
@@ -192,17 +192,9 @@ object ObjectIoSeqWriter {
   }
 }
 
-class ObjectIoSeq[T](_openRef:IoRef[ObjectIoSeq[T]],
-                     val _buf:DataAccess,
+class ObjectIoSeq[T](val ref:IoRef[ObjectIoSeq[T]],
+                     val buf:DataAccess,
                      val i:RandomAccessReading[T]) extends IoSeq[T] {
-
-  def openRef = _openRef.openCopy
-
-  override def close(): Unit = {
-    _openRef.close
-    buf.close
-  }
-  val buf = _buf.openCopy
 
   val indexPos = buf.getBeLong(buf.size - 8)
   val lsize = ((buf.size-8)-indexPos) / 8

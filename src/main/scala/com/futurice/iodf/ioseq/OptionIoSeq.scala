@@ -12,14 +12,12 @@ import scala.reflect.runtime.universe._
   */
 class OptionIoSeq[T](ref:IoRef[OptionIoSeq[T]], indexes:LSeq[Long], values:LSeq[T], override val lsize:Long)
   extends IoSeq[Option[T]] with OptionLSeq[T] {
-  override def openRef = ref.openCopy
 
   override def defined = LBits.from(indexes, lsize)
   override def definedStates = values
   override def definedStatesWithIndex = values zip indexes
 
   override def close = {
-    ref.close
     indexes.close
     values.close
   }
@@ -92,11 +90,11 @@ class OptionIoSeqType[T](valueSeqType:SeqIoType[T, LSeq[T], _ <: LSeq[T]],
     out.writeLong(valuesPos - begin)
   }
 
-  override def open(ref: DataAccess): OptionIoSeq[T] = scoped { implicit bind =>
+  override def apply(ref: DataAccess): OptionIoSeq[T] = scoped { implicit bind =>
     val size = ref.getBeLong(0)
     val seqPos = ref.getBeLong(ref.size - 8) // should be the last one in this buffer
-    val index = longSeqType.open(ref.view(8, seqPos))
-    val values = valueSeqType.open(ref.view(seqPos, ref.size-8))
+    val index = longSeqType.apply(ref.view(8, seqPos))
+    val values = valueSeqType.apply(ref.view(seqPos, ref.size-8))
 
     new OptionIoSeq[T](
       IoRef.open[OptionIoSeq[T]](

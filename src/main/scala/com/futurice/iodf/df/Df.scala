@@ -51,7 +51,7 @@ trait Df[RowType] extends Cols[String] with LSeq[RowType] {
   override def openView(from: Long, until: Long): Df[RowType] =
     new DfView[RowType](this, from, until)
 
-  override def openSelect(indexes: LSeq[Long]): Df[RowType] = {
+  override def select(indexes: LSeq[Long]): Df[RowType] = {
     val self = this
     new Df[RowType] {
       override type ColType[T] = LSeq[T]
@@ -60,7 +60,7 @@ trait Df[RowType] extends Cols[String] with LSeq[RowType] {
 
       override def apply(l: Long) = self.apply(indexes(l))
 
-      override def _cols = self._cols.lazyMap { e => e.openSelect(indexes) }
+      override def _cols = self._cols.lazyMap { e => e.select(indexes) }
 
       override def lsize = indexes.lsize
 

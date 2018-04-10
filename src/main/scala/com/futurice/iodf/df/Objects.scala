@@ -80,7 +80,7 @@ trait Objects[T] extends Df[T] with ObjectsApi[T] {
   override def size = lsize.toInt
   override def openView(from:Long, until:Long) =
     Objects(schema, df.openView(from, until))
-  override def openSelect(indexes:LSeq[Long]) =
+  override def select(indexes:LSeq[Long]) =
     Objects(schema, df.openSelect(indexes))
 }
 
@@ -197,8 +197,8 @@ object Objects {
 class ObjectsIoType[T : ClassTag:TypeTag](dfType:ColsIoType[String])(implicit io:IoContext) extends MergeableIoType[Objects[T], Objects[T]] {
   override def interfaceType: universe.Type = typeOf[Objects[T]]
   override def ioInstanceType: universe.Type = typeOf[Objects[T]]
-  override def open(data: DataAccess): Objects[T] = {
-    val df = dfType.open(data)
+  override def apply(data: DataAccess): Objects[T] = {
+    val df = dfType.apply(data)
     Objects[T](df)
   }
   override def write(out: DataOutput, df: Objects[T]): Unit = {

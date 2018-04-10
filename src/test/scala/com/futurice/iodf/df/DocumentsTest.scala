@@ -2,7 +2,7 @@ package com.futurice.iodf.df
 
 import java.io.File
 
-import com.futurice.iodf.{IoContext, TestUtil, scoped}
+import com.futurice.iodf.{IoContext, TestUtil, scoped, using}
 import com.futurice.iodf.store.MMapFile
 import com.futurice.iodf.df._
 import com.futurice.iodf.util.Tracing
@@ -31,9 +31,8 @@ class DocumentsTest extends TestSuite("df/documents") {
 
   test("documents") { t =>
     Tracing.trace {
-      scoped { implicit bind =>
+      using (IoContext.open) { implicit io =>
         val file = MMapFile(new File(t.fileDir, "myDf"))
-        implicit val io = IoContext()
 
         val df = Documents.from(items)
         t.tln

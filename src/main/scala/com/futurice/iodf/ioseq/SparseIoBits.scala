@@ -47,12 +47,12 @@ class SparseIoBitsType
       })
   }*/
 
-  override def open(data: DataAccess) = {
+  override def apply(data: DataAccess) = {
     val sz = data.getBeLong(0)
-    using (data.openView(8, data.size)) { view =>
+    using (data.view(8, data.size)) { view =>
       new SparseIoBits(
-        IoRef.open(this, data.dataRef),
-        longs.open(view).asInstanceOf[LongIoArray],
+        IoRef(this, data.dataRef),
+        longs.apply(view).asInstanceOf[LongIoArray],
         sz)
     }
   }
@@ -62,21 +62,15 @@ class SparseIoBitsType
 /**
   * Created by arau on 15.12.2016.
   */
-class SparseIoBits(val _openRef:IoRef[SparseIoBits],
+class SparseIoBits(val ref:IoRef[SparseIoBits],
                    val indexes:LongIoArray,
                    val lsize : Long) extends IoBits {
-  Tracing.opened(this)
 
-  override def openRef = _openRef.openCopy
   override def apply(l: Long): Boolean = {
     val e = Utils.binarySearch(indexes, l, 0, l+1)
     e._1 != -1
   }
-  override def close(): Unit = {
-    Tracing.closed(this)
-    _openRef.close
-    indexes.close
-  }
+  override def close(): Unit = {}
   override def f: Long = {
     indexes.lsize
   }

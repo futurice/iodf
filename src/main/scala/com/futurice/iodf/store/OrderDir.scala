@@ -60,16 +60,16 @@ class WrittenOrderDir(_out:DataOutput,
         out.flush
         ready = true
       }
-      override def openDataRef = {
+      override def dataRef = {
         out.flush()
-        using(out.openDataRef) { ref =>
+        using(out.dataRef) { ref =>
           ref.openView(begin, out.pos)
         }
       }
     }
   }
 
-  override def openAccess(i: Int): DataAccess = {
+  override def access(i: Int): DataAccess = {
     out.flush
     val end = (i, ready) match {
       case (i, true) if (i + 1 == this.pos.size) =>
@@ -81,7 +81,7 @@ class WrittenOrderDir(_out:DataOutput,
 
     val p = this.pos(i)
     val begin = p
-    using(out.openDataRef) { ref  =>
+    using(out.dataRef) { ref  =>
       using (ref.openView(begin, end)) { _.openAccess }
     }
   }
@@ -120,7 +120,7 @@ class OrderDir(_data:DataAccess,
     val posSeqPos = data.getBeLong(data.size-8)
     val rv =
       (posSeqPos,
-       bind(longSeqType.open(bind(data.openView(posSeqPos, data.size)))))
+       bind(longSeqType.apply(bind(data.view(posSeqPos, data.size)))))
     rv
   }
 
@@ -128,10 +128,10 @@ class OrderDir(_data:DataAccess,
 
   override def indexRef(i:Long)  = {
     new DataRef {
-      override def openAccess: DataAccess = openIndex(i)
+      override def openAccess: DataAccess = accessIndex(i)
       override def byteSize: Long = indexByteSize(i)
       override def openCopy: DataRef = this
-      override def openView(from: Long, until: Long): DataRef = new DataRefView(this, from, until)
+      override def view(from: Long, until: Long): DataRef = new DataRefView(this, from, until)
       override def close(): Unit = Unit
     }
   }
@@ -146,13 +146,13 @@ class OrderDir(_data:DataAccess,
   override def byteSize(ord: Int) = {
     indexByteSize(ord)
   }
-  override def openIndex(ord:Long): DataAccess = {
+  override def accessIndex(ord:Long): DataAccess = {
     val begin = posSeq(ord)
     val end = (if (ord + 1 == posSeq.lsize) dataSize else posSeq(ord + 1))
-    data.openView(begin, end)
+    data.view(begin, end)
   }
-  override def openAccess(ord:Int): DataAccess = {
-    openIndex(ord)
+  override def access(ord:Int): DataAccess = {
+    accessIndex(ord)
   }
   override def list = LSeq.from(0 until posSeq.size)
   def byteSize = data.size

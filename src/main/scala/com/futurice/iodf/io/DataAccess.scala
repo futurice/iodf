@@ -3,7 +3,7 @@ package com.futurice.iodf.io
 import java.io.OutputStream
 
 import com.futurice.iodf.IoScope
-import com.futurice.iodf.util.{Handle, Ref, Tracing}
+import com.futurice.iodf.util.{AutoClosed, Handle, Ref, Tracing}
 import org.slf4j.LoggerFactory
 import xerial.larray.buffer.{Memory, UnsafeUtil}
 
@@ -20,8 +20,8 @@ object DataAccess {
   * Some day, we could possibly abstract this, and provide access to some remote resources
   * using the same interface? (maybe by operating on pages)
   */
-class DataAccess(val _dataRef:DataRef,
-                 val _memRef:Ref[Memory],
+class DataAccess(val dataRef:DataRef,
+                 val ref:AutoClosed[Memory],
                  val from:Long = 0,
                  val until:Option[Long] = None)
   extends Handle {
@@ -29,14 +29,10 @@ class DataAccess(val _dataRef:DataRef,
   var isClosed = false
 
   val logger = LoggerFactory.getLogger(getClass)
-  val dataRef = _dataRef.openCopy
-  val ref = _memRef.openCopy
   Tracing.opened(this)
 
   override def close(): Unit = {
     isClosed = true
-    dataRef.close()
-    ref.close
     Tracing.closed(this)
   }
 
@@ -57,7 +53,7 @@ class DataAccess(val _dataRef:DataRef,
   }
 
   def safeGetMemoryByte(memory:Long) = {
-    if (ref.isClosed || isClosed) {
+    if (isClosed) {
       throw new RuntimeException("closed")
     }
     if (memory < address || memory >= address + size) {
@@ -81,9 +77,6 @@ class DataAccess(val _dataRef:DataRef,
     if (offset < 0 || offset + sz > size) {
       throw new RuntimeException(s"access range [$offset-${offset+sz}] is outside the data range [0, $size]")
     } else if (isClosed) {
-      Tracing.report(this)
-      throw new RuntimeException("this reference was to closed memory resource " + m.address)
-    } else if (ref.isClosed) {
       Tracing.report(this.ref)
       throw new RuntimeException("memory resource " + m.address + " is closed")
     }
@@ -185,8 +178,6 @@ class DataAccess(val _dataRef:DataRef,
       (getMemoryByte(m + 1) & 0xFF).toShort
   }
 
-  def openView(from:Long, until:Long) =
+  def view(from:Long, until:Long) =
     new DataAccess(dataRef, ref, this.from + from, Some(this.from + until))
-  def view(from:Long, until:Long)(implicit bind:IoScope)=
-    bind(openView(from, until))
 }

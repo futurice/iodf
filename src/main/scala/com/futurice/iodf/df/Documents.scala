@@ -42,7 +42,7 @@ trait Documents extends Df[Document] {
   override def size = lsize.toInt
   override def openView(from:Long, until:Long) =
     Documents(new ColsView[String](df, from, until))
-  override def openSelect(indexes:LSeq[Long]) =
+  override def select(indexes:LSeq[Long]) =
     Documents(df.openSelect(indexes))
 }
 
@@ -126,8 +126,8 @@ class DocumentsIoType(dfType:ColsIoType[String]) extends MergeableIoType[Documen
 
   override def ioInstanceType: universe.Type = typeOf[Documents]
 
-  override def open(ref: DataAccess): Documents = {
-    val df = dfType.open(ref)
+  override def apply(ref: DataAccess): Documents = {
+    val df = dfType.apply(ref)
     Documents(df)
   }
 

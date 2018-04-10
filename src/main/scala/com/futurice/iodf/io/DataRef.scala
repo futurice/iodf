@@ -1,7 +1,7 @@
 package com.futurice.iodf.io
 
 import com.futurice.iodf.{IoContext, IoScope}
-import com.futurice.iodf.util.{Handle, Ref}
+import com.futurice.iodf.util.{AutoClosed, Handle, Ref}
 import com.futurice.iodf._
 import xerial.larray.buffer.Memory
 
@@ -14,43 +14,31 @@ import xerial.larray.buffer.Memory
   *   We have to control the resource life cycles.
   *
   */
-trait DataRef extends Handle {
+trait DataRef {
 
-  def openAccess : DataAccess
+  def access : DataAccess
 
   def byteSize   : Long
-  def openCopy   : DataRef
 
-  def openView(from:Long, until:Long) : DataRef
+  def view(from:Long, until:Long) : DataRef
 
-  // Helper methods, should these be provided by implicit monads?
-
-  def access(implicit bind:IoScope) = bind(openAccess)
-  def openAs[T](implicit io:IoContext): T = {
-    io.openAs[T](this)
-  }
   def as[T](implicit io:IoContext, scope:IoScope): T = {
     io.as[T](this)
   }
 }
 
 object DataRef {
-  def open(memRef:Ref[Memory], from:Long = 0, sz:Option[Long] = None) : DataRef = {
+  def apply(memRef:AutoClosed[Memory], from:Long = 0, sz:Option[Long] = None) : DataRef = {
     new DataRef {
-      val ref = memRef.openCopy
       val f = from
-      override def openAccess: DataAccess =
-        using (new DataAccess(this, ref)) { ref =>
-          ref.openView(from, from + sz.getOrElse(ref.size - from))
-        }
-      def openCopy = DataRef.open(ref, from, sz)
+      override def access: DataAccess =
+        new DataAccess(this, memRef, from, sz.map(from + _))
+      def copy = DataRef(memRef, from, sz)
       override def byteSize: Long =
-        sz.getOrElse(ref.get.size())
+        sz.getOrElse(memRef.get.size())
 
-      override def openView(from: Long, until: Long): DataRef =
-        DataRef.open(ref, f + from, Some(until))
-
-      override def close(): Unit = ref.close
+      override def view(from: Long, until: Long): DataRef =
+        DataRef(memRef, f + from, Some(until))
     }
   }
 

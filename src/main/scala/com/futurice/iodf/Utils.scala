@@ -73,37 +73,30 @@ object IoScope {
   def open : IoScope = new IoScope()
 }
 
-class IoContext(val types:IoTypes, _allocator:Ref[Allocator]) extends Closeable {
+trait IoContext {
 
-  val allocatorRef = _allocator.openCopy
-  val allocator = allocatorRef.get
+  def allocator : Allocator
 
-  val autoClosing = AutoClosing()
+  def autoClosing : AutoClosing
 
-  lazy val bits =
-    types.ioTypeOf[LBits].asInstanceOf[BitsIoType]
+  def types : IoTypes
 
-  def openSave[T:TypeTag](ref:AllocateOnce, t:T) : DataRef =
-    types.openSave[T](ref, t)
+  def bits : BitsIoType
 
-  def save[T:TypeTag](ref:AllocateOnce, t:T)(implicit scope:IoScope) : DataRef =
+  def save[T:TypeTag](ref:AllocateOnce, t:T) : DataRef =
     types.save[T](ref, t)
 
-  def openAs[T](ref:DataRef) : T =
-    using (ref.openAccess) { data =>
-      types.openAs[T](ref)
+  def as[T](ref:DataRef) : T =
+    types.as[T](ref.access)
+
+  def withIoType(t:IoType[_, _]) : IoContext = {
+    val self = this
+    new IoContext {
+      override val allocator = self.allocator
+      override val autoClosing = self.autoClosing
+      override val bits = self.bits
+      override val types = self.types + t
     }
-
-  def as[T](ref:DataRef)(implicit bind:IoScope) : T =
-    bind(openAs[T](ref))
-
-  override def close(): Unit = {
-    autoClosing.close()
-    allocatorRef.close()
-  }
-
-  def withIoType(t:IoType[_, _])(implicit bind:IoScope) : IoContext = {
-    bind(new IoContext(types + t, allocatorRef))
   }
 
   def withType[T:TypeTag:ClassTag](implicit bind:IoScope) : IoContext = {
@@ -118,10 +111,29 @@ class IoContext(val types:IoTypes, _allocator:Ref[Allocator]) extends Closeable 
 
 }
 
+
+
+class IoSystem(val types:IoTypes) extends IoContext with Closeable {
+
+  val allocator = new RamAllocator()
+
+  val autoClosing = AutoClosing()
+
+  lazy val bits =
+    types.ioTypeOf[LBits].asInstanceOf[BitsIoType]
+
+  override def close(): Unit = {
+    autoClosing.close()
+    allocator.close()
+  }
+
+}
+
 object IoContext {
   def apply()(implicit bind:IoScope) = {
-    bind(new IoContext(IoTypes.default, bind(Ref.open(new RamAllocator()))))
+    bind(open)
   }
+  def open = new IoSystem(IoTypes.default)
 }
 
 /**

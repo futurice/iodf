@@ -84,7 +84,7 @@ object BitsIoType {
       override def interfaceType: universe.Type = tp.interfaceType
       override def ioInstanceType: universe.Type = tp.ioInstanceType
 
-      override def open(ref: DataAccess): WrappedIoBits = tp.open(ref)
+      override def apply(ref: DataAccess): WrappedIoBits = tp.apply(ref)
 
       override def defaultInstance(lsize: Long): Option[LSeq[Boolean]] =
         bitsType.defaultInstance(lsize)
@@ -100,7 +100,7 @@ object BitsIoType {
 
 class WrappedIoBits(val someRef:Option[IoRef[IoBits]],
                     val bits:LBits) extends IoBits {
-  def openRef = someRef.get.openCopy
+  def ref = someRef.get.openCopy
 
   def unwrap = bits
   override def close = {
@@ -234,21 +234,21 @@ class BitsIoType(val sparse:SparseIoBitsType,
 
   def wrap(data:Option[DataAccess], ioBits:LBits) = {
     new WrappedIoBits(
-      data.map( ref => IoRef.open(this, ref.dataRef)),
+      data.map( ref => IoRef(this, ref.dataRef)),
       ioBits)
   }
 
-  def open(data:DataAccess) = {
+  def apply(data:DataAccess) = {
     wrap(
       Some(data),
       data.getByte(0) match {
           case SparseId =>
-            using (data.openView(1, data.size)) {
-              sparse.open
+            using (data.view(1, data.size)) {
+              sparse.apply
             }
           case DenseId =>
-            using (data.openView(1, data.size)) {
-              dense.open
+            using (data.view(1, data.size)) {
+              dense.apply
            }
         })
   }
@@ -297,7 +297,7 @@ class BitsIoType(val sparse:SparseIoBitsType,
   def create(bits:BitStream)(implicit io: IoContext) : IoBits = {
     using (using( io.allocator.create ) { out =>
       write(out, bits)
-      out.openDataRef
+      out.dataRef
     }) { ref =>
       open(ref)
     }
@@ -306,7 +306,7 @@ class BitsIoType(val sparse:SparseIoBitsType,
   def create(bits:LBits)(implicit io: IoContext) : IoBits = {
     using (using( io.allocator.create ) { out =>
         write(out, bits)
-        out.openDataRef
+        out.dataRef
       }) { ref =>
       open(ref)
     }
@@ -410,14 +410,14 @@ class BitsIoType(val sparse:SparseIoBitsType,
   def createAnd(allocator: AllocateOnce, b1:LBits, b2:LBits) : IoBits = {
     val (typ, openRef) = using( allocator.create ) { output =>
       val t = writeAnd(output, b1, b2)
-      (t, output.openDataRef)
+      (t, output.dataRef)
     }
     using(openRef) { typ.open(_) }
   }
   def createOr(allocator: AllocateOnce, b1:LBits, b2:LBits) : IoBits = {
     val (typ, openRef) = using( allocator.create ) { output =>
       val t = writeOr(output, b1, b2)
-      (t, output.openDataRef)
+      (t, output.dataRef)
     }
     using(openRef) { typ.open(_) }
   }
@@ -484,7 +484,7 @@ class BitsIoType(val sparse:SparseIoBitsType,
   def createAndNot(file: AllocateOnce, b1:LBits, b2:LBits) : IoBits = {
     val (typ, openRef) = using( file.create ) { output =>
       val t = writeAndNot(output, b1, b2)
-      (t, output.openDataRef)
+      (t, output.dataRef)
     }
     using(openRef) { ref => typ.open(ref) }
   }
@@ -506,7 +506,7 @@ class BitsIoType(val sparse:SparseIoBitsType,
   def createNot(ref: AllocateOnce, b:LBits) : IoBits = {
     val (typ, openRef) = using( ref.create ) { out =>
       val t = writeNot(out, b)
-      (t, out.openDataRef)
+      (t, out.dataRef)
     }
     using(openRef) { typ.open(_) }
   }
@@ -527,7 +527,7 @@ class BitsIoType(val sparse:SparseIoBitsType,
     val openRes =
       using( ref.create ) { out =>
         writeMerged(out, bs)
-        out.openDataRef
+        out.dataRef
       }
     using(openRes) { open(_) }
   }

@@ -103,7 +103,7 @@ class TableTest extends TestSuite("df/table") {
         val df = bind(IndexedTable.from(schema, items, indexConf))
         t.tln
         t.tln("df.select result")
-        tDf(t, bind(df.openSelect(LSeq(2L, 0L))))
+        tDf(t, bind(df.select(LSeq(2L, 0L))))
         t.tln
         t.tln("df.indexDf.select result")
         tDf(t, bind(df.indexDf.openSelect(LSeq(2L, 0L))))

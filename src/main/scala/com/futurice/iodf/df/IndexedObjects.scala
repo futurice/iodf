@@ -35,10 +35,10 @@ class IndexedObjects[T](val wrapped:IndexedDf[T, Objects[T]])
         wrapped.df.openView(from, until),
         wrapped.indexDf.openView(from, until)))
 
-  override def openSelect(indexes:LSeq[Long]) : IndexedDf[T, Objects[T]] =
+  override def select(indexes:LSeq[Long]) : IndexedDf[T, Objects[T]] =
     new IndexedObjects[T](
       IndexedDf[T, Objects[T]](
-        wrapped.df.openSelect(indexes),
+        wrapped.df.select(indexes),
         wrapped.indexDf.openSelect(indexes)))
 
   override def openSelectSome(indexes: LSeq[Option[Long]]) = {
@@ -104,8 +104,8 @@ class IndexedObjectsIoType[T:TypeTag](
   override def interfaceType: universe.Type = typeOf[IndexedObjects[T]]
   override def ioInstanceType: universe.Type = typeOf[IndexedObjects[T]]
 
-  override def open(ref: DataAccess): IndexedObjects[T] =
-    IndexedObjects(indexedIoType.open(ref))
+  override def apply(ref: DataAccess): IndexedObjects[T] =
+    IndexedObjects(indexedIoType.apply(ref))
 
   override def write(out: DataOutput, iface: IndexedObjects[T]): Unit =
     indexedIoType.write(out, iface)

@@ -8,13 +8,10 @@ import com.futurice.iodf._
 class DataRefView(viewed:DataRef,
                   from:Long,
                   until:Long) extends DataRef {
-  val v        = viewed.openCopy
-  def close    = v.close
-  def openCopy     = new DataRefView(v, from, until)
-  def openAccess     =
-    using (v.openAccess) { _.openView(from, until) }
+  def openCopy     = new DataRefView(viewed, from, until)
+  def access     = viewed.access.view(from, until)
   def byteSize = until - from
-  def openView(from:Long, until:Long) = {
-    new DataRefView(v, this.from + from, this.from + until)
+  def view(from:Long, until:Long) = {
+    new DataRefView(viewed, this.from + from, this.from + until)
   }
 }

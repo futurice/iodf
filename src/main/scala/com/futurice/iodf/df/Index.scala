@@ -347,8 +347,8 @@ class IndexIoType[ColId:TypeTag:Ordering](val dfType:ColsIoType[(ColId, Any)])
   override def openViewMerged(seqs: Seq[Ref[Index[ColId]]]): Index[ColId] =
     Index[ColId](dfType.openViewMerged(seqs.map(_.map(_.df))))
 
-  override def open(ref: DataAccess): Index[ColId] =
-    Index[ColId](dfType.open(ref))
+  override def apply(ref: DataAccess): Index[ColId] =
+    Index[ColId](dfType.apply(ref))
 
   override def write(out: DataOutput, iface: Index[ColId]): Unit =
     dfType.write(out, iface.df)

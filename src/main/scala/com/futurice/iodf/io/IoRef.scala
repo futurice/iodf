@@ -7,18 +7,7 @@ import com.futurice.iodf._
 /**
   * Io reference refers to an io type
   */
-class IoRef[T](val typ:IoOpener[_ <: T], dataRef:DataRef) extends Handle {
-  val d = dataRef.openCopy
-  def open = using (d.openAccess)( typ.open )
-  def openCopy = new IoRef[T](typ, d)
-  def close: Unit = {
-    d.close()
-  }
+case class IoRef[T](val typ:IoOpener[_ <: T], dataRef:DataRef) {
+  def apply = typ.apply(dataRef.access)
 }
 
-object IoRef {
-  def open[T](typ:IoOpener[_ <: T], dataRef:DataRef) : IoRef[T] =
-    new IoRef[T](typ, dataRef)
-  def apply[T](typ:IoOpener[_ <: T], dataRef:DataRef)(implicit bind:IoScope) : IoRef[T] =
-    bind(open(typ, dataRef))
-}

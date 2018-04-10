@@ -187,7 +187,7 @@ class ObjectsTest extends TestSuite("df/objects") {
         t.t("opening dataframe..")
         val df2 =
           t.iMsLn {
-            bind(io.openAs[IndexedObjects[ExampleItem]](file))
+            bind(io.as[IndexedObjects[ExampleItem]](file))
           }
 
         tDf(t, df2.df)

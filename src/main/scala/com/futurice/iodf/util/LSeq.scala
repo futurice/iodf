@@ -92,14 +92,11 @@ trait LSeq[+T] extends Iterable[T] with PartialFunction[Long, T] with Closeable 
     }
   }
 
-  def openSelect(indexes:LSeq[Long]) = {
+  def select(indexes:LSeq[Long]) = {
     val self = this
     indexes.map { i : Long => self(i) }
   }
 
-  def select(indexes:LSeq[Long])(implicit bind:IoScope) = {
-    bind(openSelect(indexes))
-  }
 
   def openSelectSome(indexes:LSeq[Option[Long]]) = {
     val self = this

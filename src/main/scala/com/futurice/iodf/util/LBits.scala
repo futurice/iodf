@@ -39,11 +39,11 @@ object LCondBits {
 
       override def defined = _defined
 
-      override def definedStates = states.openSelect(LSeq.from(defined.trues.toArray))
+      override def definedStates = states.select(LSeq.from(defined.trues.toArray))
 
       override def definedStatesWithIndex: LSeq[(Boolean, Long)] = {
         val indexes = LSeq.from(defined.trues.toArray)
-        states.openSelect(indexes) zip indexes
+        states.select(indexes) zip indexes
       }
 
       override def states = _states
@@ -212,7 +212,7 @@ trait LBits extends LSeq[Boolean] {
   override def view(from:Long, until:Long) : LBits =
     new BitsView(this, from, until)
 
-  override def openSelect(indexes:LSeq[Long]) = {
+  override def select(indexes:LSeq[Long]) = {
     LBits.from(indexes.lazyMap(i => apply(i)))
   }
 

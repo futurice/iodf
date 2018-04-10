@@ -1,7 +1,7 @@
 package com.futurice.iodf.store
 
 import com.futurice.iodf.io.{DataOutput, DataOutputMixin, DataRef}
-import com.futurice.iodf.util.Ref
+import com.futurice.iodf.util.{AutoClosed, Ref}
 import com.futurice.iodf.Utils._
 import com.futurice.iodf._
 import xerial.larray.buffer.LBuffer
@@ -9,9 +9,9 @@ import xerial.larray.buffer.LBuffer
 /**
   * Created by arau on 5.7.2017.
   */
-class LBufferCreator extends DataOutput with DataOutputMixin {
+class LBufferCreator(implicit io:IoContext) extends DataOutput with DataOutputMixin {
   var pos = 0L
-  var ref : Option[Ref[LBuffer]] = None
+  var ref : Option[AutoClosed[LBuffer]] = None
   def buf = ref.get.get
 
   increaseBuffer(LBufferCreator.defaultBufferSize)
@@ -20,9 +20,9 @@ class LBufferCreator extends DataOutput with DataOutputMixin {
     val m = new LBuffer(size)
     ref.foreach { r =>
       r.get.copyTo(0, m, 0, pos)
-      r.close
+      // FIXME: could this buffer be closed right away?
     }
-    ref = Some(Ref.open[LBuffer](m, () => m.release()))
+    ref = Some(AutoClosed(m)(_.release()))
   }
 
   override def write(b: Int): Unit = {
@@ -41,15 +41,10 @@ class LBufferCreator extends DataOutput with DataOutputMixin {
     pos += len
   }
   override def close = {
-    ref.foreach { r =>
-      r.close
-    }
     ref = None
   }
-  override def openDataRef: DataRef = {
-    using (ref.get.openCopyMap(_.m)) { ref =>
-      DataRef.open(ref, 0, Some(pos))
-    }
+  override def dataRef: DataRef = {
+    DataRef(ref.get, 0, Some(pos))
   }
 }
 

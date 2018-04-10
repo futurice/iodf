@@ -46,11 +46,9 @@ trait ColSchema[ColId] extends LSeq[ColType[ColId]] {
   def indexOfColId(colId:ColId) = Utils.binarySearch(colIds, colId)(colIdOrdering)._1
 
   def openSelectCols(indexes:LSeq[Long]) = {
-    implicit val bind = IoScope.open
     ColSchema(colIds.select(indexes),
               colTypes.select(indexes),
-              colMetas.select(indexes),
-              bind)(colIdOrdering)
+              colMetas.select(indexes))(colIdOrdering)
   }
 
   def selectCols(indexes:LSeq[Long])(implicit bind:IoScope) = {
@@ -215,7 +213,7 @@ trait Cols[ColId] extends java.io.Closeable {
   def openSelect(indexes:LSeq[Long]) : Cols[ColId] = {
     Cols[ColId](
       schema,
-      _cols.lazyMap { _.openSelect(indexes) },
+      _cols.lazyMap { _.select(indexes) },
       indexes.lsize)
   }
   /* selects cols*/
@@ -317,7 +315,7 @@ class ColSchemaIoType[ColId:ClassTag:TypeTag:Ordering](implicit val io:IoContext
   override def interfaceType: universe.Type = typeOf[ColSchema[ColId]]
   override def ioInstanceType: universe.Type = typeOf[ColSchema[ColId]]
 
-  override def open(data: DataAccess): ColSchema[ColId] = {
+  override def apply(data: DataAccess): ColSchema[ColId] = {
     scoped { implicit resources =>
       val dir = OrderDir(data)
 
@@ -358,14 +356,14 @@ class ColIoType(implicit val io:IoContext)
   override def interfaceType: universe.Type = typeOf[LSeq[(Type, LSeq[Any])]]
   override def ioInstanceType: universe.Type = typeOf[LSeq[(Type, LSeq[Any])]]
 
-  override def open(data: DataAccess): LSeq[(Type, LSeq[Any])] = {
+  override def apply(data: DataAccess): LSeq[(Type, LSeq[Any])] = {
     val dir = OrderDir.open(data)
     new LSeq[(Type, LSeq[Any])] {
       override def apply(l: Long) : (Type, LSeq[Any]) = scoped { implicit bind =>
         val data = dir.ref(l.toInt).access
         val ioType = io.types.ioTypeOf(data).asInstanceOf[SeqIoType[_, _, _]]
         (ioType.valueType,
-         io.types.open(data).asInstanceOf[LSeq[Any]])
+         io.types(data).asInstanceOf[LSeq[Any]])
       }
       override def lsize = dir.lsize
       override def close = dir.close
@@ -467,7 +465,7 @@ class ColsIoType[ColId:ClassTag:TypeTag:Ordering](implicit val io:IoContext)
   override def interfaceType: universe.Type = typeOf[Cols[ColId]]
   override def ioInstanceType: universe.Type = typeOf[Cols[ColId]]
 
-  override def open(data: DataAccess): Cols[ColId] = {
+  override def apply(data: DataAccess): Cols[ColId] = {
     scoped { implicit resources =>
       val dir = OrderDir(data)
       Cols[ColId](

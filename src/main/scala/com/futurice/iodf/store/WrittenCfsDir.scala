@@ -60,16 +60,16 @@ class WrittenCfsDir[MyFileId](_out:DataOutput,
         out.flush
         ready = true
       }
-      override def openDataRef = {
+      override def dataRef = {
         out.flush()
-        using(out.openDataRef) { ref =>
+        using(out.dataRef) { ref =>
           ref.openView(begin, out.pos)
         }
       }
     }
   }
 
-  override def openAccess(id: MyFileId): DataAccess = {
+  override def access(id: MyFileId): DataAccess = {
     out.flush
     val i = ids.indexOf(id)
     if (i == -1) throw new IllegalArgumentException(id + " not found.")
@@ -84,7 +84,7 @@ class WrittenCfsDir[MyFileId](_out:DataOutput,
 
     val p = this.pos(i)
     val begin = p
-    using(out.openDataRef) { ref  =>
+    using(out.dataRef) { ref  =>
       using (ref.openView(begin, end)) { _.openAccess }
     }
   }
@@ -143,9 +143,9 @@ class CfsDir[FileId](_data:DataAccess,
     val posSeqPos = data.getBeLong(data.size-8)
     val rv =
        (idSeqPos,
-        bind(idSeqType.open  (bind(data.openView(idSeqPos,  ordSeqPos)))),
-        bind(longSeqType.open(bind(data.openView(ordSeqPos, posSeqPos)))),
-        bind(longSeqType.open(bind(data.openView(posSeqPos, data.size)))))
+        bind(idSeqType.apply  (bind(data.view(idSeqPos,  ordSeqPos)))),
+        bind(longSeqType.apply(bind(data.view(ordSeqPos, posSeqPos)))),
+        bind(longSeqType.apply(bind(data.view(posSeqPos, data.size)))))
     rv
   }
 
@@ -153,10 +153,10 @@ class CfsDir[FileId](_data:DataAccess,
 
   override def indexRef(i:Long)  = {
     new DataRef {
-      override def openAccess: DataAccess = openIndex(i)
+      override def openAccess: DataAccess = accessIndex(i)
       override def byteSize: Long = indexByteSize(i)
       override def openCopy: DataRef = this
-      override def openView(from: Long, until: Long): DataRef = new DataRefView(this, from, until)
+      override def view(from: Long, until: Long): DataRef = new DataRefView(this, from, until)
       override def close(): Unit = Unit
     }
   }
@@ -174,17 +174,17 @@ class CfsDir[FileId](_data:DataAccess,
         indexByteSize(i)
     }
   }
-  override def openIndex(i:Long): DataAccess = {
+  override def accessIndex(i:Long): DataAccess = {
     val ord = ordSeq(i)
     val begin = posSeq(ord)
     val end = (if (ord + 1 == idSeq.lsize) dataSize else posSeq(ord + 1))
-    data.openView(begin, end)
+    data.view(begin, end)
   }
-  override def openAccess(id:FileId): DataAccess = {
+  override def access(id:FileId): DataAccess = {
     Utils.binarySearch(idSeq, id)(idOrdering)._1 match {
       case -1 => throw new IllegalArgumentException(id + " not found")
       case i =>
-        openIndex(i)
+        accessIndex(i)
     }
   }
   override def list = idSeq

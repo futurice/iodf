@@ -27,11 +27,11 @@ class RamDir[FileId:Ordering](implicit t:ClassTag[FileId]) extends MutableDir[Fi
     val creator = allocator.create
     new DataOutput with DataOutputMixin{
       override def close = self.synchronized {
-        dir.put(id, creator.openDataRef).foreach { _.close()  }
+        dir.put(id, creator.dataRef)
         creator.close
       }
-      override def openDataRef: DataRef =
-        creator.openDataRef
+      override def dataRef: DataRef =
+        creator.dataRef
       override def write(b: Int): Unit =
         creator.write(b)
       override def write(b: Array[Byte], off: Int, len: Int): Unit = {
@@ -43,18 +43,16 @@ class RamDir[FileId:Ordering](implicit t:ClassTag[FileId]) extends MutableDir[Fi
   }
 
   override def delete(id:FileId) = RamDir.this.synchronized {
-    dir.remove(id).map { e => e.close; true }.getOrElse(false)
+    dir.remove(id).isDefined
   }
   override def rename(from:FileId, to:FileId) = RamDir.this.synchronized {
     dir.remove(from).map { e =>
-      dir.put(to, e).foreach { v =>
-        v.close()
-      }
+      dir.put(to, e)
       true
     }.getOrElse(false)
   }
-  override def openAccess(id: FileId): DataAccess = synchronized {
-    dir(id).openAccess
+  override def access(id: FileId): DataAccess = synchronized {
+    dir(id).access
   }
   override def list = synchronized {
     LSeq.from(dir.keySet.toArray.sorted)
@@ -62,11 +60,6 @@ class RamDir[FileId:Ordering](implicit t:ClassTag[FileId]) extends MutableDir[Fi
   def byteSize(id:FileId) : Long = dir(id).byteSize
   def byteSize : Long = dir.map(_._2.byteSize).sum
   override def close(): Unit = synchronized {
-//    logger.info("closing ram dir of " + (totalMemory / 1024) + "KB")
-
-    dir.foreach {
-      _._2.close()
-    }
     dir.clear()
   }
 
