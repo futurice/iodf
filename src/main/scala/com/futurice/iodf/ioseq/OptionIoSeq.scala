@@ -10,7 +10,7 @@ import scala.reflect.runtime.universe._
 /**
   * Created by arau on 12.7.2017.
   */
-class OptionIoSeq[T](ref:IoRef[OptionIoSeq[T]], indexes:LSeq[Long], values:LSeq[T], override val lsize:Long)
+class OptionIoSeq[T](val ref:IoRef[OptionIoSeq[T]], indexes:LSeq[Long], values:LSeq[T], override val lsize:Long)
   extends IoSeq[Option[T]] with OptionLSeq[T] {
 
   override def defined = LBits.from(indexes, lsize)
@@ -52,6 +52,7 @@ class OptionIoSeq[T](ref:IoRef[OptionIoSeq[T]], indexes:LSeq[Long], values:LSeq[
       }
     }
   }
+
 }
 
 object OptionIoSeqType {
